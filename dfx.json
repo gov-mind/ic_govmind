@@ -6,14 +6,20 @@
       "type": "rust"
     },
     "ic_govmind_frontend": {
-      "dependencies": [
-        "ic_govmind_backend"
-      ],
-      "source": [
-        "src/ic_govmind_frontend/dist"
-      ],
+      "dependencies": ["ic_govmind_backend"],
+      "source": ["src/ic_govmind_frontend/dist"],
       "type": "assets",
       "workspace": "ic_govmind_frontend"
+    },
+    "icrc1_ledger": {
+      "type": "custom",
+      "candid": "src/icrc1_ledger/icrc1-ledger.did",
+      "wasm": "src/icrc1_ledger/ic-icrc1-ledger.wasm.gz",
+      "metadata": [
+        {
+          "name": "candid:service"
+        }
+      ]
     }
   },
   "defaults": {

@@ -23,6 +23,12 @@ dfx canister --help
 
 ## Running the project locally
 
+Install the FE dependencies first if you haven't done it:
+
+```bash
+npm install
+```
+
 If you want to test your project locally, you can use the following commands:
 
 ```bash

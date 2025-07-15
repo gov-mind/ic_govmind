@@ -1,5 +1,5 @@
-use candid::Principal;
-use serde::{Deserialize, Serialize};
+use candid::{Deserialize, Principal};
+use serde::Serialize;
 use std::collections::HashMap;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

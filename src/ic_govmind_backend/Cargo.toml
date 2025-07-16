@@ -21,4 +21,10 @@ ciborium-io = { workspace = true }
 libsecp256k1 = { workspace = true }
 serde = { workspace = true }
 getrandom = { workspace = true, features = ["custom"] }
+hex = { workspace = true } 
+derive_more = { workspace = true } 
 ethers-core = { workspace = true }
+tiny-keccak = { workspace = true }
+bitcoin_hashes = { workspace = true }
+base58 = { workspace = true }
+bs58 = { workspace = true }

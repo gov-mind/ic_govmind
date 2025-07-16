@@ -6,13 +6,17 @@ resolver = "2"
 anyhow = { version = "1.0", default-features = false }
 bytes = "1"
 base64 = "0.22.1"
+base58 = "0.2.0"
+bs58 = "0.5.1"
 bincode = "1.3"
 candid = "0.10"
 ic-cdk = "0.18"
 ic-cdk-macros = "0.18.5"
 ciborium = "0.2.2"
 ciborium-io = "0.2.2"
+derive_more = "0.99.1"
 ethers-core = "2.0"
+bitcoin_hashes = "0.14.0"
 serde = { version = "1.0.198", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = { version = "1", features = ["preserve_order"] }

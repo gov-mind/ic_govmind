@@ -20,13 +20,73 @@ pub struct Proposal {
     pub status: ProposalStatus,
 }
 
+// Candid types for IC communication
 #[derive(CandidType, Deserialize, Clone, Debug)]
 pub struct ProposalAnalysis {
     pub summary: String,
     pub risk_assessment: String,
     pub recommendations: String,
     pub complexity_score: f64,
+    pub complexity_breakdown: ComplexityBreakdown,
     pub estimated_impact: String,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct ComplexityBreakdown {
+    pub technical_complexity: f64,    // 1-10: How technically challenging to implement
+    pub financial_complexity: f64,    // 1-10: How complex the financial aspects are
+    pub governance_complexity: f64,   // 1-10: How complex the governance/legal aspects are
+    pub timeline_complexity: f64,     // 1-10: How complex the timeline and coordination is
+    pub explanation: String,          // Why this complexity score was assigned
+    pub comparison: String,           // How it compares to typical DAO proposals
+}
+
+// Serde types for JSON parsing (from AI API)
+#[derive(SerdeDeserialize, Debug)]
+struct JsonProposalAnalysis {
+    pub summary: String,
+    pub risk_assessment: String,
+    pub recommendations: String,
+    pub complexity_score: f64,
+    pub complexity_breakdown: JsonComplexityBreakdown,
+    pub estimated_impact: String,
+}
+
+#[derive(SerdeDeserialize, Debug)]
+struct JsonComplexityBreakdown {
+    pub technical_complexity: f64,
+    pub financial_complexity: f64,
+    pub governance_complexity: f64,
+    pub timeline_complexity: f64,
+    pub explanation: String,
+    pub comparison: String,
+}
+
+// Conversion from JSON types to Candid types
+impl From<JsonProposalAnalysis> for ProposalAnalysis {
+    fn from(json: JsonProposalAnalysis) -> Self {
+        ProposalAnalysis {
+            summary: json.summary,
+            risk_assessment: json.risk_assessment,
+            recommendations: json.recommendations,
+            complexity_score: json.complexity_score,
+            complexity_breakdown: json.complexity_breakdown.into(),
+            estimated_impact: json.estimated_impact,
+        }
+    }
+}
+
+impl From<JsonComplexityBreakdown> for ComplexityBreakdown {
+    fn from(json: JsonComplexityBreakdown) -> Self {
+        ComplexityBreakdown {
+            technical_complexity: json.technical_complexity,
+            financial_complexity: json.financial_complexity,
+            governance_complexity: json.governance_complexity,
+            timeline_complexity: json.timeline_complexity,
+            explanation: json.explanation,
+            comparison: json.comparison,
+        }
+    }
 }
 
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -177,10 +237,36 @@ Proposal Title: {}
 Proposal Description: {}
 
 Please analyze from the following perspectives:
+
 1. Summary: Summarize the core content of the proposal in simple and understandable language
+
 2. Risk Assessment: Analyze the potential risks and challenges. Format as numbered points (1. First risk, 2. Second risk, etc.)
+
 3. Recommendations: Provide specific improvement suggestions or precautions. Format as numbered points (1. First recommendation, 2. Second recommendation, etc.)
-4. Complexity Score: Give a complexity score from 1-10 (1 being the simplest, 10 being the most complex)
+
+4. Complexity Analysis: Provide a comprehensive complexity assessment:
+   - Overall Complexity Score (1-10): Average of all complexity dimensions
+   - Technical Complexity (1-10): How technically challenging is implementation? Consider:
+     * Code changes required, smart contract complexity, integration challenges
+     * 1-3: Simple parameter changes, basic operations
+     * 4-6: Moderate development work, standard integrations  
+     * 7-10: Complex architecture changes, novel technical solutions
+   - Financial Complexity (1-10): How complex are the financial/economic aspects? Consider:
+     * Budget size, funding mechanisms, tokenomics changes
+     * 1-3: Simple budget allocations, standard payments
+     * 4-6: Multi-phase funding, moderate economic impact
+     * 7-10: Complex tokenomics, major economic restructuring
+   - Governance Complexity (1-10): How complex are the governance/legal aspects? Consider:
+     * Voting mechanisms, legal implications, regulatory considerations
+     * 1-3: Standard proposals within existing framework
+     * 4-6: Minor governance changes, moderate legal review needed
+     * 7-10: Major governance restructuring, complex legal implications
+   - Timeline Complexity (1-10): How complex is coordination and execution timeline? Consider:
+     * Dependencies, coordination requirements, milestone complexity
+     * 1-3: Single-step execution, minimal coordination
+     * 4-6: Multi-phase execution, moderate dependencies
+     * 7-10: Complex multi-stakeholder coordination, long-term execution
+
 5. Estimated Impact: Evaluate the potential impact of the proposal on the DAO
 
 Please return the result in JSON format without wrapping it in Markdown formatting:
@@ -188,7 +274,15 @@ Please return the result in JSON format without wrapping it in Markdown formatti
     "summary": "Summary of the proposal",
     "risk_assessment": "1. First risk point 2. Second risk point 3. Third risk point",
     "recommendations": "1. First recommendation 2. Second recommendation 3. Third recommendation",
-    "complexity_score": 5.0,
+    "complexity_score": 5.5,
+    "complexity_breakdown": {{
+        "technical_complexity": 6.0,
+        "financial_complexity": 4.0,
+        "governance_complexity": 7.0,
+        "timeline_complexity": 5.0,
+        "explanation": "This proposal has high governance complexity due to required policy changes, moderate technical requirements for implementation, manageable financial aspects, and standard timeline coordination needs.",
+        "comparison": "More complex than typical budget proposals (3-4/10) but less complex than major protocol upgrades (8-9/10). Similar complexity to governance framework updates."
+    }},
     "estimated_impact": "Estimated impact on the DAO"
 }}"#,
         proposal.title, proposal.description
@@ -260,12 +354,11 @@ Please return the result in JSON format without wrapping it in Markdown formatti
                         let json_content = extract_json_from_markdown(&choice.message.content);
                         ic_cdk::println!("extracted json_content: {:?}", json_content);
 
-                        if let Ok(analysis) =
-                            serde_json::from_str::<ProposalAnalysis>(&json_content)
-                        {
-                            ic_cdk::println!("analysis: {:?}", analysis);
+                        if let Ok(json_analysis) = serde_json::from_str::<JsonProposalAnalysis>(&json_content) {
+                            ic_cdk::println!("json_analysis: {:?}", json_analysis);
 
-                            // Store the analysis
+                            // Convert JSON to Candid format and store the analysis
+                            let analysis: ProposalAnalysis = json_analysis.into();
                             update_proposal_analysis(&proposal_id, analysis);
                             update_proposal_status(&proposal_id, ProposalStatus::Analyzed);
                             return;
@@ -336,12 +429,24 @@ fn generate_proposal_id() -> String {
 fn extract_json_from_markdown(content: &str) -> String {
     // Look for JSON content between ```json and ``` markers
     if let Some(start) = content.find("```json") {
-        if let Some(end) = content[start..].find("```") {
-            if end > 7 {
-                // "```json".len() = 7
-                let json_start = start + 7; // Skip "```json"
-                let json_end = start + end;
-                return content[json_start..json_end].trim().to_string();
+        let json_start = start + 7; // Skip "```json"
+        // Look for closing ``` after the opening ```json
+        if let Some(end_relative) = content[json_start..].find("```") {
+            let json_end = json_start + end_relative;
+            return content[json_start..json_end].trim().to_string();
+        }
+    }
+    
+    // Also try to handle cases with just ``` (without "json")
+    if let Some(start) = content.find("```") {
+        let json_start = start + 3; // Skip "```"
+        // Look for closing ``` after the opening ```
+        if let Some(end_relative) = content[json_start..].find("```") {
+            let json_end = json_start + end_relative;
+            let extracted = content[json_start..json_end].trim();
+            // Only return if it looks like JSON (starts with { or [)
+            if extracted.starts_with('{') || extracted.starts_with('[') {
+                return extracted.to_string();
             }
         }
     }

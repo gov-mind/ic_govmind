@@ -5,11 +5,21 @@ type ProposalStatus = variant {
     Failed;
 };
 
+type ComplexityBreakdown = record {
+    technical_complexity: float64;
+    financial_complexity: float64;
+    governance_complexity: float64;
+    timeline_complexity: float64;
+    explanation: text;
+    comparison: text;
+};
+
 type ProposalAnalysis = record {
     summary: text;
     risk_assessment: text;
     recommendations: text;
     complexity_score: float64;
+    complexity_breakdown: ComplexityBreakdown;
     estimated_impact: text;
 };
 

@@ -44,7 +44,7 @@ Once the job completes, your application will be available at `http://localhost:
 If you have made changes to your backend canister, you can generate a new candid interface with
 
 ```bash
-npm run generate
+dfx generate 
 ```
 
 at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.

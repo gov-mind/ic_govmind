@@ -5,8 +5,16 @@
       "package": "ic_govmind_backend",
       "type": "rust"
     },
+    "ai_proposal_analyzer": {
+      "candid": "src/ai_proposal_analyzer/ai_proposal_analyzer.did",
+      "package": "ai_proposal_analyzer",
+      "type": "rust"
+    },
     "ic_govmind_frontend": {
-      "dependencies": ["ic_govmind_backend"],
+      "dependencies": [
+        "ic_govmind_backend",
+        "ai_proposal_analyzer"
+      ],
       "source": ["src/ic_govmind_frontend/dist"],
       "type": "assets",
       "workspace": "ic_govmind_frontend"

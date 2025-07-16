@@ -32,7 +32,7 @@ pub struct State {
 impl Storable for State {
     const BOUND: Bound = Bound::Unbounded;
 
-    fn to_bytes(&self) -> Cow<[u8]> {
+    fn to_bytes(&self) -> Cow<'_, [u8]> {
         let mut buf = vec![];
         into_writer(self, &mut buf).expect("failed to encode State data");
         Cow::Owned(buf)
@@ -53,7 +53,7 @@ impl Storable for ProposalWrapper {
         Decode!(bytes.as_ref(), Self).unwrap()
     }
 
-    fn to_bytes(&self) -> std::borrow::Cow<[u8]> {
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
         std::borrow::Cow::Owned(Encode!(self).unwrap())
     }
 }

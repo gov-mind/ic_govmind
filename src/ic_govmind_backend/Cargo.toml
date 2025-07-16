@@ -12,4 +12,8 @@ crate-type = ["cdylib"]
 candid = { workspace = true }
 ic-cdk = { workspace = true }
 ic-cdk-timers = { workspace = true }
+ic-stable-structures = { workspace = true }
+ciborium = { workspace = true }
+ciborium-io = { workspace = true }
 serde = { workspace = true }
+getrandom = { workspace = true, features = ["custom"] }

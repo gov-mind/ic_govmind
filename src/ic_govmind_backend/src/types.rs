@@ -1,8 +1,8 @@
-use candid::{Deserialize, Principal};
+use candid::{CandidType, Deserialize, Principal};
 use serde::Serialize;
 use std::collections::HashMap;
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Dao {
     pub id: String,
     pub name: String,
@@ -17,7 +17,7 @@ pub struct Dao {
     pub created_at: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum ChainType {
     InternetComputer,
     Ethereum,
@@ -28,7 +28,7 @@ pub enum ChainType {
     Other(String),
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct BaseToken {
     pub name: String,   // e.g. "GovMind Token"
     pub symbol: String, // e.g. "GOV"
@@ -38,21 +38,21 @@ pub struct BaseToken {
     pub token_location: TokenLocation,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct TokenLocation {
     pub chain: ChainType,
     pub canister_id: Option<Principal>,   // for ICP
     pub contract_address: Option<String>, // for EVM chains
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionModel {
     pub initial_distribution: HashMap<String, u128>, // Initial allocation: address → token amount
     pub emission_rate: Option<u128>, // Optional: number of tokens emitted per period (e.g., per day/week)
     pub unlock_schedule: Option<Vec<(u64, u128)>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct DaoMember {
     pub user_id: String, // e.g. user DID
     pub icp_principal: Option<Principal>,
@@ -64,7 +64,7 @@ pub struct DaoMember {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum MemberRole {
     Founder,
     Council,
@@ -73,7 +73,7 @@ pub enum MemberRole {
     Observer,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct DaoAsset {
     pub chain: ChainType,
     pub symbol: String, // e.g. "ckBTC"
@@ -83,13 +83,13 @@ pub struct DaoAsset {
     pub external_address: Option<String>, // for ETH, Solana, etc.
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum AssetType {
     Fungible,
     NonFungible,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Proposal {
     pub id: u64,
     pub title: String,
@@ -102,7 +102,7 @@ pub struct Proposal {
     pub metadata: Option<HashMap<String, String>>,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum ProposalStatus {
     Draft,
     Active,
@@ -112,7 +112,7 @@ pub enum ProposalStatus {
     Expired,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Vote {
     pub voter_id: String, // DAO Member ID
     pub vote_choice: VoteChoice,
@@ -120,14 +120,14 @@ pub struct Vote {
     pub voted_at: u64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum VoteChoice {
     Yes,
     No,
     Abstain,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct GovernanceConfig {
     pub voting_period_secs: u64,
     pub quorum: u64,             // e.g. 20 => 20%
@@ -135,9 +135,25 @@ pub struct GovernanceConfig {
     pub vote_weight_type: VoteWeightType,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub enum VoteWeightType {
     OnePersonOneVote,
     TokenWeighted,
     ReputationWeighted,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, CandidType, Deserialize)]
+pub struct StatusRequest {
+    pub cycles: bool,
+    pub memory_size: bool,
+    pub heap_memory_size: bool,
+}
+
+#[allow(non_snake_case)]
+#[derive(Debug, CandidType)]
+pub struct StatusResponse {
+    pub cycles: Option<u64>,
+    pub memory_size: Option<u64>,
+    pub heap_memory_size: Option<u64>,
 }

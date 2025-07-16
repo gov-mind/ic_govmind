@@ -1,6 +1,8 @@
 pub mod types;
-
-#[ic_cdk::query]
-fn greet(name: String) -> String {
-    format!("Hello, {}!", name)
-}
+pub mod api_cycles;
+pub mod update_api;
+pub mod query_api;
+pub mod store;
+pub mod utils;
+pub mod guards;
+pub mod candid_file_generator;

@@ -1,3 +1,119 @@
+type AssetType = variant { Fungible; NonFungible };
+type BaseToken = record {
+  decimals : nat8;
+  name : text;
+  token_location : TokenLocation;
+  distribution_model : opt DistributionModel;
+  total_supply : nat;
+  symbol : text;
+};
+type ChainType = variant {
+  TON;
+  InternetComputer;
+  Ethereum;
+  Solana;
+  BNBChain;
+  Bitcoin;
+  Other : text;
+};
+type Dao = record {
+  id : text;
+  members : vec DaoMember;
+  name : text;
+  description : opt text;
+  created_at : nat64;
+  icon_url : opt text;
+  base_token : BaseToken;
+  chains : vec ChainType;
+  governance : GovernanceConfig;
+  proposals : vec Proposal;
+  treasury : vec DaoAsset;
+};
+type DaoAsset = record {
+  asset_type : AssetType;
+  chain : ChainType;
+  canister_id : opt principal;
+  external_address : opt text;
+  amount : nat;
+  symbol : text;
+};
+type DaoMember = record {
+  sol_address : opt text;
+  metadata : opt vec record { text; text };
+  role : MemberRole;
+  reputation : nat64;
+  user_id : text;
+  eth_address : opt text;
+  joined_at : nat64;
+  icp_principal : opt principal;
+};
+type DistributionModel = record {
+  initial_distribution : vec record { text; nat };
+  unlock_schedule : opt vec record { nat64; nat };
+  emission_rate : opt nat;
+};
+type GovernanceConfig = record {
+  vote_weight_type : VoteWeightType;
+  approval_threshold : nat64;
+  voting_period_secs : nat64;
+  quorum : nat64;
+};
+type MemberRole = variant { Founder; Voter; Contributor; Council; Observer };
+type Proposal = record {
+  id : nat64;
+  status : ProposalStatus;
+  title : text;
+  content : text;
+  votes : vec Vote;
+  metadata : opt vec record { text; text };
+  created_at : nat64;
+  proposer : text;
+  expires_at : nat64;
+};
+type ProposalStatus = variant {
+  Passed;
+  Active;
+  Draft;
+  Rejected;
+  Executed;
+  Expired;
+};
+type Result = variant { Ok; Err : text };
+type StatusRequest = record {
+  memory_size : bool;
+  cycles : bool;
+  heap_memory_size : bool;
+};
+type StatusResponse = record {
+  memory_size : opt nat64;
+  cycles : opt nat64;
+  heap_memory_size : opt nat64;
+};
+type TokenLocation = record {
+  chain : ChainType;
+  canister_id : opt principal;
+  contract_address : opt text;
+};
+type Vote = record {
+  weight : nat64;
+  vote_choice : VoteChoice;
+  voted_at : nat64;
+  voter_id : text;
+};
+type VoteChoice = variant { No; Yes; Abstain };
+type VoteWeightType = variant {
+  OnePersonOneVote;
+  TokenWeighted;
+  ReputationWeighted;
+};
+type WalletReceiveResult = record { accepted : nat64 };
 service : {
-    "greet": (text) -> (text) query;
+  __get_candid_interface_tmp_hack : () -> (text) query;
+  add_admin : (principal) -> (Result);
+  canister_get_status : (StatusRequest) -> (StatusResponse) query;
+  dao_info : () -> (opt Dao) query;
+  greet : (text) -> (text) query;
+  remove_admin : (principal) -> (Result);
+  wallet_balance : () -> (nat) query;
+  wallet_receive : () -> (WalletReceiveResult);
 }

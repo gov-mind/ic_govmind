@@ -1,5 +1,8 @@
 [workspace]
-members = ["src/ic_govmind_backend"]
+members = [
+    "src/ic_govmind_backend",
+    "src/ai_proposal_analyzer"
+]
 resolver = "2"
 
 [workspace.dependencies]

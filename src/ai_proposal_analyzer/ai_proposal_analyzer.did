@@ -1,0 +1,33 @@
+type ProposalStatus = variant {
+    Pending;
+    Analyzing;
+    Analyzed;
+    Failed;
+};
+
+type ProposalAnalysis = record {
+    summary: text;
+    risk_assessment: text;
+    recommendations: text;
+    complexity_score: float64;
+    estimated_impact: text;
+};
+
+type Proposal = record {
+    id: text;
+    title: text;
+    description: text;
+    submitted_by: principal;
+    submitted_at: nat64;
+    analysis: opt ProposalAnalysis;
+    status: ProposalStatus;
+};
+
+service : {
+    "submit_proposal": (text, text) -> (text);
+    "get_proposal": (text) -> (opt Proposal) query;
+    "get_all_proposals": () -> (vec Proposal) query;
+    "retry_proposal_analysis": (text) -> (variant { Ok: text; Err: text });
+    "set_api_key": (text) -> (variant { Ok: text; Err: text });
+    "transform": (record { response: record { status: nat; headers: vec record { name: text; value: text }; body: opt blob; upgrade: opt bool }; context: blob }) -> (record { status: nat; headers: vec record { name: text; value: text }; body: opt blob; upgrade: opt bool }) query;
+} 

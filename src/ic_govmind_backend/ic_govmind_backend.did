@@ -7,6 +7,10 @@ type BaseToken = record {
   total_supply : nat;
   symbol : text;
 };
+type CanisterArgs = variant {
+  Upgrade : StateUpgradeArgs;
+  Init : StateInitArgs;
+};
 type ChainType = variant {
   TON;
   InternetComputer;
@@ -58,6 +62,7 @@ type GovernanceConfig = record {
   voting_period_secs : nat64;
   quorum : nat64;
 };
+type KeyEnvironment = variant { Local; Production; Staging };
 type MemberRole = variant { Founder; Voter; Contributor; Council; Observer };
 type Proposal = record {
   id : nat64;
@@ -79,6 +84,13 @@ type ProposalStatus = variant {
   Expired;
 };
 type Result = variant { Ok; Err : text };
+type StateInitArgs = record {
+  env : KeyEnvironment;
+  root : principal;
+  org_info : opt Dao;
+  admins : vec principal;
+};
+type StateUpgradeArgs = record { root : opt principal };
 type StatusRequest = record {
   memory_size : bool;
   cycles : bool;
@@ -107,7 +119,7 @@ type VoteWeightType = variant {
   ReputationWeighted;
 };
 type WalletReceiveResult = record { accepted : nat64 };
-service : {
+service : (opt CanisterArgs) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   add_admin : (principal) -> (Result);
   canister_get_status : (StatusRequest) -> (StatusResponse) query;

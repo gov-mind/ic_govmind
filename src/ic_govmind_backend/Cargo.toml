@@ -21,3 +21,4 @@ ciborium-io = { workspace = true }
 libsecp256k1 = { workspace = true }
 serde = { workspace = true }
 getrandom = { workspace = true, features = ["custom"] }
+ethers-core = { workspace = true }

@@ -12,6 +12,7 @@ ic-cdk = "0.18"
 ic-cdk-macros = "0.18.5"
 ciborium = "0.2.2"
 ciborium-io = "0.2.2"
+ethers-core = "2.0"
 serde = { version = "1.0.198", features = ["derive"] }
 serde_bytes = "0.11"
 serde_json = { version = "1", features = ["preserve_order"] }

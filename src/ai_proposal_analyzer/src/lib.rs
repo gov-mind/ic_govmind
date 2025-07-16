@@ -293,7 +293,12 @@ fn get_proposal(proposal_id: String) -> Option<Proposal> {
 // Get all proposals
 #[query]
 fn get_all_proposals() -> Vec<Proposal> {
-    PROPOSALS.with(|proposals| proposals.borrow().values().cloned().collect())
+    PROPOSALS.with(|proposals| {
+        let mut proposals_vec: Vec<Proposal> = proposals.borrow().values().cloned().collect();
+        // Sort by submitted_at timestamp in descending order (newest first)
+        proposals_vec.sort_by(|a, b| b.submitted_at.cmp(&a.submitted_at));
+        proposals_vec
+    })
 }
 
 // Retry analysis for a failed proposal

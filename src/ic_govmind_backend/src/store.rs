@@ -1,4 +1,7 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
+use ic_management_canister_types::{
+    EcdsaKeyId, EcdsaPublicKeyResult, SchnorrKeyId, SchnorrPublicKeyResult,
+};
 use std::{cell::RefCell, collections::HashMap};
 
 use crate::types::{Dao, DaoAsset, DaoMember, Proposal};
@@ -13,11 +16,17 @@ use std::borrow::Cow;
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct State {
+    pub root: Option<Principal>,
     pub admins: Vec<Principal>,
     pub org_info: Option<Dao>,
     pub members: HashMap<String, DaoMember>, // user_id → DaoMember
     pub assets: HashMap<String, DaoAsset>,
     pub next_proposal_id: u64,
+    pub ecdsa_key: Option<EcdsaKeyId>,
+    pub schnorr_key: Option<SchnorrKeyId>,
+    pub derivation_path: Vec<Vec<u8>>,
+    pub ecdsa_public_key: Option<EcdsaPublicKeyResult>,
+    pub schnorr_public_key: Option<SchnorrPublicKeyResult>,
 }
 
 impl Storable for State {
@@ -131,5 +140,18 @@ pub mod state {
 
     pub fn get_dao_info() -> Option<Dao> {
         state::with(|r| r.org_info.clone())
+    }
+
+    pub fn get_ecdsa_key_id() -> EcdsaKeyId {
+        state::with(|r| r.ecdsa_key.as_ref().expect("ecdsa_key not set").to_owned())
+    }
+
+    pub fn get_schnorr_key_id() -> SchnorrKeyId {
+        state::with(|r| {
+            r.schnorr_key
+                .as_ref()
+                .expect("schnorr_key not set")
+                .to_owned()
+        })
     }
 }

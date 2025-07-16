@@ -466,6 +466,7 @@ dependencies = [
  "getrandom",
  "ic-cdk",
  "ic-cdk-timers",
+ "ic-management-canister-types",
  "ic-stable-structures",
  "serde",
 ]

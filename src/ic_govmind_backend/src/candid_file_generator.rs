@@ -1,5 +1,6 @@
 use crate::{
     api_cycles::WalletReceiveResult,
+    init::CanisterArgs,
     types::{Dao, StatusRequest, StatusResponse},
 };
 

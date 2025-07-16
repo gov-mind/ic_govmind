@@ -1,3 +1,6 @@
+use candid::Principal;
+use ic_ledger_types::{AccountIdentifier, Subaccount};
+
 #[cfg(target_arch = "wasm32")]
 const WASM_PAGE_SIZE: u64 = 64 * 1024;
 
@@ -48,4 +51,13 @@ pub fn current_time_secs() -> u64 {
 // signature verification does not require any randomness.
 pub fn always_fail(_buf: &mut [u8]) -> Result<(), getrandom::Error> {
     Err(getrandom::Error::UNSUPPORTED)
+}
+
+pub fn owner_wallet_pid() -> Principal {
+    ic_cdk::api::canister_self()
+}
+
+pub fn account_id(principal: Principal, subaccount: Option<Subaccount>) -> AccountIdentifier {
+    let subaccount = subaccount.unwrap_or_else(|| Subaccount([0; 32]));
+    AccountIdentifier::new(&principal, &subaccount)
 }

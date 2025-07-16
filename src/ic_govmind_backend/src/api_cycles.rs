@@ -13,12 +13,12 @@ pub fn wallet_balance() -> candid::Nat {
 
 #[update]
 pub fn wallet_receive() -> WalletReceiveResult {
-    let available = ic_cdk::api::call::msg_cycles_available();
+    let available = ic_cdk::api::msg_cycles_available();
 
     if available == 0 {
         return WalletReceiveResult { accepted: 0 };
     }
-    let accepted = ic_cdk::api::call::msg_cycles_accept(available);
+    let accepted = ic_cdk::api::msg_cycles_accept(available);
     assert!(accepted == available);
     WalletReceiveResult {
         accepted: accepted as u64,

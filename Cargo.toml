@@ -20,7 +20,7 @@ structured-logger = "1"
 ic-cdk-timers = "0.12.2"
 ic-stable-structures = "0.6.9"
 icrc-ledger-types = "0.1.10"
-ic-ledger-types = "0.13.0"
+ic-ledger-types = "0.15.0"
 ic-http-certification = { version = "2.5", features = ["serde"] }
 ic-certified-map = "0.4"
 ic-canister-log = "0.2.0"
@@ -31,6 +31,7 @@ sha2 = "0.10.2"
 tiny-keccak = { version = "2.0.2", features = ["sha3"] }
 hex-literal = "0.2.1"
 getrandom = { version = "0.2.14", features = ["custom"] }
+libsecp256k1 = { version = "0.7.1", features = ["lazy-static-context"] }
 ripemd = "0.1.1"
 slotmap = { version = "1.0.7", features = ["serde"] }
 num-traits = "0.2"

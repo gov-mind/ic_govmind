@@ -7,4 +7,5 @@ pub mod store;
 pub mod utils;
 pub mod guards;
 pub mod signer;
+pub mod wallet;
 pub mod candid_file_generator;

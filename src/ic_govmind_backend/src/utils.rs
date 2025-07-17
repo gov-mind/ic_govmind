@@ -103,7 +103,7 @@ pub async fn create_icrc1_canister(
     };
 
     ic_cdk::println!("new icrc1 canister: {}", canister);
-    //logo
+
     let metadata = vec![("icrc1:logo".to_string(), arg.logo)];
     let init_arg = ICRC1InitArgs::new(
         arg.token_symbol,

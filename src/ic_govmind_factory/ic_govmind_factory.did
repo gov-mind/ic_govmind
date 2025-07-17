@@ -1,0 +1,116 @@
+type AssetType = variant { Fungible; NonFungible };
+type BaseToken = record {
+  decimals : nat8;
+  name : text;
+  token_location : TokenLocation;
+  distribution_model : opt DistributionModel;
+  total_supply : nat;
+  symbol : text;
+};
+type CanisterArgs = variant {
+  Upgrade : StateUpgradeArgs;
+  Init : StateInitArgs;
+};
+type ChainType = variant {
+  TON;
+  InternetComputer;
+  Ethereum;
+  Solana;
+  BNBChain;
+  Bitcoin;
+  Other : text;
+};
+type Dao = record {
+  id : text;
+  members : vec DaoMember;
+  name : text;
+  description : opt text;
+  created_at : nat64;
+  icon_url : opt text;
+  base_token : BaseToken;
+  chains : vec ChainType;
+  governance : GovernanceConfig;
+  proposals : vec Proposal;
+  treasury : vec DaoAsset;
+};
+type DaoAsset = record {
+  asset_type : AssetType;
+  chain : ChainType;
+  canister_id : opt principal;
+  external_address : opt text;
+  amount : nat;
+  symbol : text;
+};
+type DaoMember = record {
+  sol_address : opt text;
+  metadata : opt vec record { text; text };
+  role : MemberRole;
+  reputation : nat64;
+  user_id : text;
+  eth_address : opt text;
+  joined_at : nat64;
+  icp_principal : opt principal;
+};
+type DistributionModel = record {
+  initial_distribution : vec record { text; nat };
+  unlock_schedule : opt vec record { nat64; nat };
+  emission_rate : opt nat;
+};
+type GovernanceConfig = record {
+  vote_weight_type : VoteWeightType;
+  approval_threshold : nat64;
+  voting_period_secs : nat64;
+  quorum : nat64;
+};
+type KeyEnvironment = variant { Local; Production; Staging };
+type MemberRole = variant { Founder; Voter; Contributor; Council; Observer };
+type Proposal = record {
+  id : nat64;
+  status : ProposalStatus;
+  title : text;
+  content : text;
+  votes : vec Vote;
+  metadata : opt vec record { text; text };
+  created_at : nat64;
+  proposer : text;
+  expires_at : nat64;
+};
+type ProposalStatus = variant {
+  Passed;
+  Active;
+  Draft;
+  Rejected;
+  Executed;
+  Expired;
+};
+type Result = variant { Ok : principal; Err : text };
+type Result_1 = variant { Ok; Err : text };
+type StateInitArgs = record {
+  env : KeyEnvironment;
+  root : principal;
+  org_info : opt Dao;
+  admins : vec principal;
+};
+type StateUpgradeArgs = record { root : opt principal };
+type TokenLocation = record {
+  chain : ChainType;
+  canister_id : opt principal;
+  contract_address : opt text;
+};
+type Vote = record {
+  weight : nat64;
+  vote_choice : VoteChoice;
+  voted_at : nat64;
+  voter_id : text;
+};
+type VoteChoice = variant { No; Yes; Abstain };
+type VoteWeightType = variant {
+  OnePersonOneVote;
+  TokenWeighted;
+  ReputationWeighted;
+};
+service : {
+  __get_candid_interface_tmp_hack : () -> (text) query;
+  create_dao_canister : (opt CanisterArgs) -> (Result);
+  upgrade_dao_canister : (principal, opt CanisterArgs) -> (Result_1);
+}

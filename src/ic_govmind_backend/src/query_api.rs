@@ -1,6 +1,7 @@
 use ic_cdk::query;
 
-use crate::{store::state, types::Dao};
+use crate::store::state;
+use ic_govmind_types::dao::Dao;
 
 #[query]
 fn greet(name: String) -> String {

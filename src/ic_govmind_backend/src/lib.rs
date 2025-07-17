@@ -9,3 +9,5 @@ pub mod guards;
 pub mod signer;
 pub mod wallet;
 pub mod candid_file_generator;
+
+ic_cdk::export_candid!();

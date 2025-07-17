@@ -4,9 +4,10 @@ use std::time::Duration;
 use crate::{
     signer::ecdsa::get_ecdsa_public_key_result,
     store::{self},
-    types::{Dao, EcdsaKeyIds, KeyEnvironment, SchnorrKeyIds},
+    types::{EcdsaKeyIds, KeyEnvironment, SchnorrKeyIds},
 };
 use ic_cdk::{init, post_upgrade, pre_upgrade};
+use ic_govmind_types::dao::Dao;
 
 #[derive(CandidType, Clone, Debug, Deserialize)]
 pub enum CanisterArgs {

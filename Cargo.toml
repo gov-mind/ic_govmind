@@ -1,7 +1,9 @@
 [workspace]
 members = [
+    "src/ic_govmind_types",
     "src/ic_govmind_backend",
-    "src/ai_proposal_analyzer"
+    "src/ic_govmind_factory",
+    "src/ai_proposal_analyzer",
 ]
 resolver = "2"
 

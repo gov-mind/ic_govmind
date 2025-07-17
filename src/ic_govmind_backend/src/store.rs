@@ -4,8 +4,8 @@ use ic_management_canister_types::{
 };
 use std::{cell::RefCell, collections::HashMap};
 
-use crate::types::{Dao, DaoAsset, DaoMember, Proposal};
 use ciborium::{from_reader, into_writer};
+use ic_govmind_types::dao::{Dao, DaoAsset, DaoMember, Proposal};
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     storable::Bound,

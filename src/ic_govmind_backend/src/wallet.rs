@@ -1,11 +1,11 @@
 use crate::{
     signer::signing,
-    types::ChainType,
     utils::{account_id, owner_wallet_pid},
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
 use candid::{CandidType, Deserialize};
+use ic_govmind_types::dao::ChainType;
 use ic_ledger_types::Subaccount;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
 use serde::Serialize;

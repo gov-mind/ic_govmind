@@ -22,7 +22,7 @@
     "icrc1_ledger": {
       "type": "custom",
       "candid": "src/icrc1_ledger/icrc1-ledger.did",
-      "wasm": "src/icrc1_ledger/ic-icrc1-ledger.wasm.gz",
+      "wasm": "src/icrc1_ledger/icrc1-ledger.wasm.gz",
       "metadata": [
         {
           "name": "candid:service"

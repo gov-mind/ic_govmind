@@ -1,6 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-
+import { 
+  FileText, 
+  Search, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  X, 
+  ChevronDown, 
+  ChevronUp,
+  Plus,
+  RefreshCw,
+  BarChart3,
+  Lightbulb,
+  TrendingUp,
+  Users,
+  Settings,
+  Shield,
+  Activity
+} from 'lucide-react';
 
 import { 
   useProposals, 
@@ -119,11 +137,11 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
               >
                 Cancel
               </button>
-              <button
-                type="submit"
-                disabled={submitProposalMutation.isLoading || isSubmitting || !proposalTitle.trim() || !proposalDescription.trim()}
-                className="flex-1 bg-gradient-to-r from-blue-600 to-indigo-600 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-indigo-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
-              >
+                              <button
+                  type="submit"
+                  disabled={submitProposalMutation.isLoading || isSubmitting || !proposalTitle.trim() || !proposalDescription.trim()}
+                  className="flex-1 bg-gradient-to-r from-blue-700 to-cyan-600 text-white py-3 px-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
+                >
                 {(submitProposalMutation.isLoading || isSubmitting) ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -256,27 +274,27 @@ function ProposalsPage() {
   };
 
   return (
-    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-blue-50 to-indigo-50">
+    <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50">
       {/* Header */}
       <header className="bg-white border-b border-slate-200 shadow-sm">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center space-x-4 hover:opacity-80 transition-opacity">
-              <div className="w-10 h-10 bg-gradient-to-r from-blue-600 to-indigo-600 rounded-xl flex items-center justify-center">
-                <span className="text-white font-bold text-lg">🏛️</span>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
+                <img src="/logo.png" alt="GovMind Logo" className="w-full h-full object-contain" />
               </div>
               <div>
-                <h1 className="text-xl font-bold text-slate-900">GovMind AI</h1>
-                <p className="text-sm text-slate-600">DAO Proposal Analysis Platform</p>
+                <h1 className="text-xl font-bold text-slate-900">GovMind</h1>
+                <p className="text-sm text-slate-600">AI Mind for DAO</p>
               </div>
             </Link>
             
             {/* New Proposal Button */}
             <button
               onClick={() => setIsModalOpen(true)}
-              className="bg-gradient-to-r from-blue-600 to-indigo-600 text-white px-6 py-2.5 rounded-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 font-medium shadow-sm flex items-center space-x-2"
+              className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-6 py-2.5 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-medium shadow-sm flex items-center space-x-2"
             >
-              <span className="text-lg">+</span>
+              <Plus className="w-5 h-5" />
               <span>New Proposal</span>
             </button>
           </div>
@@ -295,7 +313,7 @@ function ProposalsPage() {
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <span className="text-green-600 font-semibold">📋</span>
+                  <FileText className="text-green-600 font-semibold w-5 h-5" />
                 </div>
                 <h2 className="text-xl font-semibold text-slate-800">All Proposals</h2>
               </div>
@@ -320,16 +338,17 @@ function ProposalsPage() {
               ) : proposals.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">📋</span>
+                    <FileText className="text-slate-600 w-10 h-10" />
                   </div>
                   <p className="text-base font-medium mb-2">No proposals yet</p>
                   <p className="text-sm mb-4">Submit your first proposal to get started</p>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors text-sm font-medium"
-                  >
-                    Create First Proposal
-                  </button>
+                                      <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 text-sm font-medium flex items-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Create First Proposal</span>
+                    </button>
                 </div>
               ) : (
                 proposals.map((proposal) => (
@@ -339,13 +358,13 @@ function ProposalsPage() {
                     onClick={() => handleProposalSelect(proposal)}
                     className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md relative ${
                       selectedProposalId === proposal.id
-                        ? 'border-blue-500 bg-blue-50 shadow-lg ring-2 ring-blue-200 ring-opacity-50'
-                        : 'border-slate-200 hover:border-blue-300 hover:shadow-sm'
+                        ? 'border-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-lg ring-2 ring-blue-300 ring-opacity-50'
+                        : 'border-slate-200 hover:border-cyan-400 hover:shadow-sm'
                     }`}
                   >
                     {/* Connection indicator for selected proposal */}
                     {selectedProposalId === proposal.id && (
-                      <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full"></div>
+                      <div className="absolute -right-2 top-1/2 transform -translate-y-1/2 w-1 h-8 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
                     )}
                     <div className="flex items-center justify-between mb-3">
                       <span className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded-md">
@@ -366,9 +385,9 @@ function ProposalsPage() {
                             title="Retry analysis"
                           >
                             {isRetrying(proposal.id) ? (
-                              <div className="w-3 h-3 border border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
                             ) : (
-                              '🔄'
+                              <RefreshCw className="w-3 h-3" />
                             )}
                           </button>
                         )}
@@ -387,10 +406,10 @@ function ProposalsPage() {
 
           {/* Analysis Results - Right Column - Only show when proposal is selected AND panel is visible */}
           {selectedProposalId && showAnalysisPanel && (
-            <div className="bg-white rounded-2xl shadow-sm border border-blue-300 shadow-lg shadow-blue-100 ring-1 ring-blue-100 p-6 flex flex-col min-h-0 transition-all duration-500">
+            <div className="bg-white rounded-2xl shadow-sm border border-blue-400 shadow-lg shadow-blue-100 ring-1 ring-blue-200 p-6 flex flex-col min-h-0 transition-all duration-500">
               <div className="flex-shrink-0 mb-4">
-                <div className="flex items-center space-x-3 mb-3 bg-gradient-to-r from-blue-50 to-transparent p-4 -m-4 mb-2 rounded-xl">
-                  <div className="w-1 h-10 bg-gradient-to-b from-blue-400 to-blue-600 rounded-full"></div>
+                                  <div className="flex items-center space-x-3 mb-3 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 -m-4 mb-2 rounded-xl">
+                    <div className="w-1 h-10 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg font-semibold text-slate-800">Analysis Results</h2>
                     <p className="text-xs text-slate-500 truncate">#{selectedProposal?.id} • {selectedProposal?.title}</p>
@@ -411,7 +430,7 @@ function ProposalsPage() {
                     </button>
                     <button
                       onClick={() => setShowDescription(!showDescription)}
-                      className="flex-shrink-0 p-1 rounded-md hover:bg-blue-100 transition-colors text-slate-500 hover:text-slate-700"
+                      className="flex-shrink-0 p-1 rounded-md hover:bg-cyan-100 transition-colors text-slate-500 hover:text-slate-700"
                       title={showDescription ? "Hide description" : "Show description"}
                     >
                       <svg 
@@ -485,16 +504,16 @@ function ProposalsPage() {
                           </div>
                         </div>
                         
-                        <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
+                        <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
                           {/* Header with Toggle */}
                           <div className="flex items-center justify-between mb-4">
-                            <h4 className="font-semibold text-purple-800 flex items-center">
-                              <span className="mr-2 text-lg">📊</span> Complexity Analysis
-                            </h4>
-                            <button
-                              onClick={() => setShowComplexityBreakdown(!showComplexityBreakdown)}
-                              className="flex items-center space-x-2 text-sm text-purple-600 hover:text-purple-800 transition-colors"
-                            >
+                                                      <h4 className="font-semibold text-blue-800 flex items-center">
+                            <span className="mr-2 text-lg">📊</span> Complexity Analysis
+                          </h4>
+                          <button
+                            onClick={() => setShowComplexityBreakdown(!showComplexityBreakdown)}
+                            className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                          >
                               <span>{showComplexityBreakdown ? 'Hide Details' : 'Show Details'}</span>
                               <svg 
                                 className={`w-4 h-4 transition-transform duration-200 ${showComplexityBreakdown ? 'rotate-180' : ''}`} 
@@ -508,29 +527,29 @@ function ProposalsPage() {
                           </div>
                           
                           {/* Overall Complexity Score - Always Visible */}
-                          <div className="bg-white rounded-lg p-4 shadow-sm border border-purple-100 mb-4">
-                            <div className="flex items-center space-x-4">
-                              <div className="flex flex-col items-center">
-                                <span className="text-3xl font-bold text-purple-700">
-                                  {selectedProposal.analysis[0].complexity_score}
-                                </span>
-                                <span className="text-xs text-purple-500 font-medium">out of 10</span>
-                              </div>
-                              <div className="flex-1">
-                                <div className="flex items-center justify-between mb-2">
-                                  <span className="text-sm font-medium text-purple-700">Overall Complexity</span>
-                                  <span className="text-sm text-purple-600">
+                                                  <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100 mb-4">
+                          <div className="flex items-center space-x-4">
+                            <div className="flex flex-col items-center">
+                              <span className="text-3xl font-bold text-blue-700">
+                                {selectedProposal.analysis[0].complexity_score}
+                              </span>
+                              <span className="text-xs text-blue-500 font-medium">out of 10</span>
+                            </div>
+                            <div className="flex-1">
+                              <div className="flex items-center justify-between mb-2">
+                                <span className="text-sm font-medium text-blue-700">Overall Complexity</span>
+                                <span className="text-sm text-blue-600">
                                     {selectedProposal.analysis[0].complexity_score >= 8 ? 'Very Complex' :
                                      selectedProposal.analysis[0].complexity_score >= 6 ? 'Complex' :
                                      selectedProposal.analysis[0].complexity_score >= 4 ? 'Moderate' : 'Simple'}
                                   </span>
                                 </div>
-                                <div className="bg-purple-200 rounded-full h-3 overflow-hidden">
-                                  <div 
-                                    className="bg-gradient-to-r from-purple-500 to-purple-600 h-3 rounded-full transition-all duration-1000 shadow-sm"
-                                    style={{ width: `${(selectedProposal.analysis[0].complexity_score / 10) * 100}%` }}
-                                  ></div>
-                                </div>
+                                                              <div className="bg-blue-200 rounded-full h-3 overflow-hidden">
+                                <div 
+                                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000 shadow-sm"
+                                  style={{ width: `${(selectedProposal.analysis[0].complexity_score / 10) * 100}%` }}
+                                ></div>
+                              </div>
                               </div>
                             </div>
                           </div>
@@ -614,13 +633,13 @@ function ProposalsPage() {
                               <div className="space-y-3">
                                 {/* Complexity Explanation */}
                                 {selectedProposal.analysis[0].complexity_breakdown.explanation && (
-                                  <div className="bg-white rounded-lg p-4 border border-purple-100">
-                                    <div className="flex items-start space-x-3">
-                                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                        <span className="text-purple-600 text-xs">💡</span>
-                                      </div>
-                                      <div className="flex-1">
-                                        <h5 className="text-sm font-semibold text-purple-800 mb-2">Why this complexity?</h5>
+                                                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                  <div className="flex items-start space-x-3">
+                                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                      <span className="text-blue-600 text-xs">💡</span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <h5 className="text-sm font-semibold text-blue-800 mb-2">Why this complexity?</h5>
                                         <p className="text-sm text-slate-600 leading-relaxed">
                                           {selectedProposal.analysis[0].complexity_breakdown.explanation}
                                         </p>
@@ -631,13 +650,13 @@ function ProposalsPage() {
 
                                 {/* Complexity Comparison */}
                                 {selectedProposal.analysis[0].complexity_breakdown.comparison && (
-                                  <div className="bg-white rounded-lg p-4 border border-purple-100">
-                                    <div className="flex items-start space-x-3">
-                                      <div className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                        <span className="text-purple-600 text-xs">📊</span>
-                                      </div>
-                                      <div className="flex-1">
-                                        <h5 className="text-sm font-semibold text-purple-800 mb-2">Compared to other proposals</h5>
+                                                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                  <div className="flex items-start space-x-3">
+                                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                      <span className="text-purple-600 text-xs">📊</span>
+                                    </div>
+                                    <div className="flex-1">
+                                      <h5 className="text-sm font-semibold text-blue-800 mb-2">Compared to other proposals</h5>
                                         <p className="text-sm text-slate-600 leading-relaxed">
                                           {selectedProposal.analysis[0].complexity_breakdown.comparison}
                                         </p>
@@ -729,11 +748,11 @@ function ProposalsPage() {
 
       {/* Floating Action Button (Alternative to header button) */}
       {proposals.length > 0 && (
-        <button
-          onClick={() => setIsModalOpen(true)}
-          className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-600 to-indigo-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-blue-700 hover:to-indigo-700 transition-all duration-200 flex items-center justify-center z-40"
-          title="New Proposal"
-        >
+                      <button
+                onClick={() => setIsModalOpen(true)}
+                className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-700 to-cyan-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 flex items-center justify-center z-40"
+                title="New Proposal"
+              >
           <span className="text-2xl font-light">+</span>
         </button>
       )}

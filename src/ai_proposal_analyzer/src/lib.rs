@@ -1,9 +1,12 @@
 use candid::{CandidType, Deserialize, Principal};
-use ic_cdk::api::management_canister::http_request::{
-    http_request, CanisterHttpRequestArgument, HttpHeader, HttpMethod, HttpResponse, TransformArgs,
+use ic_cdk::management_canister::{
+    http_request, HttpRequestArgs, HttpHeader, HttpMethod, HttpRequestResult, TransformArgs,
     TransformContext, TransformFunc,
 };
+use ic_cdk::management_canister::{canister_status, CanisterStatusArgs};
 use ic_cdk::{query, update};
+use ic_cdk::api::{msg_caller};
+use ic_cdk::futures::spawn_017_compat;
 use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
 use std::cell::RefCell;
 use std::collections::HashMap;
@@ -137,24 +140,21 @@ thread_local! {
 
 // HTTP Transform function for DeepSeek API calls
 #[ic_cdk::query]
-fn transform(response: TransformArgs) -> HttpResponse {
+fn transform(response: TransformArgs) -> HttpRequestResult {
     response.response
 }
 
 // Set API key (only controller can call this)
 #[update]
 async fn set_api_key(api_key: String) -> Result<String, String> {
-    let caller = ic_cdk::caller();
+    let caller = msg_caller();
 
     // Check if caller is controller
-    let controllers = ic_cdk::api::management_canister::main::canister_status(
-        ic_cdk::api::management_canister::main::CanisterIdRecord {
-            canister_id: ic_cdk::id(),
-        },
+    let controllers = canister_status(
+        &CanisterStatusArgs  { canister_id: ic_cdk::api::canister_self(), },
     )
     .await
     .map_err(|e| format!("Failed to get canister status: {:?}", e))?
-    .0
     .settings
     .controllers;
 
@@ -181,7 +181,7 @@ fn get_deepseek_api_key() -> Result<String, String> {
 // Submit a new proposal
 #[update]
 async fn submit_proposal(title: String, description: String) -> String {
-    let caller = ic_cdk::caller();
+    let caller = msg_caller();
     let proposal_id = generate_proposal_id();
 
     let proposal = Proposal {
@@ -199,7 +199,7 @@ async fn submit_proposal(title: String, description: String) -> String {
     });
 
     // Start analysis in background
-    ic_cdk::spawn(analyze_proposal(proposal_id.clone()));
+    spawn_017_compat(analyze_proposal(proposal_id.clone()));
 
     proposal_id
 }
@@ -310,7 +310,7 @@ Please return the result in JSON format without wrapping it in Markdown formatti
     ic_cdk::println!("request_body: {:?}", request_body);
 
     // Prepare HTTP request
-    let request = CanisterHttpRequestArgument {
+    let request = HttpRequestArgs {
         url: "https://api.deepseek.com/chat/completions".to_string(),
         method: HttpMethod::POST,
         headers: vec![
@@ -326,7 +326,7 @@ Please return the result in JSON format without wrapping it in Markdown formatti
         body: Some(request_body.into_bytes()),
         transform: Some(TransformContext {
             function: TransformFunc(candid::Func {
-                principal: ic_cdk::id(),
+                principal: ic_cdk::api::canister_self(),
                 method: "transform".to_string(),
             }),
             context: vec![],
@@ -334,10 +334,14 @@ Please return the result in JSON format without wrapping it in Markdown formatti
         max_response_bytes: Some(10000),
     };
 
-    // Make HTTP request with sufficient cycles for mainnet
-    // 1B cycles = ~0.01 ICP, sufficient for most HTTP outcalls
-    match http_request(request, 1_000_000_000).await {
-        Ok((response,)) => {
+    match http_request(&request).await {
+        Ok(response) => {
+            if response.status != 200u32 {
+                ic_cdk::println!("HTTP request failed! Status: {:?}, Body: {:?}", response.status, response.body);
+                update_proposal_status(&proposal_id, ProposalStatus::Failed);
+                return;
+            }
+
             let response_body = response.body;
             if let Ok(response_text) = String::from_utf8(response_body) {
                 ic_cdk::println!("response_text: {:?}", response_text);
@@ -370,8 +374,8 @@ Please return the result in JSON format without wrapping it in Markdown formatti
             }
             update_proposal_status(&proposal_id, ProposalStatus::Failed);
         }
-        Err((code, message)) => {
-            ic_cdk::println!("HTTP request failed: code={:?}, message={}", code, message);
+        Err(e) => {
+            ic_cdk::println!("HTTP request failed: {:?}", e);
             update_proposal_status(&proposal_id, ProposalStatus::Failed);
         }
     }
@@ -410,7 +414,7 @@ async fn retry_proposal_analysis(proposal_id: String) -> Result<String, String> 
         ProposalStatus::Failed => {
             // Reset status to Pending and restart analysis
             update_proposal_status(&proposal_id, ProposalStatus::Pending);
-            ic_cdk::spawn(analyze_proposal(proposal_id.clone()));
+            spawn_017_compat(analyze_proposal(proposal_id.clone()));
             Ok("Analysis retry started successfully".to_string())
         }
         _ => Err("Can only retry failed proposals".to_string()),

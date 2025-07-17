@@ -1,13 +1,13 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-import { 
-  FileText, 
-  Search, 
-  AlertTriangle, 
-  CheckCircle, 
-  Clock, 
-  X, 
-  ChevronDown, 
+import {
+  FileText,
+  Search,
+  AlertTriangle,
+  CheckCircle,
+  Clock,
+  X,
+  ChevronDown,
   ChevronUp,
   Plus,
   RefreshCw,
@@ -17,13 +17,15 @@ import {
   Users,
   Settings,
   Shield,
-  Activity
+  Activity,
+  Edit3,
+  Hourglass
 } from 'lucide-react';
 
-import { 
-  useProposals, 
-  useProposal, 
-  useSubmitProposal, 
+import {
+  useProposals,
+  useProposal,
+  useSubmitProposal,
   useRetryAnalysis,
   getStatusString,
   getStatusBadgeClass,
@@ -47,18 +49,18 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
         title: proposalTitle,
         description: proposalDescription
       });
-      
+
       // Clear form and state, then close modal
       setProposalTitle('');
       setProposalDescription('');
       setIsSubmitting(false);
       onClose();
-      
+
       // Auto-select the newly submitted proposal
       if (onProposalSubmitted && proposalId) {
         onProposalSubmitted(proposalId);
       }
-      
+
     } catch (error) {
       console.error('Error submitting proposal:', error);
       setIsSubmitting(false);
@@ -82,7 +84,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
           <div className="flex items-center justify-between mb-6">
             <div className="flex items-center space-x-3">
               <div className="w-10 h-10 bg-blue-100 rounded-xl flex items-center justify-center">
-                <span className="text-blue-600 font-semibold text-xl">📝</span>
+                <Edit3 className="text-blue-600 font-semibold w-6 h-6" />
               </div>
               <h2 className="text-2xl font-bold text-slate-800">Submit New Proposal</h2>
             </div>
@@ -111,7 +113,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                 disabled={submitProposalMutation.isLoading || isSubmitting}
               />
             </div>
-            
+
             <div>
               <label htmlFor="proposalDescription" className="block text-sm font-semibold text-slate-700 mb-3">
                 Proposal Description
@@ -137,11 +139,11 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
               >
                 Cancel
               </button>
-                              <button
-                  type="submit"
-                  disabled={submitProposalMutation.isLoading || isSubmitting || !proposalTitle.trim() || !proposalDescription.trim()}
-                  className="flex-1 bg-gradient-to-r from-blue-700 to-cyan-600 text-white py-3 px-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
-                >
+              <button
+                type="submit"
+                disabled={submitProposalMutation.isLoading || isSubmitting || !proposalTitle.trim() || !proposalDescription.trim()}
+                className="flex-1 bg-gradient-to-r from-blue-700 to-cyan-600 text-white py-3 px-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
+              >
                 {(submitProposalMutation.isLoading || isSubmitting) ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
@@ -193,11 +195,11 @@ function ProposalsPage() {
   // Utility function to format numbered text into bullet points
   const formatBulletPoints = (text) => {
     if (!text) return text;
-    
+
     // Try to match numbered patterns and extract both number and content
     const numberedPattern = /(\d+)\.\s*([^0-9]*?)(?=\d+\.|$)/g;
     const matches = [...text.matchAll(numberedPattern)];
-    
+
     // If we found numbered items, format them as bullet points
     if (matches.length > 1) {
       return (
@@ -205,7 +207,7 @@ function ProposalsPage() {
           {matches.map((match, index) => {
             const content = match[2].trim();
             if (!content) return null;
-            
+
             return (
               <li key={index} className="flex items-start">
                 <span className="inline-flex items-center justify-center w-5 h-5 bg-white border-2 border-current rounded-full text-xs font-semibold mr-3 mt-0.5 flex-shrink-0">
@@ -218,12 +220,12 @@ function ProposalsPage() {
         </ul>
       );
     }
-    
+
     // Fallback: try to split by periods and numbers at start of sentences
     const sentences = text.split(/(?:\d+\.\s*)/g)
       .filter(sentence => sentence.trim().length > 5) // Filter out short fragments
       .map(sentence => sentence.trim());
-    
+
     if (sentences.length > 1) {
       return (
         <ul className="space-y-2 list-none">
@@ -238,7 +240,7 @@ function ProposalsPage() {
         </ul>
       );
     }
-    
+
     // If no pattern found, return original text
     return <div className="leading-relaxed">{text}</div>;
   };
@@ -253,7 +255,7 @@ function ProposalsPage() {
         element.classList.remove('animate-pulse');
       }, 200);
     }
-    
+
     setSelectedProposalId(proposal.id);
     setShowDescription(false); // Reset description visibility when switching proposals
     setShowAnalysisPanel(true); // Show analysis panel when a proposal is selected
@@ -288,7 +290,7 @@ function ProposalsPage() {
                 <p className="text-sm text-slate-600">AI Mind for DAO</p>
               </div>
             </Link>
-            
+
             {/* New Proposal Button */}
             <button
               onClick={() => setIsModalOpen(true)}
@@ -303,11 +305,10 @@ function ProposalsPage() {
 
       {/* Main Content - Dynamic Layout */}
       <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
-        <div className={`grid gap-6 h-[calc(100vh-12rem)] transition-all duration-500 ${
-          selectedProposalId && showAnalysisPanel 
-            ? 'grid-cols-1 lg:grid-cols-[35%_65%]' 
-            : 'grid-cols-1'
-        }`}>
+        <div className={`grid gap-6 h-[calc(100vh-12rem)] transition-all duration-500 ${selectedProposalId && showAnalysisPanel
+          ? 'grid-cols-1 lg:grid-cols-[35%_65%]'
+          : 'grid-cols-1'
+          }`}>
           {/* Proposals List - Left Column */}
           <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 flex flex-col min-h-0">
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
@@ -321,7 +322,7 @@ function ProposalsPage() {
                 {proposals.length} proposals
               </span>
             </div>
-            
+
             <div className="flex-1 overflow-y-auto pr-2 -mr-2 space-y-3 min-h-0">
               {proposalsLoading ? (
                 <div className="text-center py-12">
@@ -331,7 +332,7 @@ function ProposalsPage() {
               ) : proposalsError ? (
                 <div className="text-center py-12 text-red-500">
                   <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-2xl">❌</span>
+                    <X className="text-red-600 w-8 h-8" />
                   </div>
                   <p className="text-sm font-medium">Error loading proposals</p>
                 </div>
@@ -342,13 +343,13 @@ function ProposalsPage() {
                   </div>
                   <p className="text-base font-medium mb-2">No proposals yet</p>
                   <p className="text-sm mb-4">Submit your first proposal to get started</p>
-                                      <button
-                      onClick={() => setIsModalOpen(true)}
-                      className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 text-sm font-medium flex items-center space-x-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>Create First Proposal</span>
-                    </button>
+                  <button
+                    onClick={() => setIsModalOpen(true)}
+                    className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 text-sm font-medium flex items-center space-x-2 mx-auto"
+                  >
+                    <Plus className="w-4 h-4" />
+                    <span>Create First Proposal</span>
+                  </button>
                 </div>
               ) : (
                 proposals.map((proposal) => (
@@ -356,11 +357,10 @@ function ProposalsPage() {
                     key={proposal.id}
                     data-proposal-id={proposal.id}
                     onClick={() => handleProposalSelect(proposal)}
-                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md relative ${
-                      selectedProposalId === proposal.id
-                        ? 'border-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-lg ring-2 ring-blue-300 ring-opacity-50'
-                        : 'border-slate-200 hover:border-cyan-400 hover:shadow-sm'
-                    }`}
+                    className={`p-4 border-2 rounded-xl cursor-pointer transition-all duration-300 hover:shadow-md relative ${selectedProposalId === proposal.id
+                      ? 'border-blue-600 bg-gradient-to-r from-blue-50 to-cyan-50 shadow-lg ring-2 ring-blue-300 ring-opacity-50'
+                      : 'border-slate-200 hover:border-cyan-400 hover:shadow-sm'
+                      }`}
                   >
                     {/* Connection indicator for selected proposal */}
                     {selectedProposalId === proposal.id && (
@@ -408,8 +408,8 @@ function ProposalsPage() {
           {selectedProposalId && showAnalysisPanel && (
             <div className="bg-white rounded-2xl shadow-sm border border-blue-400 shadow-lg shadow-blue-100 ring-1 ring-blue-200 p-6 flex flex-col min-h-0 transition-all duration-500">
               <div className="flex-shrink-0 mb-4">
-                                  <div className="flex items-center space-x-3 mb-3 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 -m-4 mb-2 rounded-xl">
-                    <div className="w-1 h-10 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
+                <div className="flex items-center space-x-3 mb-3 bg-gradient-to-r from-blue-50 to-cyan-50 p-4 -m-4 mb-2 rounded-xl">
+                  <div className="w-1 h-10 bg-gradient-to-b from-blue-500 to-cyan-500 rounded-full"></div>
                   <div className="flex-1 min-w-0">
                     <h2 className="text-lg font-semibold text-slate-800">Analysis Results</h2>
                     <p className="text-xs text-slate-500 truncate">#{selectedProposal?.id} • {selectedProposal?.title}</p>
@@ -424,33 +424,28 @@ function ProposalsPage() {
                       className="flex-shrink-0 p-1.5 rounded-md hover:bg-red-100 transition-colors text-slate-400 hover:text-red-600"
                       title="Close Analysis Panel"
                     >
-                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                      </svg>
+                      <X className="w-4 h-4" />
                     </button>
                     <button
                       onClick={() => setShowDescription(!showDescription)}
                       className="flex-shrink-0 p-1 rounded-md hover:bg-cyan-100 transition-colors text-slate-500 hover:text-slate-700"
                       title={showDescription ? "Hide description" : "Show description"}
                     >
-                      <svg 
-                        className={`w-4 h-4 transition-transform duration-200 ${showDescription ? 'rotate-180' : ''}`} 
-                        fill="none" 
-                        stroke="currentColor" 
-                        viewBox="0 0 24 24"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
+                      {showDescription ? (
+                        <ChevronUp className="w-4 h-4 transition-transform duration-200" />
+                      ) : (
+                        <ChevronDown className="w-4 h-4 transition-transform duration-200" />
+                      )}
                     </button>
                   </div>
                 </div>
-                
+
                 {/* Expandable Description */}
                 {showDescription && selectedProposal && (
                   <div className="bg-slate-50 border border-slate-200 rounded-xl p-4 animate-in slide-in-from-top-2 duration-300">
                     <div className="flex items-start space-x-3">
                       <div className="w-6 h-6 bg-slate-200 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <span className="text-slate-600 text-xs font-semibold">📄</span>
+                        <FileText className="text-slate-600 text-xs font-semibold w-4 h-4" />
                       </div>
                       <div className="flex-1 min-w-0">
                         <h4 className="text-sm font-semibold text-slate-800 mb-2">Proposal Description</h4>
@@ -465,7 +460,7 @@ function ProposalsPage() {
                   </div>
                 )}
               </div>
-              
+
               <div className="flex-1 overflow-y-auto pr-2 -mr-2 min-h-0">
                 {proposalLoading ? (
                   <div className="bg-slate-50 rounded-xl p-12 text-center h-full flex items-center justify-center">
@@ -481,75 +476,72 @@ function ProposalsPage() {
                       <div className="space-y-4">
                         <div className="bg-blue-50 border border-blue-200 rounded-xl p-4 hover:shadow-md hover:bg-blue-100 transition-all duration-200">
                           <h4 className="font-semibold text-blue-800 mb-2 flex items-center">
-                            <span className="mr-2 text-lg">📖</span> Summary
+                            <FileText className="mr-2 text-lg w-5 h-5" /> Summary
                           </h4>
                           <p className="text-sm text-blue-700 leading-relaxed">{selectedProposal.analysis[0].summary || 'No summary available'}</p>
                         </div>
-                        
+
                         <div className="bg-amber-50 border border-amber-200 rounded-xl p-4 hover:shadow-md hover:bg-amber-100 transition-all duration-200">
                           <h4 className="font-semibold text-amber-800 mb-3 flex items-center">
-                            <span className="mr-2 text-lg">⚠️</span> Risk Assessment
+                            <AlertTriangle className="mr-2 text-lg w-5 h-5" /> Risk Assessment
                           </h4>
                           <div className="text-sm text-amber-700">
                             {formatBulletPoints(selectedProposal.analysis[0].risk_assessment)}
                           </div>
                         </div>
-                        
+
                         <div className="bg-emerald-50 border border-emerald-200 rounded-xl p-4 hover:shadow-md hover:bg-emerald-100 transition-all duration-200">
                           <h4 className="font-semibold text-emerald-800 mb-3 flex items-center">
-                            <span className="mr-2 text-lg">💡</span> Recommendations
+                            <Lightbulb className="mr-2 text-lg w-5 h-5" /> Recommendations
                           </h4>
                           <div className="text-sm text-emerald-700">
                             {formatBulletPoints(selectedProposal.analysis[0].recommendations)}
                           </div>
                         </div>
-                        
+
                         <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-5 hover:shadow-lg transition-all duration-300">
                           {/* Header with Toggle */}
                           <div className="flex items-center justify-between mb-4">
-                                                      <h4 className="font-semibold text-blue-800 flex items-center">
-                            <span className="mr-2 text-lg">📊</span> Complexity Analysis
-                          </h4>
-                          <button
-                            onClick={() => setShowComplexityBreakdown(!showComplexityBreakdown)}
-                            className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
-                          >
+                            <h4 className="font-semibold text-blue-800 flex items-center">
+                              <BarChart3 className="mr-2 text-lg w-5 h-5" /> Complexity Analysis
+                            </h4>
+                            <button
+                              onClick={() => setShowComplexityBreakdown(!showComplexityBreakdown)}
+                              className="flex items-center space-x-2 text-sm text-blue-600 hover:text-blue-800 transition-colors"
+                            >
                               <span>{showComplexityBreakdown ? 'Hide Details' : 'Show Details'}</span>
-                              <svg 
-                                className={`w-4 h-4 transition-transform duration-200 ${showComplexityBreakdown ? 'rotate-180' : ''}`} 
-                                fill="none" 
-                                stroke="currentColor" 
-                                viewBox="0 0 24 24"
-                              >
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                              </svg>
+                              {showComplexityBreakdown ? (
+                                <ChevronUp className="w-4 h-4 transition-transform duration-200" />
+                              ) : (
+                                <ChevronDown className="w-4 h-4 transition-transform duration-200" />
+                              )}
                             </button>
                           </div>
-                          
+
                           {/* Overall Complexity Score - Always Visible */}
-                                                  <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100 mb-4">
-                          <div className="flex items-center space-x-4">
-                            <div className="flex flex-col items-center">
-                              <span className="text-3xl font-bold text-blue-700">
-                                {selectedProposal.analysis[0].complexity_score}
-                              </span>
-                              <span className="text-xs text-blue-500 font-medium">out of 10</span>
-                            </div>
-                            <div className="flex-1">
-                              <div className="flex items-center justify-between mb-2">
-                                <span className="text-sm font-medium text-blue-700">Overall Complexity</span>
-                                <span className="text-sm text-blue-600">
+                          <div className="bg-white rounded-lg p-4 shadow-sm border border-blue-100 mb-4">
+                            <div className="flex items-center space-x-4">
+                              <div className="flex flex-col items-center">
+                                <span className="text-3xl font-bold text-blue-700">
+                                  {selectedProposal.analysis[0].complexity_score}
+                                </span>
+                                <span className="text-xs text-blue-500 font-medium">out of 10</span>
+                              </div>
+                              <div className="flex-1">
+                                <div className="flex items-center justify-between mb-2">
+                                  <span className="text-sm font-medium text-blue-700">Overall Complexity</span>
+                                  <span className="text-sm text-blue-600">
                                     {selectedProposal.analysis[0].complexity_score >= 8 ? 'Very Complex' :
-                                     selectedProposal.analysis[0].complexity_score >= 6 ? 'Complex' :
-                                     selectedProposal.analysis[0].complexity_score >= 4 ? 'Moderate' : 'Simple'}
+                                      selectedProposal.analysis[0].complexity_score >= 6 ? 'Complex' :
+                                        selectedProposal.analysis[0].complexity_score >= 4 ? 'Moderate' : 'Simple'}
                                   </span>
                                 </div>
-                                                              <div className="bg-blue-200 rounded-full h-3 overflow-hidden">
-                                <div 
-                                  className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000 shadow-sm"
-                                  style={{ width: `${(selectedProposal.analysis[0].complexity_score / 10) * 100}%` }}
-                                ></div>
-                              </div>
+                                <div className="bg-blue-200 rounded-full h-3 overflow-hidden">
+                                  <div
+                                    className="bg-gradient-to-r from-blue-500 to-cyan-500 h-3 rounded-full transition-all duration-1000 shadow-sm"
+                                    style={{ width: `${(selectedProposal.analysis[0].complexity_score / 10) * 100}%` }}
+                                  ></div>
+                                </div>
                               </div>
                             </div>
                           </div>
@@ -557,20 +549,20 @@ function ProposalsPage() {
                           {/* Detailed Breakdown - Collapsible */}
                           {showComplexityBreakdown && selectedProposal.analysis[0].complexity_breakdown && (
                             <div className="space-y-4 animate-in slide-in-from-top-2 duration-300">
-                              
+
                               {/* Complexity Dimensions Grid */}
                               <div className="grid grid-cols-2 gap-3">
                                 {/* Technical Complexity */}
                                 <div className="bg-white rounded-lg p-3 border border-blue-100">
                                   <div className="flex items-center space-x-2 mb-2">
-                                    <span className="text-blue-600">🔧</span>
+                                    <Settings className="text-blue-600 w-4 h-4" />
                                     <span className="text-sm font-medium text-slate-700">Technical</span>
                                     <span className="text-sm font-bold text-blue-600 ml-auto">
                                       {selectedProposal.analysis[0].complexity_breakdown.technical_complexity}/10
                                     </span>
                                   </div>
                                   <div className="bg-blue-100 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-blue-500 h-2 rounded-full transition-all duration-1000"
                                       style={{ width: `${(selectedProposal.analysis[0].complexity_breakdown.technical_complexity / 10) * 100}%` }}
                                     ></div>
@@ -580,14 +572,14 @@ function ProposalsPage() {
                                 {/* Financial Complexity */}
                                 <div className="bg-white rounded-lg p-3 border border-green-100">
                                   <div className="flex items-center space-x-2 mb-2">
-                                    <span className="text-green-600">💰</span>
+                                    <TrendingUp className="text-green-600 w-4 h-4" />
                                     <span className="text-sm font-medium text-slate-700">Financial</span>
                                     <span className="text-sm font-bold text-green-600 ml-auto">
                                       {selectedProposal.analysis[0].complexity_breakdown.financial_complexity}/10
                                     </span>
                                   </div>
                                   <div className="bg-green-100 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-green-500 h-2 rounded-full transition-all duration-1000"
                                       style={{ width: `${(selectedProposal.analysis[0].complexity_breakdown.financial_complexity / 10) * 100}%` }}
                                     ></div>
@@ -597,14 +589,14 @@ function ProposalsPage() {
                                 {/* Governance Complexity */}
                                 <div className="bg-white rounded-lg p-3 border border-orange-100">
                                   <div className="flex items-center space-x-2 mb-2">
-                                    <span className="text-orange-600">🏛️</span>
+                                    <Users className="text-orange-600 w-4 h-4" />
                                     <span className="text-sm font-medium text-slate-700">Governance</span>
                                     <span className="text-sm font-bold text-orange-600 ml-auto">
                                       {selectedProposal.analysis[0].complexity_breakdown.governance_complexity}/10
                                     </span>
                                   </div>
                                   <div className="bg-orange-100 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-orange-500 h-2 rounded-full transition-all duration-1000"
                                       style={{ width: `${(selectedProposal.analysis[0].complexity_breakdown.governance_complexity / 10) * 100}%` }}
                                     ></div>
@@ -614,14 +606,14 @@ function ProposalsPage() {
                                 {/* Timeline Complexity */}
                                 <div className="bg-white rounded-lg p-3 border border-red-100">
                                   <div className="flex items-center space-x-2 mb-2">
-                                    <span className="text-red-600">⏱️</span>
+                                    <Clock className="text-red-600 w-4 h-4" />
                                     <span className="text-sm font-medium text-slate-700">Timeline</span>
                                     <span className="text-sm font-bold text-red-600 ml-auto">
                                       {selectedProposal.analysis[0].complexity_breakdown.timeline_complexity}/10
                                     </span>
                                   </div>
                                   <div className="bg-red-100 rounded-full h-2">
-                                    <div 
+                                    <div
                                       className="bg-red-500 h-2 rounded-full transition-all duration-1000"
                                       style={{ width: `${(selectedProposal.analysis[0].complexity_breakdown.timeline_complexity / 10) * 100}%` }}
                                     ></div>
@@ -633,13 +625,13 @@ function ProposalsPage() {
                               <div className="space-y-3">
                                 {/* Complexity Explanation */}
                                 {selectedProposal.analysis[0].complexity_breakdown.explanation && (
-                                                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
-                                  <div className="flex items-start space-x-3">
-                                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                      <span className="text-blue-600 text-xs">💡</span>
-                                    </div>
-                                    <div className="flex-1">
-                                      <h5 className="text-sm font-semibold text-blue-800 mb-2">Why this complexity?</h5>
+                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                    <div className="flex items-start space-x-3">
+                                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <Lightbulb className="text-blue-600 text-xs w-4 h-4" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h5 className="text-sm font-semibold text-blue-800 mb-2">Why this complexity?</h5>
                                         <p className="text-sm text-slate-600 leading-relaxed">
                                           {selectedProposal.analysis[0].complexity_breakdown.explanation}
                                         </p>
@@ -650,13 +642,13 @@ function ProposalsPage() {
 
                                 {/* Complexity Comparison */}
                                 {selectedProposal.analysis[0].complexity_breakdown.comparison && (
-                                                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
-                                  <div className="flex items-start space-x-3">
-                                    <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                                      <span className="text-purple-600 text-xs">📊</span>
-                                    </div>
-                                    <div className="flex-1">
-                                      <h5 className="text-sm font-semibold text-blue-800 mb-2">Compared to other proposals</h5>
+                                  <div className="bg-white rounded-lg p-4 border border-blue-100">
+                                    <div className="flex items-start space-x-3">
+                                      <div className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
+                                        <BarChart3 className="text-blue-600 text-xs w-4 h-4" />
+                                      </div>
+                                      <div className="flex-1">
+                                        <h5 className="text-sm font-semibold text-blue-800 mb-2">Compared to other proposals</h5>
                                         <p className="text-sm text-slate-600 leading-relaxed">
                                           {selectedProposal.analysis[0].complexity_breakdown.comparison}
                                         </p>
@@ -668,10 +660,10 @@ function ProposalsPage() {
                             </div>
                           )}
                         </div>
-                        
+
                         <div className="bg-indigo-50 border border-indigo-200 rounded-xl p-4 hover:shadow-md hover:bg-indigo-100 transition-all duration-200">
                           <h4 className="font-semibold text-indigo-800 mb-2 flex items-center">
-                            <span className="mr-2 text-lg">🎯</span> Estimated Impact
+                            <Activity className="mr-2 text-lg w-5 h-5" /> Estimated Impact
                           </h4>
                           <p className="text-sm text-indigo-700 leading-relaxed">{selectedProposal.analysis[0].estimated_impact}</p>
                         </div>
@@ -680,14 +672,14 @@ function ProposalsPage() {
                       <div className="bg-slate-50 rounded-xl p-12 text-center">
                         {getStatusString(selectedProposal.status) === 'Analyzing' ? (
                           <div className="space-y-3">
-                            <div className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto"></div>
+                            <RefreshCw className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto text-blue-500" />
                             <p className="text-slate-600 font-medium">Analyzing proposal...</p>
                             <p className="text-xs text-slate-500">This may take a few moments</p>
                           </div>
                         ) : getStatusString(selectedProposal.status) === 'Failed' ? (
                           <div className="space-y-3">
                             <div className="w-12 h-12 bg-red-100 rounded-full flex items-center justify-center mx-auto">
-                              <span className="text-red-600 text-xl">❌</span>
+                              <X className="text-red-600 text-xl w-6 h-6" />
                             </div>
                             <p className="text-slate-600 font-medium">Analysis failed</p>
                             <p className="text-xs text-slate-500 mb-3">There was an error analyzing this proposal</p>
@@ -709,7 +701,7 @@ function ProposalsPage() {
                         ) : (
                           <div className="space-y-3">
                             <div className="w-12 h-12 bg-slate-200 rounded-full flex items-center justify-center mx-auto">
-                              <span className="text-slate-600 text-xl">⏳</span>
+                              <Hourglass className="text-slate-600 w-6 h-6" />
                             </div>
                             <p className="text-slate-600 font-medium">Waiting for analysis</p>
                             <p className="text-xs text-slate-500">Analysis will begin automatically</p>
@@ -722,7 +714,7 @@ function ProposalsPage() {
                   <div className="bg-slate-50 rounded-xl p-12 text-center h-full flex items-center justify-center">
                     <div>
                       <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                        <span className="text-2xl text-red-600">❌</span>
+                        <X className="text-red-600 w-8 h-8" />
                       </div>
                       <p className="text-slate-600 font-medium mb-2">Proposal not found</p>
                       <p className="text-sm text-slate-500">The selected proposal could not be loaded</p>
@@ -736,8 +728,8 @@ function ProposalsPage() {
       </main>
 
       {/* Proposal Submission Modal */}
-      <ProposalSubmissionModal 
-        isOpen={isModalOpen} 
+      <ProposalSubmissionModal
+        isOpen={isModalOpen}
         onClose={() => setIsModalOpen(false)}
         onProposalSubmitted={(proposalId) => {
           setSelectedProposalId(proposalId);
@@ -748,11 +740,11 @@ function ProposalsPage() {
 
       {/* Floating Action Button (Alternative to header button) */}
       {proposals.length > 0 && (
-                      <button
-                onClick={() => setIsModalOpen(true)}
-                className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-700 to-cyan-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 flex items-center justify-center z-40"
-                title="New Proposal"
-              >
+        <button
+          onClick={() => setIsModalOpen(true)}
+          className="fixed bottom-8 right-8 w-14 h-14 bg-gradient-to-r from-blue-700 to-cyan-600 text-white rounded-full shadow-lg hover:shadow-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 flex items-center justify-center z-40"
+          title="New Proposal"
+        >
           <span className="text-2xl font-light">+</span>
         </button>
       )}

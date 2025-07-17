@@ -952,6 +952,8 @@ dependencies = [
  "candid",
  "ic-cdk",
  "ic-cdk-timers",
+ "ic-ledger-types",
+ "icrc-ledger-types",
  "serde",
  "serde_bytes",
  "serde_cbor",

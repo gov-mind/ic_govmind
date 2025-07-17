@@ -1,4 +1,12 @@
-use candid::Principal;
+use candid::{Encode, Principal};
+use ic_cdk::management_canister::{
+    create_canister_with_extra_cycles, install_code, CanisterInstallMode, CanisterSettings,
+    CreateCanisterArgs, InstallCodeArgs,
+};
+use ic_govmind_types::{
+    constants::ICRC1_LEDGER_DEFAULT_CYCLES,
+    icrc::{CreateCanisterArg, ICRC1InitArgs, LedgerArgument},
+};
 use ic_ledger_types::{AccountIdentifier, Subaccount};
 
 #[cfg(target_arch = "wasm32")]
@@ -60,4 +68,61 @@ pub fn owner_wallet_pid() -> Principal {
 pub fn account_id(principal: Principal, subaccount: Option<Subaccount>) -> AccountIdentifier {
     let subaccount = subaccount.unwrap_or_else(|| Subaccount([0; 32]));
     AccountIdentifier::new(&principal, &subaccount)
+}
+
+pub async fn create_icrc1_canister(
+    arg: CreateCanisterArg,
+    wasm_module: Vec<u8>,
+) -> Result<Principal, String> {
+    let mut icrc1_controllers = vec![ic_cdk::api::canister_self()];
+    if let Some(controllers) = arg.controllers {
+        if !controllers.is_empty() {
+            icrc1_controllers.extend(controllers);
+        }
+    };
+
+    let canister = match create_canister_with_extra_cycles(
+        &CreateCanisterArgs {
+            settings: Some(CanisterSettings {
+                controllers: Some(icrc1_controllers),
+                compute_allocation: None,
+                memory_allocation: None,
+                freezing_threshold: None,
+                reserved_cycles_limit: None,
+                log_visibility: None,
+                wasm_memory_limit: None,
+                wasm_memory_threshold: None,
+            }),
+        },
+        ICRC1_LEDGER_DEFAULT_CYCLES,
+    )
+    .await
+    {
+        Err(err) => return Err(format!("Create canister error: {:?}", err)),
+        Ok(record) => record.canister_id,
+    };
+
+    ic_cdk::println!("new icrc1 canister: {}", canister);
+    //logo
+    let metadata = vec![("icrc1:logo".to_string(), arg.logo)];
+    let init_arg = ICRC1InitArgs::new(
+        arg.token_symbol,
+        arg.minting_account,
+        arg.initial_balances,
+        arg.token_name,
+        metadata,
+    );
+    let ledger_arg = LedgerArgument::Init(init_arg);
+
+    let init_arg = Encode!(&ledger_arg).unwrap();
+
+    install_code(&InstallCodeArgs {
+        mode: CanisterInstallMode::Install,
+        canister_id: canister,
+        wasm_module,
+        arg: init_arg,
+    })
+    .await
+    .map(|()| canister)
+    .map_err(|e| format!("Failed to create icrc1 canister: {:?}", e))
 }

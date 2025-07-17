@@ -1,6 +1,7 @@
 use crate::types::CanisterArgs;
 use candid::{export_service, Principal};
 use ic_cdk::query;
+use ic_govmind_types::dao::Dao;
 
 #[query(name = "__get_candid_interface_tmp_hack")]
 fn export_candid() -> String {

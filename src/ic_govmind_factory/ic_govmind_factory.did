@@ -112,5 +112,7 @@ type VoteWeightType = variant {
 service : {
   __get_candid_interface_tmp_hack : () -> (text) query;
   create_dao_canister : (opt CanisterArgs) -> (Result);
+  create_gov_dao : (Dao) -> (Result);
+  get_dao_info : (principal) -> (opt Dao) query;
   upgrade_dao_canister : (principal, opt CanisterArgs) -> (Result_1);
 }

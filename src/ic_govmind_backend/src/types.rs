@@ -1,9 +1,8 @@
-use candid::{CandidType, Deserialize, Principal};
+use candid::{CandidType, Deserialize};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
 use serde::Serialize;
-use std::collections::HashMap;
 
 #[allow(non_snake_case)]
 #[derive(Debug, CandidType, Deserialize)]

@@ -13,7 +13,11 @@ import {
   Building2,
   Sparkles,
   ArrowRight,
-  CheckCircle
+  CheckCircle,
+  Rocket,
+  BookOpen,
+  Globe2,
+  BrainCircuit
 } from 'lucide-react';
 
 function HomePage() {
@@ -77,15 +81,17 @@ function HomePage() {
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Link 
                 to="/proposals" 
-                className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105"
+                className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
               >
-                🚀 Try GovMind Beta
+                <Rocket className="w-5 h-5" />
+                <span>Try GovMind Beta</span>
               </Link>
               <a 
                 href="#solutions" 
-                className="bg-white text-slate-800 px-8 py-4 rounded-xl border-2 border-slate-300 hover:border-cyan-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-200 font-semibold text-lg"
+                className="bg-white text-slate-800 px-8 py-4 rounded-xl border-2 border-slate-300 hover:border-cyan-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-200 font-semibold text-lg flex items-center space-x-2"
               >
-                📖 Learn More
+                <BookOpen className="w-5 h-5" />
+                <span>Learn More</span>
               </a>
             </div>
 
@@ -342,19 +348,25 @@ function HomePage() {
             
             <div className="grid grid-cols-1 md:grid-cols-3 gap-8 mb-12">
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <div className="text-3xl mb-4">🚀</div>
+                <div className="flex justify-center mb-4">
+                  <Rocket className="text-white text-4xl" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">Phase 1: Foundation</h3>
                 <p className="text-slate-300 text-sm">Core AI governance tools and DAO creation engine</p>
               </div>
               
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <div className="text-3xl mb-4">🌐</div>
+                <div className="flex justify-center mb-4">
+                  <Globe2 className="text-white text-4xl" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">Phase 2: Expansion</h3>
                 <p className="text-slate-300 text-sm">Multi-chain support and advanced AI features</p>
               </div>
               
               <div className="bg-white/10 backdrop-blur-sm rounded-2xl p-6 border border-white/20">
-                <div className="text-3xl mb-4">🧠</div>
+                <div className="flex justify-center mb-4">
+                  <BrainCircuit className="text-white text-4xl" />
+                </div>
                 <h3 className="text-xl font-semibold mb-2">Phase 3: Evolution</h3>
                 <p className="text-slate-300 text-sm">Full autonomy and ecosystem decentralization</p>
               </div>

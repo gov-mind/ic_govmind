@@ -1,6 +1,24 @@
 import { useState } from 'react';
 import { Link } from 'react-router-dom';
-
+import { 
+  FileText, 
+  Search, 
+  AlertTriangle, 
+  CheckCircle, 
+  Clock, 
+  X, 
+  ChevronDown, 
+  ChevronUp,
+  Plus,
+  RefreshCw,
+  BarChart3,
+  Lightbulb,
+  TrendingUp,
+  Users,
+  Settings,
+  Shield,
+  Activity
+} from 'lucide-react';
 
 import { 
   useProposals, 
@@ -276,7 +294,7 @@ function ProposalsPage() {
               onClick={() => setIsModalOpen(true)}
               className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-6 py-2.5 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-medium shadow-sm flex items-center space-x-2"
             >
-              <span className="text-lg">+</span>
+              <Plus className="w-5 h-5" />
               <span>New Proposal</span>
             </button>
           </div>
@@ -295,7 +313,7 @@ function ProposalsPage() {
             <div className="flex items-center justify-between mb-6 flex-shrink-0">
               <div className="flex items-center space-x-3">
                 <div className="w-8 h-8 bg-green-100 rounded-lg flex items-center justify-center">
-                  <span className="text-green-600 font-semibold">📋</span>
+                  <FileText className="text-green-600 font-semibold w-5 h-5" />
                 </div>
                 <h2 className="text-xl font-semibold text-slate-800">All Proposals</h2>
               </div>
@@ -320,16 +338,17 @@ function ProposalsPage() {
               ) : proposals.length === 0 ? (
                 <div className="text-center py-12 text-slate-500">
                   <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <span className="text-3xl">📋</span>
+                    <FileText className="text-slate-600 w-10 h-10" />
                   </div>
                   <p className="text-base font-medium mb-2">No proposals yet</p>
                   <p className="text-sm mb-4">Submit your first proposal to get started</p>
-                  <button
-                    onClick={() => setIsModalOpen(true)}
-                    className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 text-sm font-medium"
-                  >
-                    Create First Proposal
-                  </button>
+                                      <button
+                      onClick={() => setIsModalOpen(true)}
+                      className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 text-sm font-medium flex items-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>Create First Proposal</span>
+                    </button>
                 </div>
               ) : (
                 proposals.map((proposal) => (
@@ -366,9 +385,9 @@ function ProposalsPage() {
                             title="Retry analysis"
                           >
                             {isRetrying(proposal.id) ? (
-                              <div className="w-3 h-3 border border-red-600 border-t-transparent rounded-full animate-spin"></div>
+                              <RefreshCw className="w-3 h-3 animate-spin" />
                             ) : (
-                              '🔄'
+                              <RefreshCw className="w-3 h-3" />
                             )}
                           </button>
                         )}

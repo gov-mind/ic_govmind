@@ -1,4 +1,20 @@
 import { Link } from 'react-router-dom';
+import { 
+  Brain, 
+  Network, 
+  Zap, 
+  BarChart3, 
+  TrendingDown, 
+  Shield, 
+  FileText, 
+  Clock, 
+  Globe, 
+  Activity,
+  Building2,
+  Sparkles,
+  ArrowRight,
+  CheckCircle
+} from 'lucide-react';
 
 function HomePage() {
   return (
@@ -106,7 +122,7 @@ function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-8">
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-red-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-red-400 text-2xl">📉</span>
+                  <TrendingDown className="text-red-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Low Participation</h3>
                 <p className="text-slate-400">Less than 10% voting rates in most DAOs. Critical decisions made by a tiny minority.</p>
@@ -114,7 +130,7 @@ function HomePage() {
 
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-orange-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-orange-400 text-2xl">🧱</span>
+                  <Building2 className="text-orange-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">High Barriers</h3>
                 <p className="text-slate-400">Complex governance rules and processes that alienate non-technical members.</p>
@@ -122,7 +138,7 @@ function HomePage() {
 
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-yellow-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-red-400 text-2xl">📄</span>
+                  <FileText className="text-red-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Poor Proposals</h3>
                 <p className="text-slate-400">Unstructured, low-quality proposals that lack proper analysis and context.</p>
@@ -130,7 +146,7 @@ function HomePage() {
 
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-blue-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-blue-400 text-2xl">🐢</span>
+                  <Clock className="text-blue-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Slow Processes</h3>
                 <p className="text-slate-400">Weeks-long governance cycles that can't adapt to fast-moving Web3 environment.</p>
@@ -138,7 +154,7 @@ function HomePage() {
 
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-cyan-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-cyan-400 text-2xl">🌐</span>
+                  <Globe className="text-cyan-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">Chain Silos</h3>
                 <p className="text-slate-400">Isolated governance across different blockchains with no coordination.</p>
@@ -146,7 +162,7 @@ function HomePage() {
 
               <div className="bg-slate-800/80 backdrop-blur-sm rounded-2xl p-6 border border-blue-800/50">
                 <div className="w-12 h-12 bg-green-500/20 rounded-xl flex items-center justify-center mb-4">
-                  <span className="text-green-400 text-2xl">📊</span>
+                  <BarChart3 className="text-green-400 text-2xl" />
                 </div>
                 <h3 className="text-xl font-semibold mb-3">No Insights</h3>
                 <p className="text-slate-400">Zero feedback loops or analytics to learn from governance decisions.</p>
@@ -172,7 +188,7 @@ function HomePage() {
               <div className="bg-white rounded-3xl p-8 shadow-lg border border-slate-200 hover:shadow-xl transition-shadow duration-300">
                 <div className="flex items-center space-x-4 mb-6">
                   <div className="w-16 h-16 bg-gradient-to-r from-blue-600 to-blue-700 rounded-2xl flex items-center justify-center">
-                    <span className="text-white text-2xl">🏗️</span>
+                    <Network className="text-white text-2xl" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">Cross-Chain DAO Engine</h3>
@@ -183,7 +199,7 @@ function HomePage() {
                 <ul className="space-y-4">
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-blue-600 text-sm">✓</span>
+                      <CheckCircle className="text-blue-600 text-sm" />
                     </span>
                     <div>
                       <strong>One-Click DAO Creation</strong> - Deploy on Ethereum, Bitcoin, Solana, ICP & more
@@ -191,7 +207,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-blue-600 text-sm">✓</span>
+                      <CheckCircle className="text-blue-600 text-sm" />
                     </span>
                     <div>
                       <strong>Multi-Chain Treasury</strong> - Unified management of ckBTC, ckETH, USDC assets
@@ -199,7 +215,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-blue-600 text-sm">✓</span>
+                      <CheckCircle className="text-blue-600 text-sm" />
                     </span>
                     <div>
                       <strong>Flexible Governance</strong> - Customizable voting rules, roles, and processes
@@ -207,7 +223,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-blue-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-blue-600 text-sm">✓</span>
+                      <CheckCircle className="text-blue-600 text-sm" />
                     </span>
                     <div>
                       <strong>Lifecycle Management</strong> - Member onboarding, permissions, and transitions
@@ -220,7 +236,7 @@ function HomePage() {
               <div className="bg-white rounded-3xl p-8 shadow-lg border border-slate-200 hover:shadow-xl transition-shadow duration-300">
                 <div className="flex items-center space-x-4 mb-6">
                   <div className="w-16 h-16 bg-gradient-to-r from-cyan-600 to-blue-600 rounded-2xl flex items-center justify-center">
-                    <span className="text-white text-2xl">🧠</span>
+                    <Brain className="text-white text-2xl" />
                   </div>
                   <div>
                     <h3 className="text-2xl font-bold text-slate-900">AI Governance Engine</h3>
@@ -231,7 +247,7 @@ function HomePage() {
                 <ul className="space-y-4">
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-purple-600 text-sm">✓</span>
+                      <CheckCircle className="text-purple-600 text-sm" />
                     </span>
                     <div>
                       <strong>AI Proposal Builder</strong> - Generate structured proposals from natural language
@@ -239,7 +255,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-purple-600 text-sm">✓</span>
+                      <CheckCircle className="text-purple-600 text-sm" />
                     </span>
                     <div>
                       <strong>Smart Analysis</strong> - Risk assessment, complexity scoring, and impact prediction
@@ -247,7 +263,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-purple-600 text-sm">✓</span>
+                      <CheckCircle className="text-purple-600 text-sm" />
                     </span>
                     <div>
                       <strong>Debate Simulation</strong> - Preview community reactions before proposal submission
@@ -255,7 +271,7 @@ function HomePage() {
                   </li>
                   <li className="flex items-start space-x-3">
                     <span className="w-6 h-6 bg-purple-100 rounded-full flex items-center justify-center flex-shrink-0 mt-0.5">
-                      <span className="text-purple-600 text-sm">✓</span>
+                      <CheckCircle className="text-purple-600 text-sm" />
                     </span>
                     <div>
                       <strong>AI Delegate Voting</strong> - Autonomous voting based on your preferences
@@ -282,7 +298,7 @@ function HomePage() {
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-8">
               <div className="text-center group">
                 <div className="w-20 h-20 bg-gradient-to-r from-blue-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-white text-3xl">🤖</span>
+                  <Brain className="text-white text-3xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">AI Analysis</h3>
                 <p className="text-slate-600 text-sm">Deep proposal analysis with risk assessment and success prediction</p>
@@ -290,7 +306,7 @@ function HomePage() {
 
               <div className="text-center group">
                 <div className="w-20 h-20 bg-gradient-to-r from-green-500 to-green-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-white text-3xl">🌐</span>
+                  <Network className="text-white text-3xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Multi-Chain</h3>
                 <p className="text-slate-600 text-sm">Deploy and manage across 10+ blockchain networks seamlessly</p>
@@ -298,7 +314,7 @@ function HomePage() {
 
               <div className="text-center group">
                 <div className="w-20 h-20 bg-gradient-to-r from-blue-700 to-cyan-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-white text-3xl">⚡</span>
+                  <Zap className="text-white text-3xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Automation</h3>
                 <p className="text-slate-600 text-sm">Automated execution and autonomous governance processes</p>
@@ -306,7 +322,7 @@ function HomePage() {
 
               <div className="text-center group">
                 <div className="w-20 h-20 bg-gradient-to-r from-cyan-500 to-blue-600 rounded-2xl flex items-center justify-center mx-auto mb-4 group-hover:scale-110 transition-transform duration-200">
-                  <span className="text-white text-3xl">📊</span>
+                  <BarChart3 className="text-white text-3xl" />
                 </div>
                 <h3 className="text-lg font-semibold text-slate-900 mb-2">Analytics</h3>
                 <p className="text-slate-600 text-sm">Comprehensive governance insights and reputation scoring</p>
@@ -349,7 +365,7 @@ function HomePage() {
               className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-colors font-semibold text-lg inline-flex items-center space-x-2"
             >
               <span>Start Building the Future</span>
-              <span>→</span>
+              <ArrowRight className="w-4 h-4" />
             </Link>
           </div>
         </section>

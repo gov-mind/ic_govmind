@@ -21,6 +21,7 @@ ciborium-io = { workspace = true }
 libsecp256k1 = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true }
+getrandom = { workspace = true, features = ["custom"] }
 sha2 = { workspace = true }
 
 ic-govmind-types = { path = "../ic_govmind_types", version = "0.1" }

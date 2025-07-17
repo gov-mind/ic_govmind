@@ -5,6 +5,11 @@
       "package": "ic_govmind_backend",
       "type": "rust"
     },
+    "ic_govmind_factory": {
+      "candid": "src/ic_govmind_factory/ic_govmind_factory.did",
+      "package": "ic_govmind_factory",
+      "type": "rust"
+    },
     "ai_proposal_analyzer": {
       "candid": "src/ai_proposal_analyzer/ai_proposal_analyzer.did",
       "package": "ai_proposal_analyzer",

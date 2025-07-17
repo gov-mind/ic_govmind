@@ -1034,6 +1034,7 @@ dependencies = [
  "candid",
  "ciborium",
  "ciborium-io",
+ "getrandom 0.2.16",
  "ic-cdk",
  "ic-cdk-timers",
  "ic-govmind-types",

@@ -1,3 +1,4 @@
+type Account = record { owner : principal; subaccount : opt blob };
 type AssetType = variant { Fungible; NonFungible };
 type BaseToken = record {
   decimals : nat8;
@@ -19,6 +20,14 @@ type ChainType = variant {
   BNBChain;
   Bitcoin;
   Other : text;
+};
+type CreateCanisterArg = record {
+  controllers : opt vec principal;
+  token_symbol : text;
+  minting_account : Account;
+  logo : MetadataValue;
+  initial_balances : vec record { Account; nat };
+  token_name : text;
 };
 type Dao = record {
   id : text;
@@ -64,6 +73,7 @@ type GovernanceConfig = record {
 };
 type KeyEnvironment = variant { Local; Production; Staging };
 type MemberRole = variant { Founder; Voter; Contributor; Council; Observer };
+type MetadataValue = variant { Int : int; Nat : nat; Blob : blob; Text : text };
 type Proposal = record {
   id : nat64;
   status : ProposalStatus;
@@ -84,6 +94,7 @@ type ProposalStatus = variant {
   Expired;
 };
 type Result = variant { Ok; Err : text };
+type Result_1 = variant { Ok : principal; Err : text };
 type StateInitArgs = record {
   env : KeyEnvironment;
   root : principal;
@@ -123,6 +134,7 @@ service : (opt CanisterArgs) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   add_admin : (principal) -> (Result);
   canister_get_status : (StatusRequest) -> (StatusResponse) query;
+  create_dao_token : (CreateCanisterArg) -> (Result_1);
   dao_info : () -> (opt Dao) query;
   greet : (text) -> (text) query;
   remove_admin : (principal) -> (Result);

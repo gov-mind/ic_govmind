@@ -1,0 +1,86 @@
+type SnsCanister = record {
+    id: text;
+    name: text;
+    canister_id: text;
+    description: text;
+    logo: opt text;
+    url: opt text;
+    total_proposals: nat32;
+    active_proposals: nat32;
+    last_activity: nat64;
+};
+
+type SnsProposal = record {
+    id: nat64;
+    title: text;
+    summary: text;
+    status: text;
+    executed: bool;
+    executed_at: opt nat64;
+    proposer: text;
+    votes_for: nat64;
+    votes_against: nat64;
+    total_votes: nat64;
+};
+
+type SnsGovernanceError = variant {
+    CanisterNotFound;
+    InvalidCanisterId;
+    CrossCanisterCallFailed: text;
+    Unauthorized;
+    InvalidData: text;
+};
+
+type PaginationInfo = record {
+    total_count: nat32;
+    total_pages: nat32;
+    current_page: nat32;
+    page_size: nat32;
+    has_next_page: bool;
+    has_prev_page: bool;
+    next_page_offset: opt nat32;
+    prev_page_offset: opt nat32;
+};
+
+type ProposalKey = record {
+    canister_id: text;
+    proposal_id: nat64;
+};
+
+service : {
+    // Get SNS canisters with optional pagination (defaults: offset=0, limit=10, max limit=10)
+    "get_sns_canisters": (opt nat32, opt nat32) -> (vec SnsCanister, PaginationInfo) query;
+    
+    // Get proposals for a specific SNS governance canister
+    "get_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError }) query;
+    
+    // Fetch proposals for a specific canister (on-demand loading)
+    "fetch_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError });
+    
+    // Get a specific proposal by ID from a canister
+    "get_sns_proposal": (text, nat64) -> (variant { Ok: opt SnsProposal; Err: SnsGovernanceError }) query;
+    
+    // Refresh SNS canister list from SNS root
+    "refresh_sns_canisters": (bool) -> (variant { Ok: text; Err: SnsGovernanceError });
+    
+    // Add a custom SNS canister to the list
+    "add_sns_canister": (SnsCanister) -> (variant { Ok: text; Err: SnsGovernanceError });
+    
+    // Remove a SNS canister from the list
+    "remove_sns_canister": (text) -> (variant { Ok: text; Err: SnsGovernanceError });
+    
+    // Get count of SNS canisters
+    "get_sns_canister_count": () -> (nat32) query;
+    
+    // Get statistics about SNS governance
+    "get_sns_statistics": () -> (nat32, nat64, nat64) query;
+
+    // Export all SNS data as a blob for backup/migration
+    "export_data": () -> (variant { Ok: vec nat8; Err: SnsGovernanceError }) query;
+
+    // Import SNS data from a blob (for restore/migration)
+    "import_data": (vec nat8) -> (variant { Ok: text; Err: SnsGovernanceError });
+
+    // Get data export info (metadata without the actual data)
+    "get_export_info": () -> (variant { Ok: record { total_canisters: nat32; total_proposals: nat64; estimated_size: nat64 }; Err: SnsGovernanceError }) query;
+}; 

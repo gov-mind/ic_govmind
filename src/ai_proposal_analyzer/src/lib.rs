@@ -100,6 +100,8 @@ pub enum ProposalStatus {
     Failed,
 }
 
+
+
 // DeepSeek API types (Serde types)
 #[derive(SerdeSerialize)]
 struct DeepSeekRequest {

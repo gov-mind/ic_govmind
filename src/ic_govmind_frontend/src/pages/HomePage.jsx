@@ -49,6 +49,12 @@ function HomePage() {
               >
                 Launch App
               </Link>
+              <Link 
+                to="/sns-governance" 
+                className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium"
+              >
+                SNS Governance
+              </Link>
             </nav>
           </div>
         </div>

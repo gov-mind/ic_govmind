@@ -291,6 +291,15 @@ function ProposalsPage() {
               </div>
             </Link>
 
+            <nav className="flex space-x-4">
+              <Link to="/" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
+                Home
+              </Link>
+              <Link to="/sns-governance" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
+                SNS Governance
+              </Link>
+            </nav>
+
             {/* New Proposal Button */}
             <button
               onClick={() => setIsModalOpen(true)}

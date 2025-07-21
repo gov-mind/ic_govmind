@@ -8,8 +8,9 @@ use ic_cdk::{query, update};
 use ic_cdk::api::{msg_caller};
 use ic_cdk::futures::spawn_017_compat;
 use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
+use ic_stable_structures::{StableBTreeMap, StableCell, memory_manager::{MemoryManager, VirtualMemory, MemoryId}, DefaultMemoryImpl, storable::Storable};
 use std::cell::RefCell;
-use std::collections::HashMap;
+use std::borrow::Cow;
 
 // Types for proposal analysis (Candid types)
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -133,11 +134,30 @@ struct MessageResponse {
     content: String,
 }
 
-// State management
+// Stable memory management
+type Memory = VirtualMemory<DefaultMemoryImpl>;
+type ProposalMap = StableBTreeMap<String, Proposal, Memory>;
+
 thread_local! {
-    static PROPOSALS: RefCell<HashMap<String, Proposal>> = RefCell::new(HashMap::new());
-    static PROPOSAL_COUNTER: RefCell<u64> = RefCell::new(0);
+    static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
+    static PROPOSALS: RefCell<ProposalMap> = RefCell::new(ProposalMap::new(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)))));
+    static PROPOSAL_COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(StableCell::new(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))), 0u64).expect("Failed to init StableCell"));
     static API_KEY: RefCell<Option<String>> = RefCell::new(None);
+}
+
+// Implement Storable for Proposal
+impl Storable for Proposal {
+    fn to_bytes(&self) -> Cow<[u8]> {
+        Cow::Owned(candid::encode_one(self).expect("Proposal encode failed"))
+    }
+    fn from_bytes(bytes: Cow<[u8]>) -> Self {
+        candid::decode_one(&bytes).expect("Proposal decode failed")
+    }
+    
+    const BOUND: ic_stable_structures::storable::Bound = ic_stable_structures::storable::Bound::Bounded { 
+        max_size: 1024 * 1024 * 1, 
+        is_fixed_size: false 
+    };
 }
 
 // HTTP Transform function for DeepSeek API calls
@@ -182,9 +202,12 @@ fn get_deepseek_api_key() -> Result<String, String> {
 
 // Submit a new proposal
 #[update]
-async fn submit_proposal(title: String, description: String) -> String {
+async fn submit_proposal(proposal_id_opt: Option<String>, title: String, description: String) -> String {
     let caller = msg_caller();
-    let proposal_id = generate_proposal_id();
+    let proposal_id = match proposal_id_opt {
+        Some(id) if !id.is_empty() => id,
+        _ => generate_proposal_id(),
+    };
 
     let proposal = Proposal {
         id: proposal_id.clone(),
@@ -198,6 +221,11 @@ async fn submit_proposal(title: String, description: String) -> String {
 
     PROPOSALS.with(|proposals| {
         proposals.borrow_mut().insert(proposal_id.clone(), proposal);
+    });
+    PROPOSAL_COUNTER.with(|counter| {
+        let mut cell = counter.borrow_mut();
+        let val = cell.get() + 1;
+        cell.set(val).expect("Failed to update counter");
     });
 
     // Start analysis in background
@@ -386,14 +414,17 @@ Please return the result in JSON format without wrapping it in Markdown formatti
 // Get proposal by ID
 #[query]
 fn get_proposal(proposal_id: String) -> Option<Proposal> {
-    PROPOSALS.with(|proposals| proposals.borrow().get(&proposal_id).cloned())
+    PROPOSALS.with(|proposals| {
+        let key = proposal_id;
+        proposals.borrow().get(&key).map(|x| x.clone())
+    })
 }
 
 // Get all proposals
 #[query]
 fn get_all_proposals() -> Vec<Proposal> {
     PROPOSALS.with(|proposals| {
-        let mut proposals_vec: Vec<Proposal> = proposals.borrow().values().cloned().collect();
+        let mut proposals_vec: Vec<Proposal> = proposals.borrow().iter().map(|(_, v)| v.clone()).collect();
         // Sort by submitted_at timestamp in descending order (newest first)
         proposals_vec.sort_by(|a, b| b.submitted_at.cmp(&a.submitted_at));
         proposals_vec
@@ -426,8 +457,8 @@ async fn retry_proposal_analysis(proposal_id: String) -> Result<String, String> 
 // Helper functions
 fn generate_proposal_id() -> String {
     PROPOSAL_COUNTER.with(|counter| {
-        let current = *counter.borrow();
-        *counter.borrow_mut() = current + 1;
+        let binding = counter.borrow();
+        let current = binding.get();
         format!("proposal_{}", current)
     })
 }
@@ -463,20 +494,29 @@ fn extract_json_from_markdown(content: &str) -> String {
 
 fn update_proposal_status(proposal_id: &str, status: ProposalStatus) {
     PROPOSALS.with(|proposals| {
-        if let Some(proposal) = proposals.borrow_mut().get_mut(proposal_id) {
+        let key = proposal_id.to_string();
+        let mut proposals_mut = proposals.borrow_mut();
+        if let Some(mut proposal) = proposals_mut.get(&key).map(|x| x.clone()) {
             proposal.status = status;
+            proposals_mut.insert(key, proposal);
         }
     });
 }
 
 fn update_proposal_analysis(proposal_id: &str, analysis: ProposalAnalysis) {
     PROPOSALS.with(|proposals| {
-        if let Some(proposal) = proposals.borrow_mut().get_mut(proposal_id) {
+        let key = proposal_id.to_string();
+        let mut proposals_mut = proposals.borrow_mut();
+        if let Some(mut proposal) = proposals_mut.get(&key).map(|x| x.clone()) {
             proposal.analysis = Some(analysis);
+            proposals_mut.insert(key, proposal);
         }
     });
 }
 
 fn get_proposal_internal(proposal_id: &str) -> Option<Proposal> {
-    PROPOSALS.with(|proposals| proposals.borrow().get(proposal_id).cloned())
+    PROPOSALS.with(|proposals| {
+        let key = proposal_id.to_string();
+        proposals.borrow().get(&key).map(|x| x.clone())
+    })
 }

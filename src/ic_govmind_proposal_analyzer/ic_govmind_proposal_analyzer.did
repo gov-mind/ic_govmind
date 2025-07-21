@@ -34,7 +34,7 @@ type Proposal = record {
 };
 
 service : {
-    "submit_proposal": (text, text) -> (text);
+    "submit_proposal": (opt text, text, text) -> (text);
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
     "retry_proposal_analysis": (text) -> (variant { Ok: text; Err: text });

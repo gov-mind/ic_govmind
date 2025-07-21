@@ -1,5 +1,5 @@
 [package]
-name = "ai_proposal_analyzer"
+name = "ic_govmind_proposal_analyzer"
 version = "0.1.0"
 edition = "2021"
 
@@ -11,4 +11,5 @@ candid = { workspace = true }
 ic-cdk = { workspace = true }
 ic-cdk-timers = { workspace = true }
 serde = { workspace = true }
-serde_json = { workspace = true } 
+serde_json = { workspace = true }
+ic-stable-structures = { workspace = true }

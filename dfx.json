@@ -10,9 +10,9 @@
       "package": "ic_govmind_factory",
       "type": "rust"
     },
-    "ai_proposal_analyzer": {
-      "candid": "src/ai_proposal_analyzer/ai_proposal_analyzer.did",
-      "package": "ai_proposal_analyzer",
+    "ic_govmind_proposal_analyzer": {
+      "candid": "src/ic_govmind_proposal_analyzer/ic_govmind_proposal_analyzer.did",
+      "package": "ic_govmind_proposal_analyzer",
       "type": "rust"
     },
     "ic_govmind_sns": {
@@ -23,7 +23,7 @@
     "ic_govmind_frontend": {
       "dependencies": [
         "ic_govmind_backend",
-        "ai_proposal_analyzer",
+        "ic_govmind_proposal_analyzer",
         "ic_govmind_sns"
       ],
       "source": ["src/ic_govmind_frontend/dist"],

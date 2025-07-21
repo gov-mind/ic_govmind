@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ai_proposal_analyzer } from 'declarations/ai_proposal_analyzer';
+import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -11,7 +11,7 @@ export const QUERY_KEYS = {
 export const useProposals = () => {
   return useQuery({
     queryKey: QUERY_KEYS.proposals,
-    queryFn: () => ai_proposal_analyzer.get_all_proposals(),
+    queryFn: () => ic_govmind_proposal_analyzer.get_all_proposals(),
     refetchInterval: 3000, // Poll every 3 seconds
     staleTime: 1000, // Consider data stale after 1 second
   });
@@ -21,7 +21,7 @@ export const useProposals = () => {
 export const useProposal = (proposalId) => {
   return useQuery({
     queryKey: QUERY_KEYS.proposal(proposalId),
-    queryFn: () => ai_proposal_analyzer.get_proposal(proposalId),
+    queryFn: () => ic_govmind_proposal_analyzer.get_proposal(proposalId),
     enabled: !!proposalId, // Only run if proposalId exists
     refetchInterval: 3000,
     staleTime: 1000,
@@ -35,7 +35,7 @@ export const useSubmitProposal = () => {
   
   return useMutation({
     mutationFn: ({ title, description }) => 
-      ai_proposal_analyzer.submit_proposal(title, description),
+      ic_govmind_proposal_analyzer.submit_proposal([], title, description),
     onSuccess: (proposalId) => {
       // Invalidate and refetch proposals list
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
@@ -43,7 +43,7 @@ export const useSubmitProposal = () => {
       // Pre-fetch the new proposal
       queryClient.prefetchQuery({
         queryKey: QUERY_KEYS.proposal(proposalId),
-        queryFn: () => ai_proposal_analyzer.get_proposal(proposalId),
+        queryFn: () => ic_govmind_proposal_analyzer.get_proposal(proposalId),
       });
       
       return proposalId;
@@ -60,7 +60,7 @@ export const useRetryAnalysis = () => {
   
   return useMutation({
     mutationFn: (proposalId) => 
-      ai_proposal_analyzer.retry_proposal_analysis(proposalId),
+      ic_govmind_proposal_analyzer.retry_proposal_analysis(proposalId),
     onSuccess: (_, proposalId) => {
       // Invalidate both the proposals list and specific proposal
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });

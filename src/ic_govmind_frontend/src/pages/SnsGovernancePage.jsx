@@ -1,5 +1,5 @@
 import { useState } from 'react';
-import { Link } from 'react-router-dom';
+import { Link, useNavigate } from 'react-router-dom';
 import {
   Building2,
   FileText,
@@ -23,7 +23,6 @@ import {
 import {
   useSnsCanisters,
   useSnsProposals,
-  useSnsMetadata,
   useSnsStatistics,
   getSnsProposalStatusClass,
   formatVoteCount,
@@ -33,17 +32,24 @@ import {
 function SnsGovernancePage() {
   const [selectedCanister, setSelectedCanister] = useState(null);
   const [showProposals, setShowProposals] = useState(false);
+  const [canisterPage, setCanisterPage] = useState(1);
+  const canisterPageSize = 10;
+  const navigate = useNavigate();
 
   // React Query hooks
-  const { data: canisters = [], isLoading: canistersLoading, error: canistersError } = useSnsCanisters();
+  const {
+    data: canistersData = { canisters: [], paginationInfo: {} },
+    isLoading: canistersLoading,
+    error: canistersError
+  } = useSnsCanisters(canisterPage, canisterPageSize);
+  const canisters = canistersData.canisters || [];
+  const paginationInfo = canistersData.paginationInfo || {};
   const { data: proposals = [], isLoading: proposalsLoading } = useSnsProposals(selectedCanister?.canisterId);
-  const { data: metadata, isLoading: metadataLoading } = useSnsMetadata(selectedCanister?.canisterId);
   const { data: statistics } = useSnsStatistics();
 
   // Handle canister selection
   const handleCanisterSelect = (canister) => {
-    setSelectedCanister(canister);
-    setShowProposals(true);
+    navigate(`/sns-governance/${canister.canisterId}`);
   };
 
   // Handle back to canisters list
@@ -152,24 +158,78 @@ function SnsGovernancePage() {
           </div>
 
           {showProposals && selectedCanister && (
-            <div className="bg-white rounded-xl p-6 mb-6 border border-slate-200">
-              <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-blue-600">{selectedCanister.totalProposals}</div>
-                  <div className="text-sm text-slate-600">Total Proposals</div>
+            <div>
+              <div className="flex items-center space-x-4 mb-4">
+                {Array.isArray(selectedCanister.logo)
+                  ? (selectedCanister.logo.length > 0 && (
+                      <img src={selectedCanister.logo[0]} alt={selectedCanister.name} className="w-12 h-12 rounded-lg" />
+                    ))
+                  : (selectedCanister.logo && (
+                      <img src={selectedCanister.logo} alt={selectedCanister.name} className="w-12 h-12 rounded-lg" />
+                    ))}
+                <div>
+                  <h2 className="text-xl font-bold text-slate-900">{selectedCanister.name}</h2>
+                  <p className="text-sm text-slate-600">{selectedCanister.description}</p>
                 </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-green-600">{selectedCanister.activeProposals}</div>
-                  <div className="text-sm text-slate-600">Active Proposals</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-cyan-600">{selectedCanister.canisterId}</div>
-                  <div className="text-sm text-slate-600">Canister ID</div>
-                </div>
-                <div className="text-center">
-                  <div className="text-2xl font-bold text-orange-600">{formatRelativeTime(selectedCanister.lastActivity)}</div>
-                  <div className="text-sm text-slate-600">Last Activity</div>
-                </div>
+              </div>
+              {/* Proposals */}
+              <div className="space-y-4">
+                {proposals.map((proposal) => (
+                  <div
+                    key={proposal.id}
+                    className="p-6 border-2 border-slate-200 rounded-xl hover:shadow-md transition-all duration-200"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="flex-1">
+                        <div className="flex items-center space-x-3 mb-2">
+                          <h3 className="text-lg font-semibold text-slate-900">{proposal.title}</h3>
+                          <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getSnsProposalStatusClass(proposal.status)}`}>
+                            {proposal.status}
+                          </span>
+                        </div>
+                        <p className="text-sm text-slate-600 mb-3">{proposal.summary}</p>
+                      </div>
+                    </div>
+                    <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
+                      <div className="flex items-center space-x-2">
+                        <User className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-600">Proposer: {proposal.proposer}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <Calendar className="w-4 h-4 text-slate-400" />
+                        <span className="text-sm text-slate-600">
+                          {proposal.executed ? `Executed ${formatRelativeTime(proposal.executedAt)}` : 'Voting Open'}
+                        </span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <TrendingUp className="w-4 h-4 text-green-500" />
+                        <span className="text-sm text-green-600">For: {formatVoteCount(proposal.votesFor)}</span>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <TrendingDown className="w-4 h-4 text-red-500" />
+                        <span className="text-sm text-red-600">Against: {formatVoteCount(proposal.votesAgainst)}</span>
+                      </div>
+                    </div>
+                    {/* Vote Progress Bar */}
+                    <div className="space-y-2">
+                      <div className="flex justify-between text-sm">
+                        <span className="text-slate-600">Vote Progress</span>
+                        <span className="font-medium text-slate-900">
+                          {calculateVotePercentage(proposal.votesFor, proposal.totalVotes)}% For
+                        </span>
+                      </div>
+                      <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
+                        <div
+                          className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-1000"
+                          style={{ width: `${calculateVotePercentage(proposal.votesFor, proposal.totalVotes)}%` }}
+                        ></div>
+                      </div>
+                      <div className="text-xs text-slate-500">
+                        Total Votes: {formatVoteCount(proposal.totalVotes)}
+                      </div>
+                    </div>
+                  </div>
+                ))}
               </div>
             </div>
           )}
@@ -177,192 +237,100 @@ function SnsGovernancePage() {
 
         {/* Content Area */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6">
-          {!showProposals ? (
-            /* SNS Canisters List */
-            <div>
-              {canistersLoading ? (
-                <div className="text-center py-12">
-                  <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-sm text-slate-500">Loading SNS canisters...</p>
+          {/* SNS Canisters List */}
+          <div>
+            {canistersLoading ? (
+              <div className="text-center py-12">
+                <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
+                <p className="text-sm text-slate-500">Loading SNS canisters...</p>
+              </div>
+            ) : canistersError ? (
+              <div className="text-center py-12 text-red-500">
+                <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <X className="text-red-600 w-8 h-8" />
                 </div>
-              ) : canistersError ? (
-                <div className="text-center py-12 text-red-500">
-                  <div className="w-16 h-16 bg-red-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <X className="text-red-600 w-8 h-8" />
-                  </div>
-                  <p className="text-sm font-medium">Error loading SNS canisters</p>
+                <p className="text-sm font-medium">Error loading SNS canisters</p>
+              </div>
+            ) : canisters.length === 0 ? (
+              <div className="text-center py-12 text-slate-500">
+                <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
+                  <Building2 className="text-slate-600 w-10 h-10" />
                 </div>
-              ) : canisters.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
-                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <Building2 className="text-slate-600 w-10 h-10" />
-                  </div>
-                  <p className="text-base font-medium mb-2">No SNS canisters found</p>
-                  <p className="text-sm">No SNS governance canisters are currently available.</p>
-                </div>
-              ) : (
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-                  {canisters.map((canister) => (
-                    <div
-                      key={canister.id}
-                      onClick={() => handleCanisterSelect(canister)}
-                      className="p-6 border-2 border-slate-200 rounded-xl cursor-pointer transition-all duration-300 hover:border-cyan-400 hover:shadow-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-cyan-50 group"
-                    >
-                      <div className="flex items-start justify-between mb-4">
-                        <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center">
-                          <Building2 className="text-white w-6 h-6" />
-                        </div>
-                        <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" />
+                <p className="text-base font-medium mb-2">No SNS canisters found</p>
+                <p className="text-sm">No SNS governance canisters are currently available.</p>
+              </div>
+            ) : (
+              <>
+              <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+                {canisters.map((canister) => (
+                  <div
+                    key={canister.id}
+                    onClick={() => handleCanisterSelect(canister)}
+                    className="p-6 border-2 border-slate-200 rounded-xl cursor-pointer transition-all duration-300 hover:border-cyan-400 hover:shadow-lg hover:bg-gradient-to-br hover:from-blue-50 hover:to-cyan-50 group"
+                  >
+                    <div className="flex items-start justify-between mb-4">
+                      <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center overflow-hidden">
+                        {Array.isArray(canister.logo)
+                          ? (canister.logo.length > 0 ? (
+                              <img src={canister.logo[0]} alt={canister.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Building2 className="text-white w-6 h-6" />
+                            ))
+                          : (canister.logo ? (
+                              <img src={canister.logo} alt={canister.name} className="w-full h-full object-contain" />
+                            ) : (
+                              <Building2 className="text-white w-6 h-6" />
+                            ))}
                       </div>
-                      
-                      <h3 className="text-lg font-semibold text-slate-900 mb-2">{canister.name}</h3>
-                      <p className="text-sm text-slate-600 mb-4 line-clamp-2">{canister.description}</p>
-                      
-                      <div className="space-y-3">
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-500">Total Proposals:</span>
-                          <span className="font-medium text-slate-900">{canister.totalProposals}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-500">Active:</span>
-                          <span className="font-medium text-green-600">{canister.activeProposals}</span>
-                        </div>
-                        <div className="flex items-center justify-between text-sm">
-                          <span className="text-slate-500">Last Activity:</span>
-                          <span className="font-medium text-slate-900">{formatRelativeTime(canister.lastActivity)}</span>
-                        </div>
+                      <ChevronRight className="w-5 h-5 text-slate-400 group-hover:text-cyan-600 transition-colors" />
+                    </div>
+                    <h3 className="text-lg font-semibold text-slate-900 mb-2">{canister.name}</h3>
+                    <p className="text-sm text-slate-600 mb-4 line-clamp-2">{canister.description}</p>
+                    <div className="space-y-3">
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Total Proposals:</span>
+                        <span className="font-medium text-slate-900">{canister.totalProposals}</span>
                       </div>
-                      
-                      <div className="mt-4 pt-4 border-t border-slate-200">
-                        <div className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
-                          {canister.canisterId}
-                        </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Active:</span>
+                        <span className="font-medium text-green-600">{canister.activeProposals}</span>
+                      </div>
+                      <div className="flex items-center justify-between text-sm">
+                        <span className="text-slate-500">Last Activity:</span>
+                        <span className="font-medium text-slate-900">{formatRelativeTime(canister.lastActivity)}</span>
                       </div>
                     </div>
-                  ))}
-                </div>
-              )}
-            </div>
-          ) : (
-            /* SNS Proposals List */
-            <div>
-              {proposalsLoading ? (
-                <div className="text-center py-12">
-                  <div className="w-8 h-8 border-2 border-slate-300 border-t-slate-600 rounded-full animate-spin mx-auto mb-4"></div>
-                  <p className="text-sm text-slate-500">Loading proposals...</p>
-                </div>
-              ) : proposals.length === 0 ? (
-                <div className="text-center py-12 text-slate-500">
-                  <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
-                    <FileText className="text-slate-600 w-10 h-10" />
-                  </div>
-                  <p className="text-base font-medium mb-2">No proposals found</p>
-                  <p className="text-sm">This SNS canister has no proposals yet.</p>
-                </div>
-              ) : (
-                <div>
-                  {/* Canister Metadata */}
-                  {metadata && (
-                    <div className="bg-gradient-to-r from-blue-50 to-cyan-50 rounded-xl p-6 mb-6 border border-blue-200">
-                      <div className="flex items-center space-x-4 mb-4">
-                        {metadata.logoUrl && (
-                          <img src={metadata.logoUrl} alt={`${metadata.name} logo`} className="w-12 h-12 rounded-lg" />
-                        )}
-                        <div>
-                          <h2 className="text-xl font-bold text-slate-900">{metadata.name}</h2>
-                          <p className="text-sm text-slate-600">{metadata.description}</p>
-                        </div>
-                      </div>
-                      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Token</p>
-                          <p className="text-sm font-semibold text-slate-900">{metadata.tokenSymbol}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Total Supply</p>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {formatVoteCount(metadata.totalSupply)}
-                          </p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Decimals</p>
-                          <p className="text-sm font-semibold text-slate-900">{metadata.decimals}</p>
-                        </div>
-                        <div>
-                          <p className="text-xs font-medium text-slate-500 uppercase tracking-wide">Created</p>
-                          <p className="text-sm font-semibold text-slate-900">
-                            {new Date(metadata.createdAt).toLocaleDateString()}
-                          </p>
-                        </div>
+                    <div className="mt-4 pt-4 border-t border-slate-200">
+                      <div className="text-xs font-mono text-slate-500 bg-slate-100 px-2 py-1 rounded">
+                        {canister.canisterId}
                       </div>
                     </div>
-                  )}
-                  
-                  {/* Proposals */}
-                  <div className="space-y-4">
-                    {proposals.map((proposal) => (
-                      <div
-                        key={proposal.id}
-                        className="p-6 border-2 border-slate-200 rounded-xl hover:shadow-md transition-all duration-200"
-                      >
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h3 className="text-lg font-semibold text-slate-900">{proposal.title}</h3>
-                              <span className={`text-xs font-medium px-2 py-1 rounded-full border ${getSnsProposalStatusClass(proposal.status)}`}>
-                                {proposal.status}
-                              </span>
-                            </div>
-                            <p className="text-sm text-slate-600 mb-3">{proposal.summary}</p>
-                          </div>
-                        </div>
-
-                        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4 mb-4">
-                          <div className="flex items-center space-x-2">
-                            <User className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-600">Proposer: {proposal.proposer}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <Calendar className="w-4 h-4 text-slate-400" />
-                            <span className="text-sm text-slate-600">
-                              {proposal.executed ? `Executed ${formatRelativeTime(proposal.executedAt)}` : 'Voting Open'}
-                            </span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <TrendingUp className="w-4 h-4 text-green-500" />
-                            <span className="text-sm text-green-600">For: {formatVoteCount(proposal.votesFor)}</span>
-                          </div>
-                          <div className="flex items-center space-x-2">
-                            <TrendingDown className="w-4 h-4 text-red-500" />
-                            <span className="text-sm text-red-600">Against: {formatVoteCount(proposal.votesAgainst)}</span>
-                          </div>
-                        </div>
-
-                        {/* Vote Progress Bar */}
-                        <div className="space-y-2">
-                          <div className="flex justify-between text-sm">
-                            <span className="text-slate-600">Vote Progress</span>
-                            <span className="font-medium text-slate-900">
-                              {calculateVotePercentage(proposal.votesFor, proposal.totalVotes)}% For
-                            </span>
-                          </div>
-                          <div className="bg-slate-200 rounded-full h-2 overflow-hidden">
-                            <div
-                              className="bg-gradient-to-r from-green-500 to-green-600 h-2 rounded-full transition-all duration-1000"
-                              style={{ width: `${calculateVotePercentage(proposal.votesFor, proposal.totalVotes)}%` }}
-                            ></div>
-                          </div>
-                          <div className="text-xs text-slate-500">
-                            Total Votes: {formatVoteCount(proposal.totalVotes)}
-                          </div>
-                        </div>
-                      </div>
-                    ))}
                   </div>
-                </div>
-              )}
-            </div>
-          )}
+                ))}
+              </div>
+              {/* Pagination Controls */}
+              <div className="flex justify-center items-center mt-8 space-x-4">
+                <button
+                  className="px-4 py-2 rounded bg-slate-100 text-slate-700 disabled:opacity-50 transition-colors duration-150 hover:bg-blue-600 hover:text-white hover:shadow-md cursor-pointer disabled:cursor-not-allowed"
+                  onClick={() => setCanisterPage((p) => Math.max(1, p - 1))}
+                  disabled={!paginationInfo.has_prev_page}
+                >
+                  Previous
+                </button>
+                <span className="text-slate-700 font-medium">
+                  Page {paginationInfo.current_page || canisterPage} of {paginationInfo.total_pages || 1}
+                </span>
+                <button
+                  className="px-4 py-2 rounded bg-slate-100 text-slate-700 disabled:opacity-50 transition-colors duration-150 hover:bg-blue-600 hover:text-white hover:shadow-md cursor-pointer disabled:cursor-not-allowed"
+                  onClick={() => setCanisterPage((p) => p + 1)}
+                  disabled={!paginationInfo.has_next_page}
+                >
+                  Next
+                </button>
+              </div>
+              </>
+            )}
+          </div>
         </div>
       </main>
     </div>

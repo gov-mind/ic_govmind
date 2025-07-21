@@ -9,20 +9,30 @@ export const QUERY_KEYS = {
 };
 
 // Custom hook for fetching SNS governance canisters
-export const useSnsCanisters = () => {
+export const useSnsCanisters = (page = 1, pageSize = 10) => {
   return useQuery({
-    queryKey: QUERY_KEYS.snsCanisters,
+    queryKey: [QUERY_KEYS.snsCanisters, page, pageSize],
     queryFn: async () => {
-      const canisters = await ic_govmind_sns.get_sns_canisters();
-      return canisters.map(canister => ({
-        id: canister.id,
-        name: canister.name,
-        canisterId: canister.canister_id,
-        description: canister.description,
-        totalProposals: canister.total_proposals,
-        activeProposals: canister.active_proposals,
-        lastActivity: Number(canister.last_activity) / 1000000, // Convert from nanoseconds to milliseconds
-      }));
+      const offset = (page - 1) * pageSize;
+      const result = await ic_govmind_sns.get_sns_canisters([offset], [pageSize]);
+      if (!Array.isArray(result) || result.length < 2) {
+        throw new Error('Invalid response from get_sns_canisters');
+      }
+      const canisters = result[0];
+      const paginationInfo = result[1];
+      return {
+        canisters: canisters.map(canister => ({
+          id: canister.id,
+          name: canister.name,
+          canisterId: canister.canister_id,
+          description: canister.description,
+          logo: canister.logo?.length ? canister.logo[0] : undefined,
+          totalProposals: canister.total_proposals,
+          activeProposals: canister.active_proposals,
+          lastActivity: Number(canister.last_activity) / 1000000, // Convert from nanoseconds to milliseconds
+        })),
+        paginationInfo,
+      };
     },
     staleTime: 30000, // Consider data stale after 30 seconds
   });
@@ -36,22 +46,25 @@ export const useSnsProposals = (canisterId) => {
       if (!canisterId) return [];
       
       const result = await ic_govmind_sns.get_sns_proposals(canisterId);
+      console.log(result);
+
       if ('Err' in result) {
         throw new Error(`Failed to fetch proposals: ${result.Err}`);
       }
       
       const proposals = result.Ok;
       return proposals.map(proposal => ({
-        id: proposal.id,
+        id: Number(proposal.id),
+        compositeId: canisterId + '-' + Number(proposal.id),
         title: proposal.title,
         summary: proposal.summary,
         status: proposal.status,
         executed: proposal.executed,
         executedAt: proposal.executed_at ? Number(proposal.executed_at) / 1000000 : null, // Convert from nanoseconds to milliseconds
         proposer: proposal.proposer,
-        votesFor: proposal.votes_for,
-        votesAgainst: proposal.votes_against,
-        totalVotes: proposal.total_votes,
+        votesFor: Number(proposal.votes_for),
+        votesAgainst: Number(proposal.votes_against),
+        totalVotes: Number(proposal.total_votes),
       }));
     },
     enabled: !!canisterId, // Only run if canisterId exists
@@ -77,6 +90,9 @@ export const getSnsProposalStatusClass = (status) => {
 
 // Helper function to format vote counts
 export const formatVoteCount = (votes) => {
+  if (votes === undefined || votes === null || isNaN(votes)) {
+    return '0';
+  }
   if (votes >= 1000000) {
     return `${(votes / 1000000).toFixed(1)}M`;
   } else if (votes >= 1000) {
@@ -100,9 +116,9 @@ export const useSnsStatistics = () => {
     queryFn: async () => {
       const [totalCanisters, totalProposals, activeProposals] = await ic_govmind_sns.get_sns_statistics();
       return {
-        totalCanisters,
-        totalProposals,
-        activeProposals,
+        totalCanisters: Number(totalCanisters),
+        totalProposals: Number(totalProposals),
+        activeProposals: Number(activeProposals),
       };
     },
     staleTime: 30000, // Consider data stale after 30 seconds

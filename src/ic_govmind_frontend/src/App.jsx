@@ -4,6 +4,7 @@ import { ReactQueryDevtools } from '@tanstack/react-query-devtools';
 import HomePage from './pages/HomePage';
 import ProposalsPage from './pages/ProposalsPage';
 import SnsGovernancePage from './pages/SnsGovernancePage';
+import ProposalListPage from './pages/ProposalListPage';
 import './App.css';
 
 // Create a client
@@ -25,6 +26,7 @@ function App() {
           <Route path="/" element={<HomePage />} />
           <Route path="/proposals" element={<ProposalsPage />} />
           <Route path="/sns-governance" element={<SnsGovernancePage />} />
+          <Route path="/sns-governance/:canisterId" element={<ProposalListPage />} />
           <Route path="*" element={<Navigate to="/" replace />} />
         </Routes>
       </Router>

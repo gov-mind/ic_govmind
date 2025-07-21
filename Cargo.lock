@@ -1357,6 +1357,7 @@ dependencies = [
  "candid",
  "ciborium",
  "futures",
+ "hex",
  "ic-cdk",
  "ic-cdk-macros",
  "ic-stable-structures",

@@ -334,14 +334,6 @@ fn init() {
     initialize_sample_data_if_empty();
 }
 
-// Post-upgrade hook to ensure data is initialized
-#[post_upgrade]
-fn post_upgrade() {
-    // Don't reinitialize on upgrade - stable memory preserves data
-    // Only initialize if this is the first time (stable memory is empty)
-    initialize_sample_data_if_empty();
-}
-
 // Helper function to get current time (works in both canister and test environments)
 fn get_current_time() -> u64 {
     #[cfg(test)]
@@ -621,12 +613,14 @@ fn get_sns_canisters(offset: Option<u32>, limit: Option<u32>) -> (Vec<SnsCaniste
         });
     }
     
-    let canisters: Vec<SnsCanister> = SNS_CANISTERS.with(|canisters| {
+    let mut canisters: Vec<SnsCanister> = SNS_CANISTERS.with(|canisters| {
         canisters.borrow()
             .iter()
             .map(|(_, canister)| canister.clone())
             .collect()
     });
+    // Sort by name (case-insensitive)
+    canisters.sort_by(|a, b| a.name.to_lowercase().cmp(&b.name.to_lowercase()));
     
     let total_count = canisters.len() as u32;
     let total_pages = (total_count + limit - 1) / limit; // Ceiling division
@@ -727,7 +721,28 @@ async fn fetch_sns_proposals(canister_id: String) -> Result<Vec<SnsProposal>, Sn
         } else { 
             None 
         }, // Convert to nanoseconds
-        proposer: "Unknown".to_string(), // TODO: Extract from ballots or other fields
+        proposer: {
+            // Try to get proposer from the proposer field first
+            if let Some(neuron_id) = &p.proposer {
+                // Convert NeuronId to a shorter, more readable format
+                let hex_str = hex::encode(&neuron_id.id);
+                if hex_str.len() > 16 {
+                    format!("0x{}...{}", &hex_str[..8], &hex_str[hex_str.len()-8..])
+                } else {
+                    format!("0x{}", hex_str)
+                }
+            } else if !p.ballots.is_empty() {
+                // Fallback: use the first voter as proposer (often the same person)
+                let first_voter = &p.ballots[0].0;
+                if first_voter.len() > 20 {
+                    format!("{}...{}", &first_voter[..10], &first_voter[first_voter.len()-10..])
+                } else {
+                    first_voter.clone()
+                }
+            } else {
+                "Unknown".to_string()
+            }
+        },
         votes_for: p.latest_tally.as_ref().map(|t| t.yes).unwrap_or(0),
         votes_against: p.latest_tally.as_ref().map(|t| t.no).unwrap_or(0),
         total_votes: p.latest_tally.as_ref().map(|t| t.total).unwrap_or(0),
@@ -1017,112 +1032,99 @@ fn get_sns_statistics() -> (u32, u64, u64) {
 }
 
 // ============================================================================
-// DATA EXPORT/IMPORT FUNCTIONS
+// CHUNKED EXPORT/IMPORT FUNCTIONS (for large datasets)
 // ============================================================================
 
-// Export all SNS data as a blob for backup/migration
+// Export canisters in chunks (for large canister datasets)
 #[query]
-fn export_data() -> Result<Vec<u8>, SnsGovernanceError> {
-    // Collect all canisters
-    let canisters: Vec<SnsCanister> = SNS_CANISTERS.with(|canisters| {
-        canisters.borrow()
+fn export_canisters_chunk(offset: u32, limit: u32) -> Vec<SnsCanister> {
+    let chunk_limit = if limit > 20 { 20 } else { limit };
+    SNS_CANISTERS.with(|canisters| {
+        let canisters_borrow = canisters.borrow();
+        let all_canisters: Vec<_> = canisters_borrow
             .iter()
             .map(|(_, canister)| canister.clone())
-            .collect()
-    });
+            .collect();
+        let start_idx = offset as usize;
+        let end_idx = std::cmp::min(start_idx + chunk_limit as usize, all_canisters.len());
+        if start_idx < all_canisters.len() {
+            all_canisters[start_idx..end_idx].to_vec()
+        } else {
+            Vec::new()
+        }
+    })
+}
 
-    // Collect all proposals
-    let proposals: Vec<(ProposalKey, SnsProposal)> = SNS_PROPOSALS.with(|proposals| {
-        proposals.borrow()
+#[query]
+fn get_canisters_pagination_info(offset: u32, limit: u32) -> (u32, u32, u32, bool) {
+    SNS_CANISTERS.with(|canisters| {
+        let canisters_borrow = canisters.borrow();
+        let total = canisters_borrow.len() as u32;
+        let chunk_limit = if limit > 20 { 20 } else { limit };
+        let start_idx = offset as usize;
+        let end_idx = std::cmp::min(start_idx + chunk_limit as usize, total as usize);
+        let has_more = end_idx < total as usize;
+        (offset, chunk_limit, total, has_more)
+    })
+}
+
+// Export proposals in chunks
+#[query]
+fn export_proposals_chunk(offset: u32, limit: u32) -> Vec<(ProposalKey, SnsProposal)> {
+    let chunk_limit = if limit > 50 { 50 } else { limit };
+    SNS_PROPOSALS.with(|proposals| {
+        let proposals_borrow = proposals.borrow();
+        let all_proposals: Vec<_> = proposals_borrow
             .iter()
             .map(|(key, proposal)| (key.clone(), proposal.clone()))
-            .collect()
-    });
-
-    // Create export structure
-    #[derive(CandidType, Deserialize, Clone, Debug, Serialize)]
-    struct ExportData {
-        canisters: Vec<SnsCanister>,
-        proposals: Vec<(ProposalKey, SnsProposal)>,
-        export_timestamp: u64,
-        version: String,
-    }
-
-    let export_data = ExportData {
-        canisters,
-        proposals,
-        export_timestamp: get_current_time(),
-        version: "1.0.0".to_string(),
-    };
-
-    // Serialize to JSON
-    match serde_json::to_vec(&export_data) {
-        Ok(data) => Ok(data),
-        Err(e) => Err(SnsGovernanceError::InvalidData(format!("Failed to serialize export data: {}", e))),
-    }
+            .collect();
+        let start_idx = offset as usize;
+        let end_idx = std::cmp::min(start_idx + chunk_limit as usize, all_proposals.len());
+        if start_idx < all_proposals.len() {
+            all_proposals[start_idx..end_idx].to_vec()
+        } else {
+            Vec::new()
+        }
+    })
 }
 
-// Import SNS data from a blob (for restore/migration)
-#[update]
-fn import_data(data: Vec<u8>) -> Result<String, SnsGovernanceError> {
-    // Deserialize the import data
-    #[derive(CandidType, Deserialize, Clone, Debug)]
-    struct ImportData {
-        canisters: Vec<SnsCanister>,
-        proposals: Vec<(ProposalKey, SnsProposal)>,
-        export_timestamp: u64,
-        version: String,
-    }
-
-    let import_data: ImportData = match serde_json::from_slice(&data) {
-        Ok(data) => data,
-        Err(e) => return Err(SnsGovernanceError::InvalidData(format!("Failed to deserialize import data: {}", e))),
-    };
-
-    // Validate version compatibility (basic check)
-    if !import_data.version.starts_with("1.") {
-        return Err(SnsGovernanceError::InvalidData("Incompatible data version".to_string()));
-    }
-
-    // Clear existing data
-    SNS_CANISTERS.with(|canisters| {
-        canisters.borrow_mut().clear_new();
-    });
-    SNS_PROPOSALS.with(|proposals| {
-        proposals.borrow_mut().clear_new();
-    });
-
-    // Import canisters
-    let mut imported_canisters = 0;
-    SNS_CANISTERS.with(|canisters| {
-        let mut canisters_borrow = canisters.borrow_mut();
-        for canister in import_data.canisters {
-            canisters_borrow.insert(canister.canister_id.clone(), canister);
-            imported_canisters += 1;
-        }
-    });
-
-    // Import proposals
-    let mut imported_proposals = 0;
-    SNS_PROPOSALS.with(|proposals| {
-        let mut proposals_borrow = proposals.borrow_mut();
-        for (key, proposal) in import_data.proposals {
-            proposals_borrow.insert(key, proposal);
-            imported_proposals += 1;
-        }
-    });
-
-    Ok(format!("Successfully imported {} canisters and {} proposals", imported_canisters, imported_proposals))
-}
-
-// Get data export info (metadata without the actual data)
 #[query]
-fn get_export_info() -> Result<(u32, u64, u64), SnsGovernanceError> {
-    let total_canisters = SNS_CANISTERS.with(|canisters| canisters.borrow().len() as u32);
-    let total_proposals = SNS_PROPOSALS.with(|proposals| proposals.borrow().len() as u64);
-    let estimated_size = (total_canisters * 1024) as u64 + (total_proposals * 512); // Rough estimate in bytes
-    
-    Ok((total_canisters, total_proposals, estimated_size))
+fn get_proposals_pagination_info(offset: u32, limit: u32) -> (u32, u32, u32, bool) {
+    SNS_PROPOSALS.with(|proposals| {
+        let proposals_borrow = proposals.borrow();
+        let total = proposals_borrow.len() as u32;
+        let chunk_limit = if limit > 50 { 50 } else { limit };
+        let start_idx = offset as usize;
+        let end_idx = std::cmp::min(start_idx + chunk_limit as usize, total as usize);
+        let has_more = end_idx < total as usize;
+        (offset, chunk_limit, total, has_more)
+    })
+}
+
+#[update]
+fn import_canisters(canisters: Vec<SnsCanister>) -> Result<String, SnsGovernanceError> {
+    let mut imported_count = 0;
+    SNS_CANISTERS.with(|canisters_store| {
+        let mut canisters_borrow = canisters_store.borrow_mut();
+        for canister in canisters {
+            canisters_borrow.insert(canister.canister_id.clone(), canister);
+            imported_count += 1;
+        }
+    });
+    Ok(format!("Successfully imported {} canisters", imported_count))
+}
+
+#[update]
+fn import_proposals(proposals: Vec<(ProposalKey, SnsProposal)>) -> Result<String, SnsGovernanceError> {
+    let mut imported_count = 0;
+    SNS_PROPOSALS.with(|proposals_store| {
+        let mut proposals_borrow = proposals_store.borrow_mut();
+        for (key, proposal) in proposals {
+            proposals_borrow.insert(key, proposal);
+            imported_count += 1;
+        }
+    });
+    Ok(format!("Successfully imported {} proposals", imported_count))
 }
 
 // ============================================================================

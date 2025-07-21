@@ -26,3 +26,6 @@ dist/
 
 # Cursor Rules
 .cursor/
+
+# Export Files
+export*.did

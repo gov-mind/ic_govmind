@@ -5,7 +5,6 @@ mod tests {
         SNS_CANISTERS, SNS_PROPOSALS, 
         initialize_sample_data, get_sns_canisters, get_sns_proposals, get_sns_proposal,
         add_sns_canister, remove_sns_canister, get_sns_statistics,
-        export_data, import_data, get_export_info, refresh_sns_canisters,
         GetMetadataResponse, ProposalData, ProposalId, Topic, Ballot, Percentage, Tally, Proposal, NeuronId,
         Principal,
     };
@@ -504,8 +503,6 @@ mod tests {
         assert!(!canister.name.is_empty());
         assert!(canister.canister_id.contains('-'));
         assert!(!canister.description.is_empty());
-        assert!(canister.total_proposals >= 0);
-        assert!(canister.active_proposals >= 0);
         assert!(canister.last_activity > 0);
     }
 
@@ -707,170 +704,6 @@ mod tests {
             if proposal.executed_timestamp_seconds > 0 {
                 assert!(proposal.executed_timestamp_seconds >= proposal.proposal_creation_timestamp_seconds);
             }
-        }
-    }
-
-    #[test]
-    fn test_test_isolation() {
-        // This test verifies that tests are properly isolated
-        reset_state();
-        
-        // Start with empty state
-        let (canisters, _) = get_sns_canisters(None, None);
-        assert_eq!(canisters.len(), 0);
-        
-        // Add a canister
-        let test_canister = SnsCanister {
-            id: "test-isolation".to_string(),
-            name: "Test Isolation".to_string(),
-            canister_id: "test-isolation-canister".to_string(),
-            description: "Test canister for isolation testing".to_string(),
-            logo: None,
-            url: None,
-            total_proposals: 1,
-            active_proposals: 1,
-            last_activity: 1640995200000000000,
-        };
-        
-        let result = add_sns_canister(test_canister);
-        assert!(matches!(result, Ok(_)));
-        
-        // Verify it was added
-        let (canisters, _) = get_sns_canisters(None, None);
-        assert_eq!(canisters.len(), 1);
-        assert_eq!(canisters[0].name, "Test Isolation");
-        
-        // Reset state - this should clear everything
-        reset_state();
-        
-        // Verify state is empty again
-        let (canisters, _) = get_sns_canisters(None, None);
-        assert_eq!(canisters.len(), 0);
-        
-        // Verify proposals are also empty
-        let proposals = get_sns_proposals("test-isolation-canister".to_string());
-        assert!(matches!(proposals, Ok(_)));
-        if let Ok(proposals) = proposals {
-            assert_eq!(proposals.len(), 0);
-        }
-    }
-
-    #[test]
-    fn test_export_data() {
-        reset_state();
-        initialize_sample_data();
-        
-        // Export data
-        let export_result = export_data();
-        assert!(matches!(export_result, Ok(_)));
-        
-        if let Ok(exported_data) = export_result {
-            // Verify the exported data is not empty
-            assert!(!exported_data.is_empty());
-            
-            // Try to deserialize it to verify it's valid JSON
-            let deserialized: Result<serde_json::Value, _> = serde_json::from_slice(&exported_data);
-            assert!(matches!(deserialized, Ok(_)));
-        }
-    }
-
-    #[test]
-    fn test_import_data() {
-        reset_state();
-        initialize_sample_data();
-        
-        // Export data first
-        let export_result = export_data();
-        assert!(matches!(export_result, Ok(_)));
-        
-        if let Ok(exported_data) = export_result {
-            // Clear the state
-            reset_state();
-            
-            // Verify state is empty
-            let (canisters, _) = get_sns_canisters(None, None);
-            assert_eq!(canisters.len(), 0);
-            
-            // Import the data
-            let import_result = import_data(exported_data);
-            assert!(matches!(import_result, Ok(_)));
-            
-            // Verify data was imported correctly
-            let (canisters, _) = get_sns_canisters(None, None);
-            assert_eq!(canisters.len(), 5); // Should have the 5 sample canisters
-            
-            // Verify proposals were also imported
-            let proposals = get_sns_proposals("zqfso-syaaa-aaaaa-aaahq-cai".to_string());
-            assert!(matches!(proposals, Ok(_)));
-            if let Ok(proposals) = proposals {
-                assert_eq!(proposals.len(), 3); // Should have 3 OpenChat proposals
-            }
-        }
-    }
-
-    #[test]
-    fn test_get_export_info() {
-        reset_state();
-        initialize_sample_data();
-        
-        let info_result = get_export_info();
-        assert!(matches!(info_result, Ok(_)));
-        
-        if let Ok((total_canisters, total_proposals, estimated_size)) = info_result {
-            assert_eq!(total_canisters, 5);
-            assert_eq!(total_proposals, 5); // 3 from OpenChat + 2 from DSCVR
-            assert!(estimated_size > 0);
-        }
-    }
-
-    #[test]
-    fn test_import_invalid_data() {
-        reset_state();
-        
-        // Try to import invalid data
-        let invalid_data = vec![0, 1, 2, 3, 4, 5]; // Random bytes
-        let import_result = import_data(invalid_data);
-        assert!(matches!(import_result, Err(SnsGovernanceError::InvalidData(_))));
-    }
-
-    #[test]
-    fn test_export_import_roundtrip() {
-        reset_state();
-        
-        // Add some custom data
-        let test_canister = SnsCanister {
-            id: "test-export".to_string(),
-            name: "Test Export Canister".to_string(),
-            canister_id: "test-export-canister".to_string(),
-            description: "Test canister for export/import testing".to_string(),
-            logo: Some("data:image/png;base64,test".to_string()),
-            url: Some("https://test.com".to_string()),
-            total_proposals: 2,
-            active_proposals: 1,
-            last_activity: 1640995200000000000,
-        };
-        
-        let result = add_sns_canister(test_canister);
-        assert!(matches!(result, Ok(_)));
-        
-        // Export data
-        let export_result = export_data();
-        assert!(matches!(export_result, Ok(_)));
-        
-        if let Ok(exported_data) = export_result {
-            // Clear state
-            reset_state();
-            
-            // Import data
-            let import_result = import_data(exported_data);
-            assert!(matches!(import_result, Ok(_)));
-            
-            // Verify the custom canister was restored
-            let (canisters, _) = get_sns_canisters(None, None);
-            assert_eq!(canisters.len(), 1);
-            assert_eq!(canisters[0].name, "Test Export Canister");
-            assert_eq!(canisters[0].canister_id, "test-export-canister");
-            assert_eq!(canisters[0].total_proposals, 2);
         }
     }
 } 

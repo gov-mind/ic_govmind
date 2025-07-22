@@ -21,6 +21,13 @@ import {
 } from 'lucide-react';
 import { useNavigate } from 'react-router-dom';
 
+function scrollToSection(id) {
+  const el = document.getElementById(id);
+  if (el) {
+    el.scrollIntoView({ behavior: 'smooth' });
+  }
+}
+
 function HomePage() {
   const navigate = useNavigate();
 
@@ -40,12 +47,20 @@ function HomePage() {
               </div>
             </Link>
             <nav className="flex space-x-4">
-              <a href="#features" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
-                Features
-              </a>
-              <a href="#solutions" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
+              <button
+                type="button"
+                onClick={() => scrollToSection('solutions')}
+                className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium bg-transparent border-none outline-none cursor-pointer"
+              >
                 Solutions
-              </a>
+              </button>
+              <button
+                type="button"
+                onClick={() => scrollToSection('features')}
+                className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium bg-transparent border-none outline-none cursor-pointer"
+              >
+                Features
+              </button>
               <button
                 onClick={() => navigate('/app')}
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-800 hover:to-cyan-700 text-white px-6 py-2 rounded-lg transition-all duration-200 font-medium shadow-sm"
@@ -376,7 +391,7 @@ function HomePage() {
             </div>
 
             <Link 
-              to="/sns-governance" 
+              to="/app" 
               className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-colors font-semibold text-lg inline-flex items-center space-x-2"
             >
               <span>Start Building the Future</span>

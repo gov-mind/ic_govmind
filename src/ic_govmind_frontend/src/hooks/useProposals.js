@@ -1,5 +1,5 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
-import { ai_proposal_analyzer } from 'declarations/ai_proposal_analyzer';
+import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -11,7 +11,7 @@ export const QUERY_KEYS = {
 export const useProposals = () => {
   return useQuery({
     queryKey: QUERY_KEYS.proposals,
-    queryFn: () => ai_proposal_analyzer.get_all_proposals(),
+    queryFn: () => ic_govmind_proposal_analyzer.get_all_proposals(),
     refetchInterval: 3000, // Poll every 3 seconds
     staleTime: 1000, // Consider data stale after 1 second
   });
@@ -21,7 +21,7 @@ export const useProposals = () => {
 export const useProposal = (proposalId) => {
   return useQuery({
     queryKey: QUERY_KEYS.proposal(proposalId),
-    queryFn: () => ai_proposal_analyzer.get_proposal(proposalId),
+    queryFn: () => ic_govmind_proposal_analyzer.get_proposal(proposalId),
     enabled: !!proposalId, // Only run if proposalId exists
     refetchInterval: 3000,
     staleTime: 1000,
@@ -34,8 +34,12 @@ export const useSubmitProposal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ title, description }) => 
-      ai_proposal_analyzer.submit_proposal(title, description),
+    mutationFn: ({ proposalId, title, description }) => 
+      ic_govmind_proposal_analyzer.submit_proposal(
+        proposalId ? [proposalId] : [], // Pass Some(proposalId) or None
+        title, 
+        description
+      ),
     onSuccess: (proposalId) => {
       // Invalidate and refetch proposals list
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
@@ -43,7 +47,7 @@ export const useSubmitProposal = () => {
       // Pre-fetch the new proposal
       queryClient.prefetchQuery({
         queryKey: QUERY_KEYS.proposal(proposalId),
-        queryFn: () => ai_proposal_analyzer.get_proposal(proposalId),
+        queryFn: () => ic_govmind_proposal_analyzer.get_proposal(proposalId),
       });
       
       return proposalId;
@@ -60,7 +64,7 @@ export const useRetryAnalysis = () => {
   
   return useMutation({
     mutationFn: (proposalId) => 
-      ai_proposal_analyzer.retry_proposal_analysis(proposalId),
+      ic_govmind_proposal_analyzer.retry_proposal_analysis(proposalId),
     onSuccess: (_, proposalId) => {
       // Invalidate both the proposals list and specific proposal
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
@@ -69,6 +73,21 @@ export const useRetryAnalysis = () => {
     onError: (error) => {
       console.error('Error retrying analysis:', error);
     },
+  });
+};
+
+// Custom hook for checking if a proposal exists in the analyzer
+export const useProposalExists = (compositeId) => {
+  return useQuery({
+    queryKey: ['proposalExists', compositeId],
+    queryFn: async () => {
+      if (!compositeId) return null;
+      // Directly check if the proposal exists using get_proposal
+      const result = await ic_govmind_proposal_analyzer.get_proposal(compositeId);
+      return result?.[0] || null; // Return the proposal if it exists, null otherwise
+    },
+    enabled: !!compositeId,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours - proposals are never deleted
   });
 };
 

@@ -18,11 +18,11 @@ if [[ "$1" == "--help" || "$1" == "-h" ]]; then
     echo "Examples:"
     echo "  ./scripts/deploy.sh                    # Deploy all"
     echo "  ./scripts/deploy.sh ic_govmind_backend # Deploy backend only"
-    echo "  ./scripts/deploy.sh ai_proposal_analyzer # Deploy analyzer only"
+    echo "  ./scripts/deploy.sh ic_govmind_proposal_analyzer # Deploy analyzer only"
     echo ""
     echo "Special behavior:"
     echo "  • When deploying 'all' or 'ic_govmind_backend': adds initialization arguments"
-    echo "  • When deploying 'all' or 'ai_proposal_analyzer': runs setup_api_key"
+    echo "  • When deploying 'all' or 'ic_govmind_proposal_analyzer': runs setup_api_key"
     exit 0
 fi
 
@@ -80,11 +80,11 @@ deploy_backend() {
     echo -e "${GREEN}✅ ic_govmind_backend deployed successfully!${NC}"
 }
 
-# Function to deploy ai_proposal_analyzer and setup API key
+# Function to deploy ic_govmind_proposal_analyzer and setup API key
 deploy_analyzer() {
-    echo -e "${YELLOW}📦 Deploying ai_proposal_analyzer...${NC}"
-    dfx deploy ai_proposal_analyzer
-    echo -e "${GREEN}✅ ai_proposal_analyzer deployed successfully!${NC}"
+    echo -e "${YELLOW}📦 Deploying ic_govmind_proposal_analyzer...${NC}"
+    dfx deploy ic_govmind_proposal_analyzer
+    echo -e "${GREEN}✅ ic_govmind_proposal_analyzer deployed successfully!${NC}"
     
     echo -e "${YELLOW}🔑 Setting up API key...${NC}"
     ./scripts/setup_api_key.sh
@@ -102,6 +102,8 @@ deploy_canister() {
 case $CANISTER in
     "all")
         echo -e "${BLUE}Deploying all canisters...${NC}"
+
+        dfx deploy internet_identity
         
         # Deploy backend with arguments
         deploy_backend
@@ -113,6 +115,8 @@ case $CANISTER in
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
         dfx deploy icrc1_ledger
         dfx deploy ic_govmind_frontend
+        dfx deploy ic_govmind_factory
+        dfx deploy ic_govmind_sns
         
         echo -e "${GREEN}🎉 All canisters deployed successfully!${NC}"
         ;;
@@ -121,7 +125,7 @@ case $CANISTER in
         deploy_backend
         ;;
         
-    "ai_proposal_analyzer")
+    "ic_govmind_proposal_analyzer")
         deploy_analyzer
         ;;
         

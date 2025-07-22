@@ -1,0 +1,67 @@
+type SnsCanister = record {
+    id: text;
+    name: text;
+    canister_id: text;
+    description: text;
+    logo: opt text;
+    url: opt text;
+    total_proposals: nat32;
+    active_proposals: nat32;
+    last_activity: nat64;
+};
+
+type SnsProposal = record {
+    id: nat64;
+    title: text;
+    summary: text;
+    status: text;
+    executed: bool;
+    executed_at: opt nat64;
+    proposer: text;
+    votes_for: nat64;
+    votes_against: nat64;
+    total_votes: nat64;
+};
+
+type SnsGovernanceError = variant {
+    CanisterNotFound;
+    InvalidCanisterId;
+    CrossCanisterCallFailed: text;
+    Unauthorized;
+    InvalidData: text;
+};
+
+type PaginationInfo = record {
+    total_count: nat32;
+    total_pages: nat32;
+    current_page: nat32;
+    page_size: nat32;
+    has_next_page: bool;
+    has_prev_page: bool;
+    next_page_offset: opt nat32;
+    prev_page_offset: opt nat32;
+};
+
+type ProposalKey = record {
+    canister_id: text;
+    proposal_id: nat64;
+};
+
+service : {
+    "get_sns_canisters": (opt nat32, opt nat32) -> (vec SnsCanister, PaginationInfo) query;
+    "get_sns_canister": (text) -> (variant { Ok: SnsCanister; Err: SnsGovernanceError }) query;
+    "get_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError }) query;
+    "fetch_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError });
+    "get_sns_proposal": (text, nat64) -> (variant { Ok: opt SnsProposal; Err: SnsGovernanceError }) query;
+    "refresh_sns_canisters": (bool) -> (variant { Ok: text; Err: SnsGovernanceError });
+    "add_sns_canister": (SnsCanister) -> (variant { Ok: text; Err: SnsGovernanceError });
+    "remove_sns_canister": (text) -> (variant { Ok: text; Err: SnsGovernanceError });
+    "get_sns_canister_count": () -> (nat32) query;
+    "get_sns_statistics": () -> (nat32, nat64, nat64) query;
+    "export_canisters_chunk": (nat32, nat32) -> (vec SnsCanister) query;
+    "get_canisters_pagination_info": (nat32, nat32) -> (nat32, nat32, nat32, bool) query;
+    "export_proposals_chunk": (nat32, nat32) -> (vec record { ProposalKey; SnsProposal }) query;
+    "get_proposals_pagination_info": (nat32, nat32) -> (nat32, nat32, nat32, bool) query;
+    "import_canisters": (vec SnsCanister) -> (variant { Ok: text; Err: SnsGovernanceError });
+    "import_proposals": (vec record { ProposalKey; SnsProposal }) -> (variant { Ok: text; Err: SnsGovernanceError });
+}; 

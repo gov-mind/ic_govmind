@@ -10,15 +10,21 @@
       "package": "ic_govmind_factory",
       "type": "rust"
     },
-    "ai_proposal_analyzer": {
-      "candid": "src/ai_proposal_analyzer/ai_proposal_analyzer.did",
-      "package": "ai_proposal_analyzer",
+    "ic_govmind_proposal_analyzer": {
+      "candid": "src/ic_govmind_proposal_analyzer/ic_govmind_proposal_analyzer.did",
+      "package": "ic_govmind_proposal_analyzer",
+      "type": "rust"
+    },
+    "ic_govmind_sns": {
+      "candid": "src/ic_govmind_sns/ic_govmind_sns.did",
+      "package": "ic_govmind_sns",
       "type": "rust"
     },
     "ic_govmind_frontend": {
       "dependencies": [
         "ic_govmind_backend",
-        "ai_proposal_analyzer"
+        "ic_govmind_proposal_analyzer",
+        "ic_govmind_sns"
       ],
       "source": ["src/ic_govmind_frontend/dist"],
       "type": "assets",
@@ -33,6 +39,18 @@
           "name": "candid:service"
         }
       ]
+    },
+    "internet_identity": {
+      "type": "custom",
+      "candid": "https://github.com/dfinity/internet-identity/releases/download/release-2025-04-04-v3/internet_identity.did",
+      "wasm": "https://github.com/dfinity/internet-identity/releases/download/release-2025-04-04-v3/internet_identity_dev.wasm.gz",
+      "init_arg": "(opt record { captcha_config = opt record { max_unsolved_captchas= 50:nat64; captcha_trigger = variant {Static = variant {CaptchaDisabled}}}})",
+      "remote": {
+        "id": {
+          "ic": "rdmx6-jaaaa-aaaaa-aaadq-cai"
+        }
+      },
+      "frontend": {}
     }
   },
   "defaults": {

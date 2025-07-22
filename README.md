@@ -1,67 +1,74 @@
-# `ic_govmind`
+# `GovMind` — Autonomous Intelligence Layer for DAO Governance
 
-Welcome to your new `ic_govmind` project and to the Internet Computer development community. By default, creating a new project adds this README and some template files to your project directory. You can edit these template files to customize your project and to include your own code to speed up the development cycle.
+**GovMind** is an advanced multi-chain governance infrastructure built on the **Internet Computer (ICP)**. It combines two powerful engines:
 
-To get started, you might want to explore the project directory structure and the default configuration file. Working with this project in your development environment will not affect any production deployment or identity tokens.
+- 🔧 **Cross-Chain DAO Management Engine**  
+- 🤖 **AI-Powered Governance Toolkit**
 
-To learn more before you start working with `ic_govmind`, see the following documentation available online:
+Together, they enable Web3 communities to create and operate **Intelligent DAOs (I-DAOs)** — organizations that can **govern autonomously, collaborate across chains, and scale with AI augmentation**.
 
-- [Quick Start](https://internetcomputer.org/docs/current/developer-docs/setup/deploy-locally)
-- [SDK Developer Tools](https://internetcomputer.org/docs/current/developer-docs/setup/install)
-- [Rust Canister Development Guide](https://internetcomputer.org/docs/current/developer-docs/backend/rust/)
-- [ic-cdk](https://docs.rs/ic-cdk)
-- [ic-cdk-macros](https://docs.rs/ic-cdk-macros)
-- [Candid Introduction](https://internetcomputer.org/docs/current/developer-docs/backend/candid/)
+---
 
-If you want to start working on your project right away, you might want to try the following commands:
+## 🌐 Project Overview
 
-```bash
-cd ic_govmind/
-dfx help
-dfx canister --help
+In today’s DAO ecosystems, governance often suffers from low participation, poor proposal quality, complex rules, and disconnected multi-chain environments. **GovMind** introduces a dual-engine architecture to solve these structural issues:
+
+### 🔧 Cross-Chain DAO Engine
+
+- **Deploy DAOs on Ethereum, Bitcoin, Solana, ICP, TON, and more**
+- Modular templates: foundation-style, committee-style, operations-style
+- On-chain asset treasury (supporting ckBTC, ckETH, USDC, etc.)
+- Customizable governance rules (e.g., voting thresholds, token-weighted voting)
+- Full DAO lifecycle support: member onboarding, permissions, role transitions
+
+### 🤖 AI Governance Toolkit
+
+- **Proposal summarization, quality analysis, and structure generation via LLMs**
+- **Debate simulation**: simulate support/opposition viewpoints before submission
+- **AI delegate voting**: agents vote on behalf of users based on governance strategy
+- **Cross-chain governance data analysis**: monitor DAO sentiment & vote patterns
+- **Governance Reputation Score (GRS)**: on-chain user behavior scoring system
+- **On-chain automation**: automatically execute passed proposals via canister agents
+
+GovMind is not just a tool—it is a **decentralized operating system for DAOs**, ushering in a new era of **scalable, intelligent, and composable Web3 governance**.
+
+---
+
+## 🛠️ Key Technologies
+
+| Technology | Purpose |
+|------------|---------|
+| **Internet Computer (ICP)** | Fully on-chain infrastructure with native HTTPS API support (HTTP Outcalls) |
+| **Canister Architecture** | Modular components for AI analysis, data orchestration, DAO logic |
+| **Chain-Key Technology** | Native control of Bitcoin, Ethereum assets without bridges |
+| **Internet Identity** | Web3 login without wallets or seed phrases |
+| **OpenAI API (via HTTP Outcall)** | On-chain proposal analysis and summarization |
+| **ICP Timers** | Scheduled AI delegate voting and proposal scanning |
+| **Stable Memory** | Persistent proposal data, user settings, and AI outputs |
+
+---
+
+## Project Architecture
+
+```mermaid
+graph TD
+  FE["Frontend
+  (Next.js / React)"]
+  Auth["Auth Canister
+  (Identity Login)"]
+  Main["Main Logic Canister
+  (Member / Vote / Token)"]
+  Store["Storage Canister
+  (File Storage OSS)"]
+  Indexer["Indexer / Analytics Module"]
+  Oracle["Oracle Service"]
+  Chain["BTC / ETH / BSC / Solana Outcall"]
+
+  FE --> Auth
+  FE --> Main
+  Auth <--> Main
+  Main --> Store
+  Main --> Indexer
+  Indexer --> Oracle
+  Oracle --> Chain
 ```
-
-## Running the project locally
-
-Install the FE dependencies first if you haven't done it:
-
-```bash
-npm install
-```
-
-If you want to test your project locally, you can use the following commands:
-
-```bash
-# Starts the replica, running in the background
-dfx start --background
-
-# Deploys your canisters to the replica and generates your candid interface
-dfx deploy
-```
-
-Once the job completes, your application will be available at `http://localhost:4943?canisterId={asset_canister_id}`.
-
-If you have made changes to your backend canister, you can generate a new candid interface with
-
-```bash
-dfx generate 
-```
-
-at any time. This is recommended before starting the frontend development server, and will be run automatically any time you run `dfx deploy`.
-
-If you are making frontend changes, you can start a development server with
-
-```bash
-npm start
-```
-
-Which will start a server at `http://localhost:8080`, proxying API requests to the replica at port 4943.
-
-### Note on frontend environment variables
-
-If you are hosting frontend code somewhere without using DFX, you may need to make one of the following adjustments to ensure your project does not fetch the root key in production:
-
-- set`DFX_NETWORK` to `ic` if you are using Webpack
-- use your own preferred method to replace `process.env.DFX_NETWORK` in the autogenerated declarations
-  - Setting `canisters -> {asset_canister_id} -> declarations -> env_override to a string` in `dfx.json` will replace `process.env.DFX_NETWORK` with the string in the autogenerated declarations
-- Write your own `createActor` constructor

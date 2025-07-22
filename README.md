@@ -62,7 +62,8 @@ graph TD
   (File Storage OSS)"]
   Indexer["Indexer / Analytics Module"]
   Oracle["Oracle Service"]
-  Chain["BTC / ETH / BSC / Solana Outcall"]
+  Chain["BTC / ETH / BSC / Solana 
+  Outcall"]
 
   FE --> Auth
   FE --> Main

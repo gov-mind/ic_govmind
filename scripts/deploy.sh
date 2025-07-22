@@ -102,6 +102,8 @@ deploy_canister() {
 case $CANISTER in
     "all")
         echo -e "${BLUE}Deploying all canisters...${NC}"
+
+        dfx deploy internet_identity
         
         # Deploy backend with arguments
         deploy_backend
@@ -113,6 +115,8 @@ case $CANISTER in
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
         dfx deploy icrc1_ledger
         dfx deploy ic_govmind_frontend
+        dfx deploy ic_govmind_factory
+        dfx deploy ic_govmind_sns
         
         echo -e "${GREEN}🎉 All canisters deployed successfully!${NC}"
         ;;

@@ -4,7 +4,7 @@ use crate::{
     types::{CanisterArgs, KeyEnvironment, StateInitArgs},
 };
 use candid::Principal;
-use ic_cdk::{api::time, update};
+use ic_cdk::{api::{debug_print, time}, update};
 use ic_govmind_types::dao::Dao;
 
 use crate::store::{self};
@@ -18,6 +18,7 @@ async fn create_gov_dao_core(mut dao: Dao) -> Result<Principal, String> {
         admins: vec![caller],
         org_info: Some(dao.clone()),
     });
+    debug_print(&format!("init_args: {:?}", init_args));
 
     let result: Result<Principal, String> = create_dao_canister(Some(init_args)).await;
 

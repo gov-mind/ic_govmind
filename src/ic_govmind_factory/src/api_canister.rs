@@ -4,6 +4,7 @@ use crate::types::CanisterArgs;
 use crate::utils::{format_error, sha256};
 use crate::{ADMIN_PID, CYCLEOPS_PID, DEPLOY_THRESHOLD};
 use candid::{CandidType, Encode, Principal};
+use ic_cdk::api::debug_print;
 use ic_cdk::management_canister::{
     canister_status, create_canister_with_extra_cycles, install_code, CanisterInstallMode,
     CanisterSettings, CanisterStatusArgs, CreateCanisterArgs, InstallCodeArgs,
@@ -130,7 +131,13 @@ pub async fn create_dao_canister(arg: Option<CanisterArgs>) -> Result<Principal,
     validate_deploy().await?;
     let init_arg = Encode!(&arg).map_err(|_| "ErrorCode::FailedEncodeArgs".to_string())?;
 
-    create_and_install_canister(ic_cdk::api::msg_caller(), "DAO_WASM", DAO_WASM, &init_arg).await
+    match create_and_install_canister(ic_cdk::api::msg_caller(), "DAO_WASM", DAO_WASM, &init_arg).await {
+        Ok(principal) => Ok(principal),
+        Err(err) => {
+            debug_print(&format!("create_dao_canister error: {:?}", err));
+            Err(err)
+        }
+    }
 }
 
 #[update(guard = "owner_guard")]

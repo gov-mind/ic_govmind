@@ -19,8 +19,11 @@ import {
   Globe2,
   BrainCircuit
 } from 'lucide-react';
+import { useNavigate } from 'react-router-dom';
 
 function HomePage() {
+  const navigate = useNavigate();
+
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50">
       {/* Header */}
@@ -43,12 +46,12 @@ function HomePage() {
               <a href="#solutions" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
                 Solutions
               </a>
-              <Link 
-                to="/sns-governance" 
+              <button
+                onClick={() => navigate('/app')}
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-800 hover:to-cyan-700 text-white px-6 py-2 rounded-lg transition-all duration-200 font-medium shadow-sm"
               >
                 Launch App
-              </Link>
+              </button>
             </nav>
           </div>
         </div>
@@ -79,13 +82,13 @@ function HomePage() {
             </p>
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
-              <Link 
-                to="/sns-governance" 
+              <button
+                onClick={() => navigate('/app')}
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
               >
                 <Rocket className="w-5 h-5" />
                 <span>Try GovMind Beta</span>
-              </Link>
+              </button>
               <a 
                 href="#solutions" 
                 className="bg-white text-slate-800 px-8 py-4 rounded-xl border-2 border-slate-300 hover:border-cyan-400 hover:bg-gradient-to-r hover:from-blue-50 hover:to-cyan-50 transition-all duration-200 font-semibold text-lg flex items-center space-x-2"

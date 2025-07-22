@@ -277,9 +277,9 @@ function ProposalsPage() {
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50">
-      {/* Header */}
-      <header className="bg-white border-b border-slate-200 shadow-sm">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Header */}
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-6 mb-8">
           <div className="flex items-center justify-between h-16">
             <Link to="/" className="flex items-center space-x-4 hover:opacity-80 transition-opacity">
               <div className="w-10 h-10 rounded-xl flex items-center justify-center overflow-hidden">
@@ -310,10 +310,8 @@ function ProposalsPage() {
             </button>
           </div>
         </div>
-      </header>
 
-      {/* Main Content - Dynamic Layout */}
-      <main className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
+        {/* Main Content - Dynamic Layout */}
         <div className={`grid gap-6 h-[calc(100vh-12rem)] transition-all duration-500 ${selectedProposalId && showAnalysisPanel
           ? 'grid-cols-1 lg:grid-cols-[35%_65%]'
           : 'grid-cols-1'

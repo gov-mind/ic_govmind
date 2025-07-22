@@ -44,16 +44,10 @@ function HomePage() {
                 Solutions
               </a>
               <Link 
-                to="/proposals" 
+                to="/sns-governance" 
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-800 hover:to-cyan-700 text-white px-6 py-2 rounded-lg transition-all duration-200 font-medium shadow-sm"
               >
                 Launch App
-              </Link>
-              <Link 
-                to="/sns-governance" 
-                className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium"
-              >
-                SNS Governance
               </Link>
             </nav>
           </div>
@@ -86,7 +80,7 @@ function HomePage() {
 
             <div className="flex flex-col sm:flex-row gap-4 justify-center mb-16">
               <Link 
-                to="/proposals" 
+                to="/sns-governance" 
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 transition-all duration-200 font-semibold text-lg shadow-lg hover:shadow-xl transform hover:scale-105 flex items-center space-x-2"
               >
                 <Rocket className="w-5 h-5" />
@@ -379,7 +373,7 @@ function HomePage() {
             </div>
 
             <Link 
-              to="/proposals" 
+              to="/sns-governance" 
               className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-8 py-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 transition-colors font-semibold text-lg inline-flex items-center space-x-2"
             >
               <span>Start Building the Future</span>
@@ -414,7 +408,7 @@ function HomePage() {
               <ul className="space-y-2 text-slate-400">
                 <li><a href="#features" className="hover:text-white transition-colors">Features</a></li>
                 <li><a href="#solutions" className="hover:text-white transition-colors">Solutions</a></li>
-                <li><Link to="/proposals" className="hover:text-white transition-colors">Try Beta</Link></li>
+                <li><Link to="/sns-governance" className="hover:text-white transition-colors">Try Beta</Link></li>
               </ul>
             </div>
 

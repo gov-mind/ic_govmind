@@ -93,9 +93,6 @@ function SnsGovernancePage() {
               <Link to="/" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
                 Home
               </Link>
-              <Link to="/proposals" className="text-slate-600 hover:text-slate-900 px-3 py-2 transition-colors font-medium">
-                Proposals
-              </Link>
               <Link 
                 to="/sns-governance" 
                 className="bg-gradient-to-r from-blue-700 to-cyan-600 hover:from-blue-800 hover:to-cyan-700 text-white px-6 py-2 rounded-lg transition-all duration-200 font-medium shadow-sm"

@@ -34,8 +34,12 @@ export const useSubmitProposal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ title, description }) => 
-      ic_govmind_proposal_analyzer.submit_proposal([], title, description),
+    mutationFn: ({ proposalId, title, description }) => 
+      ic_govmind_proposal_analyzer.submit_proposal(
+        proposalId ? [proposalId] : [], // Pass Some(proposalId) or None
+        title, 
+        description
+      ),
     onSuccess: (proposalId) => {
       // Invalidate and refetch proposals list
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
@@ -69,6 +73,21 @@ export const useRetryAnalysis = () => {
     onError: (error) => {
       console.error('Error retrying analysis:', error);
     },
+  });
+};
+
+// Custom hook for checking if a proposal exists in the analyzer
+export const useProposalExists = (compositeId) => {
+  return useQuery({
+    queryKey: ['proposalExists', compositeId],
+    queryFn: async () => {
+      if (!compositeId) return null;
+      // Directly check if the proposal exists using get_proposal
+      const result = await ic_govmind_proposal_analyzer.get_proposal(compositeId);
+      return result?.[0] || null; // Return the proposal if it exists, null otherwise
+    },
+    enabled: !!compositeId,
+    staleTime: 24 * 60 * 60 * 1000, // 24 hours - proposals are never deleted
   });
 };
 

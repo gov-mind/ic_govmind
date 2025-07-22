@@ -49,6 +49,7 @@ type ProposalKey = record {
 
 service : {
     "get_sns_canisters": (opt nat32, opt nat32) -> (vec SnsCanister, PaginationInfo) query;
+    "get_sns_canister": (text) -> (variant { Ok: SnsCanister; Err: SnsGovernanceError }) query;
     "get_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError }) query;
     "fetch_sns_proposals": (text) -> (variant { Ok: vec SnsProposal; Err: SnsGovernanceError });
     "get_sns_proposal": (text, nat64) -> (variant { Ok: opt SnsProposal; Err: SnsGovernanceError }) query;

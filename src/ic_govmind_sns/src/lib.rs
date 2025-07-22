@@ -323,17 +323,6 @@ thread_local! {
 
 }
 
-// ============================================================================
-// INITIALIZATION
-// ============================================================================
-
-// Initialize the canister
-#[init]
-fn init() {
-    // Initialize with sample data for demonstration only if stable memory is empty
-    initialize_sample_data_if_empty();
-}
-
 // Helper function to get current time (works in both canister and test environments)
 fn get_current_time() -> u64 {
     #[cfg(test)]
@@ -345,170 +334,6 @@ fn get_current_time() -> u64 {
     {
         ic_cdk::api::time()
     }
-}
-
-// ============================================================================
-// HELPER FUNCTIONS
-// ============================================================================
-
-// Initialize with sample data only if stable memory is empty
-fn initialize_sample_data_if_empty() {
-    // Check if stable memory is empty
-    let is_empty = SNS_CANISTERS.with(|canisters| {
-        canisters.borrow().is_empty()
-    });
-    
-    if !is_empty {
-        return; // Data already exists in stable memory, don't overwrite
-    }
-    
-    // Initialize sample canisters in stable memory
-    SNS_CANISTERS.with(|canisters| {
-        let mut canisters_borrow = canisters.borrow_mut();
-        
-        // Sample SNS canisters (using example canister IDs - replace with real ones in production)
-        let sample_canisters = vec![
-            SnsCanister {
-                id: "sns-1".to_string(),
-                name: "OpenChat Governance".to_string(),
-                canister_id: "zqfso-syaaa-aaaaa-aaahq-cai".to_string(),
-                description: "Governance canister for OpenChat DAO".to_string(),
-                logo: Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string()),
-                url: Some("https://oc.app".to_string()),
-                total_proposals: 45,
-                active_proposals: 3,
-                last_activity: get_current_time() - 86400000000000, // 1 day ago
-            },
-            SnsCanister {
-                id: "sns-2".to_string(),
-                name: "DSCVR Governance".to_string(),
-                canister_id: "2jvtu-yqaaa-aaaaa-aaama-cai".to_string(),
-                description: "Governance canister for DSCVR DAO".to_string(),
-                logo: Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string()),
-                url: Some("https://dscvr.one".to_string()),
-                total_proposals: 23,
-                active_proposals: 1,
-                last_activity: get_current_time() - 172800000000000, // 2 days ago
-            },
-            SnsCanister {
-                id: "sns-3".to_string(),
-                name: "HotOrNot Governance".to_string(),
-                canister_id: "4bkt6-4aaaa-aaaaa-aaafq-cai".to_string(),
-                description: "Governance canister for HotOrNot DAO".to_string(),
-                logo: Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string()),
-                url: Some("https://hotornot.com".to_string()),
-                total_proposals: 67,
-                active_proposals: 5,
-                last_activity: get_current_time() - 43200000000000, // 12 hours ago
-            },
-            SnsCanister {
-                id: "sns-4".to_string(),
-                name: "Kinic Governance".to_string(),
-                canister_id: "5jq6n-5aaaa-aaaaa-aaagq-cai".to_string(),
-                description: "Governance canister for Kinic DAO".to_string(),
-                logo: Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string()),
-                url: Some("https://kinic.com".to_string()),
-                total_proposals: 12,
-                active_proposals: 0,
-                last_activity: get_current_time() - 604800000000000, // 1 week ago
-            },
-            SnsCanister {
-                id: "sns-5".to_string(),
-                name: "Catalyze Governance".to_string(),
-                canister_id: "6kq7o-6aaaa-aaaaa-aaahq-cai".to_string(),
-                description: "Governance canister for Catalyze DAO".to_string(),
-                logo: Some("data:image/png;base64,iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mNkYPhfDwAChwGA60e6kgAAAABJRU5ErkJggg==".to_string()),
-                url: Some("https://catalyze.com".to_string()),
-                total_proposals: 89,
-                active_proposals: 7,
-                last_activity: get_current_time() - 21600000000000, // 6 hours ago
-            },
-        ];
-
-        for canister in sample_canisters {
-            canisters_borrow.insert(canister.canister_id.clone(), canister);
-        }
-    });
-
-    // Initialize sample proposals in stable memory
-    initialize_sample_proposals();
-}
-
-fn initialize_sample_proposals() {
-    SNS_PROPOSALS.with(|proposals| {
-        let mut proposals_borrow = proposals.borrow_mut();
-        
-        // Sample proposals for OpenChat
-        let openchat_canister_id = "zqfso-syaaa-aaaaa-aaahq-cai".to_string();
-        
-        proposals_borrow.insert(ProposalKey::new(openchat_canister_id.clone(), 1), SnsProposal {
-            id: 1,
-            title: "Increase Developer Fund Allocation".to_string(),
-            summary: "Proposal to increase the developer fund from 10% to 15% of total treasury to support more development initiatives.".to_string(),
-            status: "Executed".to_string(),
-            executed: true,
-            executed_at: Some(get_current_time() - 86400000000000),
-            proposer: "0x1234...5678".to_string(),
-            votes_for: 1500000,
-            votes_against: 200000,
-            total_votes: 1700000,
-        });
-        
-        proposals_borrow.insert(ProposalKey::new(openchat_canister_id.clone(), 2), SnsProposal {
-            id: 2,
-            title: "Add New Validator Node".to_string(),
-            summary: "Add a new validator node to improve network security and decentralization.".to_string(),
-            status: "Open".to_string(),
-            executed: false,
-            executed_at: None,
-            proposer: "0x8765...4321".to_string(),
-            votes_for: 800000,
-            votes_against: 300000,
-            total_votes: 1100000,
-        });
-        
-        proposals_borrow.insert(ProposalKey::new(openchat_canister_id.clone(), 3), SnsProposal {
-            id: 3,
-            title: "Update Tokenomics Model".to_string(),
-            summary: "Proposal to update the tokenomics model to include staking rewards and governance incentives.".to_string(),
-            status: "Rejected".to_string(),
-            executed: false,
-            executed_at: None,
-            proposer: "0xabcd...efgh".to_string(),
-            votes_for: 400000,
-            votes_against: 1200000,
-            total_votes: 1600000,
-        });
-
-        // Sample proposals for DSCVR
-        let dscvr_canister_id = "2jvtu-yqaaa-aaaaa-aaama-cai".to_string();
-        
-        proposals_borrow.insert(ProposalKey::new(dscvr_canister_id.clone(), 1), SnsProposal {
-            id: 1,
-            title: "Community Treasury Management".to_string(),
-            summary: "Proposal to implement a new community treasury management system with multi-signature requirements.".to_string(),
-            status: "Executed".to_string(),
-            executed: true,
-            executed_at: Some(get_current_time() - 172800000000000),
-            proposer: "0x5678...1234".to_string(),
-            votes_for: 1800000,
-            votes_against: 100000,
-            total_votes: 1900000,
-        });
-        
-        proposals_borrow.insert(ProposalKey::new(dscvr_canister_id.clone(), 2), SnsProposal {
-            id: 2,
-            title: "Partnership with DeFi Protocol".to_string(),
-            summary: "Establish a strategic partnership with a leading DeFi protocol to expand ecosystem integration.".to_string(),
-            status: "Open".to_string(),
-            executed: false,
-            executed_at: None,
-            proposer: "0x9876...5432".to_string(),
-            votes_for: 950000,
-            votes_against: 150000,
-            total_votes: 1100000,
-        });
-    });
 }
 
 // ============================================================================
@@ -543,15 +368,6 @@ fn get_proposal(canister_id: &str, proposal_id: u64) -> Option<SnsProposal> {
     })
 }
 
-// Store a proposal using composite key
-fn store_proposal(canister_id: &str, proposal: SnsProposal) {
-    SNS_PROPOSALS.with(|proposals| {
-        let mut proposals_borrow = proposals.borrow_mut();
-        let key = ProposalKey::new(canister_id.to_string(), proposal.id);
-        proposals_borrow.insert(key, proposal);
-    });
-}
-
 // Get proposal count for a specific canister
 fn get_proposal_count_for_canister(canister_id: &str) -> u32 {
     SNS_PROPOSALS.with(|proposals| {
@@ -577,15 +393,51 @@ fn get_active_proposal_count_for_canister(canister_id: &str) -> u32 {
     })
 }
 
-// Get all proposals across all canisters (for admin functions)
-fn get_all_proposals() -> Vec<(String, SnsProposal)> {
-    SNS_PROPOSALS.with(|proposals| {
-        let proposals_borrow = proposals.borrow();
-        proposals_borrow
-            .iter()
-            .map(|(key, proposal)| (key.canister_id.clone(), proposal.clone()))
-            .collect()
-    })
+// Convert SNS governance proposal to our format
+pub fn convert_proposal(proposal: &ProposalData) -> SnsProposal {
+    SnsProposal {
+        id: proposal.id.as_ref().map(|id| id.id).unwrap_or(0),
+        title: proposal.proposal.as_ref().map(|prop| prop.title.clone()).unwrap_or_default(),
+        summary: proposal.proposal.as_ref().map(|prop| prop.summary.clone()).unwrap_or_default(),
+        status: if proposal.failed_timestamp_seconds > 0 {
+            "Failed".to_string()
+        } else if proposal.decided_timestamp_seconds > 0 {
+            "Adopted".to_string()
+        } else {
+            "Open".to_string()
+        },
+        executed: proposal.decided_timestamp_seconds > 0,
+        executed_at: if proposal.decided_timestamp_seconds > 0 { 
+            Some(proposal.decided_timestamp_seconds * 1_000_000_000) 
+        } else { 
+            None 
+        }, // Convert to nanoseconds
+        proposer: {
+            // Try to get proposer from the proposer field first
+            if let Some(neuron_id) = &proposal.proposer {
+                // Convert NeuronId to a shorter, more readable format
+                let hex_str = hex::encode(&neuron_id.id);
+                if hex_str.len() > 16 {
+                    format!("0x{}...{}", &hex_str[..8], &hex_str[hex_str.len()-8..])
+                } else {
+                    format!("0x{}", hex_str)
+                }
+            } else if !proposal.ballots.is_empty() {
+                // Fallback: use the first voter as proposer (often the same person)
+                let first_voter = &proposal.ballots[0].0;
+                if first_voter.len() > 20 {
+                    format!("{}...{}", &first_voter[..10], &first_voter[first_voter.len()-10..])
+                } else {
+                    first_voter.clone()
+                }
+            } else {
+                "Unknown".to_string()
+            }
+        },
+        votes_for: proposal.latest_tally.as_ref().map(|t| t.yes).unwrap_or(0),
+        votes_against: proposal.latest_tally.as_ref().map(|t| t.no).unwrap_or(0),
+        total_votes: proposal.latest_tally.as_ref().map(|t| t.total).unwrap_or(0),
+    }
 }
 
 // ============================================================================
@@ -652,6 +504,28 @@ fn get_sns_canisters(offset: Option<u32>, limit: Option<u32>) -> (Vec<SnsCaniste
     (paginated_canisters, pagination_info)
 }
 
+// Get a single SNS canister by ID
+#[query]
+fn get_sns_canister(canister_id: String) -> Result<SnsCanister, SnsGovernanceError> {
+    // Validate canister ID format
+    if canister_id.is_empty() {
+        return Err(SnsGovernanceError::InvalidCanisterId);
+    }
+
+    // Find the canister in stable memory
+    let canister = SNS_CANISTERS.with(|canisters| {
+        canisters.borrow()
+            .values()
+            .find(|c| c.canister_id == canister_id)
+            .map(|c| c.clone())
+    });
+
+    match canister {
+        Some(canister) => Ok(canister),
+        None => Err(SnsGovernanceError::CanisterNotFound),
+    }
+}
+
 // Get proposals for a specific SNS governance canister
 #[query]
 fn get_sns_proposals(canister_id: String) -> Result<Vec<SnsProposal>, SnsGovernanceError> {
@@ -704,49 +578,7 @@ async fn fetch_sns_proposals(canister_id: String) -> Result<Vec<SnsProposal>, Sn
     };
 
     // Convert governance proposals to our format
-    let converted_proposals: Vec<SnsProposal> = proposals.iter().map(|p| SnsProposal {
-        id: p.id.as_ref().map(|id| id.id).unwrap_or(0),
-        title: p.proposal.as_ref().map(|prop| prop.title.clone()).unwrap_or_default(),
-        summary: p.proposal.as_ref().map(|prop| prop.summary.clone()).unwrap_or_default(),
-        status: if p.failed_timestamp_seconds > 0 {
-            "Failed".to_string()
-        } else if p.decided_timestamp_seconds > 0 {
-            "Adopted".to_string()
-        } else {
-            "Open".to_string()
-        },
-        executed: p.decided_timestamp_seconds > 0,
-        executed_at: if p.decided_timestamp_seconds > 0 { 
-            Some(p.decided_timestamp_seconds * 1_000_000_000) 
-        } else { 
-            None 
-        }, // Convert to nanoseconds
-        proposer: {
-            // Try to get proposer from the proposer field first
-            if let Some(neuron_id) = &p.proposer {
-                // Convert NeuronId to a shorter, more readable format
-                let hex_str = hex::encode(&neuron_id.id);
-                if hex_str.len() > 16 {
-                    format!("0x{}...{}", &hex_str[..8], &hex_str[hex_str.len()-8..])
-                } else {
-                    format!("0x{}", hex_str)
-                }
-            } else if !p.ballots.is_empty() {
-                // Fallback: use the first voter as proposer (often the same person)
-                let first_voter = &p.ballots[0].0;
-                if first_voter.len() > 20 {
-                    format!("{}...{}", &first_voter[..10], &first_voter[first_voter.len()-10..])
-                } else {
-                    first_voter.clone()
-                }
-            } else {
-                "Unknown".to_string()
-            }
-        },
-        votes_for: p.latest_tally.as_ref().map(|t| t.yes).unwrap_or(0),
-        votes_against: p.latest_tally.as_ref().map(|t| t.no).unwrap_or(0),
-        total_votes: p.latest_tally.as_ref().map(|t| t.total).unwrap_or(0),
-    }).collect();
+    let converted_proposals: Vec<SnsProposal> = proposals.iter().map(|p| convert_proposal(p)).collect();
 
     // Store in stable memory using composite keys
     SNS_PROPOSALS.with(|proposals| {
@@ -1167,11 +999,6 @@ where
         }
         Err(e) => Err(format!("Cross-canister call failed: {}", e))
     }
-}
-
-// Public function for tests to initialize sample data
-pub fn initialize_sample_data() {
-    initialize_sample_data_if_empty();
 }
 
 #[cfg(test)]

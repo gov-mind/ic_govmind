@@ -38,6 +38,36 @@ export const useSnsCanisters = (page = 1, pageSize = 10) => {
   });
 };
 
+// Custom hook for fetching a single SNS canister by ID
+export const useSnsCanister = (canisterId) => {
+  return useQuery({
+    queryKey: ['sns-canister', canisterId],
+    queryFn: async () => {
+      if (!canisterId) return null;
+      
+      const result = await ic_govmind_sns.get_sns_canister(canisterId);
+      
+      if ('Err' in result) {
+        throw new Error(`Failed to fetch canister: ${result.Err}`);
+      }
+      
+      const canister = result.Ok;
+      return {
+        id: canister.id,
+        name: canister.name,
+        canisterId: canister.canister_id,
+        description: canister.description,
+        logo: canister.logo?.length ? canister.logo[0] : undefined,
+        totalProposals: canister.total_proposals,
+        activeProposals: canister.active_proposals,
+        lastActivity: Number(canister.last_activity) / 1000000, // Convert from nanoseconds to milliseconds
+      };
+    },
+    enabled: !!canisterId,
+    staleTime: 30000, // Consider data stale after 30 seconds
+  });
+};
+
 // Custom hook for fetching SNS proposals
 export const useSnsProposals = (canisterId) => {
   return useQuery({

@@ -3,12 +3,14 @@ mod tests {
     use crate::{
         SnsCanister, SnsProposal, SnsGovernanceError,
         SNS_CANISTERS, SNS_PROPOSALS, 
-        initialize_sample_data, get_sns_canisters, get_sns_proposals, get_sns_proposal,
+        get_sns_canisters, get_sns_canister, get_sns_proposals, get_sns_proposal,
         add_sns_canister, remove_sns_canister, get_sns_statistics,
+        convert_proposal,
         GetMetadataResponse, ProposalData, ProposalId, Topic, Ballot, Percentage, Tally, Proposal, NeuronId,
         Principal,
     };
     use candid::{CandidType, Deserialize};
+    use serde_bytes::ByteBuf;
 
     // Test-only helper function to validate canister ID format
     fn is_valid_canister_id(canister_id: &str) -> bool {
@@ -39,30 +41,178 @@ mod tests {
     }
 
     #[test]
-    fn test_initialize_sample_data() {
+    fn test_empty_initial_state() {
         reset_state();
         
-        // Initialize sample data
-        initialize_sample_data();
-        
-        // Check that canisters were initialized
+        // Check that canisters start empty
         let canisters = SNS_CANISTERS.with(|c| c.borrow().len());
-        assert_eq!(canisters, 5);
+        assert_eq!(canisters, 0);
         
-        // Check that proposals were initialized
+        // Check that proposals start empty
         let proposals = SNS_PROPOSALS.with(|p| p.borrow().len());
-        assert_eq!(proposals, 5);
+        assert_eq!(proposals, 0);
+    }
+
+    #[test]
+    fn test_get_sns_canisters_empty() {
+        reset_state();
+        
+        // Test with empty state
+        let (canisters, pagination_info) = get_sns_canisters(None, None);
+        assert_eq!(canisters.len(), 0);
+        assert_eq!(pagination_info.total_count, 0);
+        assert_eq!(pagination_info.total_pages, 0);
+        assert_eq!(pagination_info.current_page, 1);
+        assert_eq!(pagination_info.page_size, 10);
+        assert!(!pagination_info.has_next_page);
+        assert!(!pagination_info.has_prev_page);
+    }
+
+    #[test]
+    fn test_get_sns_proposals_empty() {
+        reset_state();
+        
+        // Test getting proposals for non-existent canister
+        let empty_proposals = get_sns_proposals("non-existent-canister".to_string());
+        assert!(matches!(empty_proposals, Ok(_)));
+        if let Ok(proposals) = empty_proposals {
+            assert_eq!(proposals.len(), 0);
+        }
+    }
+
+    #[test]
+    fn test_remove_sns_canister() {
+        reset_state();
+        
+        // Add test canister first
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 1,
+            active_proposals: 0,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
+        
+        // Add a test proposal
+        SNS_PROPOSALS.with(|proposals| {
+            let mut proposals_borrow = proposals.borrow_mut();
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 1), SnsProposal {
+                id: 1,
+                title: "Test Proposal".to_string(),
+                summary: "Test proposal summary".to_string(),
+                status: "Executed".to_string(),
+                executed: true,
+                executed_at: Some(1640995200000000000),
+                proposer: "0x1234...5678".to_string(),
+                votes_for: 1000,
+                votes_against: 100,
+                total_votes: 1100,
+            });
+        });
+        
+        // Remove test canister
+        let result = remove_sns_canister("test-canister-id".to_string());
+        assert!(matches!(result, Ok(_)));
+        
+        // Verify the canister was removed
+        let (canisters, pagination_info) = get_sns_canisters(None, None);
+        assert_eq!(canisters.len(), 0);
+        assert_eq!(pagination_info.total_count, 0);
+        
+        // Verify proposals were also removed
+        let proposals = get_sns_proposals("test-canister-id".to_string());
+        assert!(matches!(proposals, Ok(_)));
+        if let Ok(proposals) = proposals {
+            assert_eq!(proposals.len(), 0);
+        }
+        
+        // Test removing non-existent canister
+        let non_existent = remove_sns_canister("non-existent-canister-id".to_string());
+        assert!(matches!(non_existent, Err(SnsGovernanceError::CanisterNotFound)));
+    }
+
+    #[test]
+    fn test_get_sns_statistics() {
+        reset_state();
+        
+        // Add test canister and proposals
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 2,
+            active_proposals: 1,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
+        
+        SNS_PROPOSALS.with(|proposals| {
+            let mut proposals_borrow = proposals.borrow_mut();
+            
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 1), SnsProposal {
+                id: 1,
+                title: "Test Proposal 1".to_string(),
+                summary: "Test proposal summary".to_string(),
+                status: "Executed".to_string(),
+                executed: true,
+                executed_at: Some(1640995200000000000),
+                proposer: "0x1234...5678".to_string(),
+                votes_for: 1000,
+                votes_against: 100,
+                total_votes: 1100,
+            });
+            
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 2), SnsProposal {
+                id: 2,
+                title: "Test Proposal 2".to_string(),
+                summary: "Test proposal summary 2".to_string(),
+                status: "Open".to_string(),
+                executed: false,
+                executed_at: None,
+                proposer: "0x8765...4321".to_string(),
+                votes_for: 500,
+                votes_against: 200,
+                total_votes: 700,
+            });
+        });
+        
+        let (total_canisters, total_proposals, active_proposals) = get_sns_statistics();
+        
+        assert_eq!(total_canisters, 1);
+        assert_eq!(total_proposals, 2);
+        assert_eq!(active_proposals, 1);
     }
 
     #[test]
     fn test_get_sns_canisters() {
         reset_state();
-        initialize_sample_data();
+        
+        // Add test canisters manually
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 10,
+            active_proposals: 2,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
         
         // Test with default parameters (None, None)
         let (canisters, pagination_info) = get_sns_canisters(None, None);
-        assert_eq!(canisters.len(), 5);
-        assert_eq!(pagination_info.total_count, 5);
+        assert_eq!(canisters.len(), 1);
+        assert_eq!(pagination_info.total_count, 1);
         assert_eq!(pagination_info.total_pages, 1);
         assert_eq!(pagination_info.current_page, 1);
         assert_eq!(pagination_info.page_size, 10);
@@ -71,34 +221,67 @@ mod tests {
         
         // Test with explicit parameters (0, 10)
         let (canisters, pagination_info) = get_sns_canisters(Some(0), Some(10));
-        assert_eq!(canisters.len(), 5);
-        assert_eq!(pagination_info.total_count, 5);
+        assert_eq!(canisters.len(), 1);
+        assert_eq!(pagination_info.total_count, 1);
         
-        // Check that we have the expected canisters
+        // Check that we have the expected canister
         let canister_names: Vec<String> = canisters.iter().map(|c| c.name.clone()).collect();
-        assert!(canister_names.contains(&"OpenChat Governance".to_string()));
-        assert!(canister_names.contains(&"DSCVR Governance".to_string()));
-        assert!(canister_names.contains(&"HotOrNot Governance".to_string()));
-        assert!(canister_names.contains(&"Kinic Governance".to_string()));
-        assert!(canister_names.contains(&"Catalyze Governance".to_string()));
+        assert!(canister_names.contains(&"Test Governance".to_string()));
     }
 
     #[test]
     fn test_get_sns_proposals() {
         reset_state();
-        initialize_sample_data();
         
-        // Test getting proposals for OpenChat
-        let openchat_proposals = get_sns_proposals("zqfso-syaaa-aaaaa-aaahq-cai".to_string());
-        assert!(matches!(openchat_proposals, Ok(_)));
-        if let Ok(proposals) = openchat_proposals {
-            assert_eq!(proposals.len(), 3);
-        }
+        // Add test canister and proposals manually
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 2,
+            active_proposals: 1,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
         
-        // Test getting proposals for DSCVR
-        let dscvr_proposals = get_sns_proposals("2jvtu-yqaaa-aaaaa-aaama-cai".to_string());
-        assert!(matches!(dscvr_proposals, Ok(_)));
-        if let Ok(proposals) = dscvr_proposals {
+        // Add test proposals manually
+        SNS_PROPOSALS.with(|proposals| {
+            let mut proposals_borrow = proposals.borrow_mut();
+            
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 1), SnsProposal {
+                id: 1,
+                title: "Test Proposal 1".to_string(),
+                summary: "Test proposal summary".to_string(),
+                status: "Executed".to_string(),
+                executed: true,
+                executed_at: Some(1640995200000000000),
+                proposer: "0x1234...5678".to_string(),
+                votes_for: 1000,
+                votes_against: 100,
+                total_votes: 1100,
+            });
+            
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 2), SnsProposal {
+                id: 2,
+                title: "Test Proposal 2".to_string(),
+                summary: "Test proposal summary 2".to_string(),
+                status: "Open".to_string(),
+                executed: false,
+                executed_at: None,
+                proposer: "0x8765...4321".to_string(),
+                votes_for: 500,
+                votes_against: 200,
+                total_votes: 700,
+            });
+        });
+        
+        // Test getting proposals for test canister
+        let test_proposals = get_sns_proposals("test-canister-id".to_string());
+        assert!(matches!(test_proposals, Ok(_)));
+        if let Ok(proposals) = test_proposals {
             assert_eq!(proposals.len(), 2);
         }
         
@@ -113,20 +296,50 @@ mod tests {
     #[test]
     fn test_get_sns_proposal() {
         reset_state();
-        initialize_sample_data();
+        
+        // Add test canister and proposal manually
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 1,
+            active_proposals: 0,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
+        
+        SNS_PROPOSALS.with(|proposals| {
+            let mut proposals_borrow = proposals.borrow_mut();
+            
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 1), SnsProposal {
+                id: 1,
+                title: "Test Proposal".to_string(),
+                summary: "Test proposal summary".to_string(),
+                status: "Executed".to_string(),
+                executed: true,
+                executed_at: Some(1640995200000000000),
+                proposer: "0x1234...5678".to_string(),
+                votes_for: 1000,
+                votes_against: 100,
+                total_votes: 1100,
+            });
+        });
         
         // Test getting a specific proposal
-        let proposal = get_sns_proposal("zqfso-syaaa-aaaaa-aaahq-cai".to_string(), 1);
+        let proposal = get_sns_proposal("test-canister-id".to_string(), 1);
         assert!(matches!(proposal, Ok(Some(_))));
         
         if let Ok(Some(p)) = proposal {
-            assert_eq!(p.title, "Increase Developer Fund Allocation");
+            assert_eq!(p.title, "Test Proposal");
             assert_eq!(p.status, "Executed");
             assert!(p.executed);
         }
         
         // Test getting non-existent proposal
-        let non_existent = get_sns_proposal("zqfso-syaaa-aaaaa-aaahq-cai".to_string(), 999);
+        let non_existent = get_sns_proposal("test-canister-id".to_string(), 999);
         assert!(matches!(non_existent, Ok(None)));
     }
 
@@ -161,47 +374,24 @@ mod tests {
     }
 
     #[test]
-    fn test_remove_sns_canister() {
-        reset_state();
-        initialize_sample_data();
-        
-        // Remove OpenChat canister
-        let result = remove_sns_canister("zqfso-syaaa-aaaaa-aaahq-cai".to_string());
-        assert!(matches!(result, Ok(_)));
-        
-        // Verify the canister was removed
-        let (canisters, pagination_info) = get_sns_canisters(None, None);
-        assert_eq!(canisters.len(), 4);
-        assert_eq!(pagination_info.total_count, 4);
-        
-        // Verify proposals were also removed
-        let proposals = get_sns_proposals("zqfso-syaaa-aaaaa-aaahq-cai".to_string());
-        assert!(matches!(proposals, Ok(_)));
-        if let Ok(proposals) = proposals {
-            assert_eq!(proposals.len(), 0);
-        }
-        
-        // Test removing non-existent canister
-        let non_existent = remove_sns_canister("non-existent-canister-id".to_string());
-        assert!(matches!(non_existent, Err(SnsGovernanceError::CanisterNotFound)));
-    }
-
-    #[test]
-    fn test_get_sns_statistics() {
-        reset_state();
-        initialize_sample_data();
-        
-        let (total_canisters, total_proposals, active_proposals) = get_sns_statistics();
-        
-        assert_eq!(total_canisters, 5);
-        assert_eq!(total_proposals, 5); // 3 from OpenChat + 2 from DSCVR
-        assert_eq!(active_proposals, 2); // 1 from OpenChat + 1 from DSCVR
-    }
-
-    #[test]
     fn test_get_sns_canisters_pagination() {
         reset_state();
-        initialize_sample_data();
+        
+        // Add multiple test canisters
+        for i in 1..=5 {
+            let test_canister = SnsCanister {
+                id: format!("test-{}", i),
+                name: format!("Test Governance {}", i),
+                canister_id: format!("test-canister-id-{}", i),
+                description: format!("Test canister {} for testing", i),
+                logo: None,
+                url: None,
+                total_proposals: i,
+                active_proposals: i % 2,
+                last_activity: 1640995200000000000,
+            };
+            add_sns_canister(test_canister).unwrap();
+        }
         
         // Test getting all canisters with default parameters
         let (all_canisters, pagination_info) = get_sns_canisters(None, None);
@@ -303,22 +493,51 @@ mod tests {
     #[test]
     fn test_proposal_data_integrity() {
         reset_state();
-        initialize_sample_data();
         
-        let proposals = get_sns_proposals("zqfso-syaaa-aaaaa-aaahq-cai".to_string());
+        // Add test canister and proposal
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 1,
+            active_proposals: 0,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister).unwrap();
+        
+        SNS_PROPOSALS.with(|proposals| {
+            let mut proposals_borrow = proposals.borrow_mut();
+            proposals_borrow.insert(crate::ProposalKey::new("test-canister-id".to_string(), 1), SnsProposal {
+                id: 1,
+                title: "Test Proposal".to_string(),
+                summary: "Test proposal summary".to_string(),
+                status: "Executed".to_string(),
+                executed: true,
+                executed_at: Some(1640995200000000000),
+                proposer: "0x1234...5678".to_string(),
+                votes_for: 1000,
+                votes_against: 100,
+                total_votes: 1100,
+            });
+        });
+        
+        let proposals = get_sns_proposals("test-canister-id".to_string());
         assert!(matches!(proposals, Ok(_)));
         if let Ok(proposals) = proposals {
-            assert_eq!(proposals.len(), 3);
+            assert_eq!(proposals.len(), 1);
             
-            // Check first proposal data integrity
+            // Check proposal data integrity
             let first_proposal = &proposals[0];
             assert_eq!(first_proposal.id, 1);
-            assert_eq!(first_proposal.title, "Increase Developer Fund Allocation");
+            assert_eq!(first_proposal.title, "Test Proposal");
             assert_eq!(first_proposal.status, "Executed");
             assert!(first_proposal.executed);
-            assert_eq!(first_proposal.votes_for, 1500000);
-            assert_eq!(first_proposal.votes_against, 200000);
-            assert_eq!(first_proposal.total_votes, 1700000);
+            assert_eq!(first_proposal.votes_for, 1000);
+            assert_eq!(first_proposal.votes_against, 100);
+            assert_eq!(first_proposal.total_votes, 1100);
             assert!(first_proposal.executed_at.is_some());
         }
     }
@@ -388,7 +607,7 @@ mod tests {
                 timestamp_seconds: 1640995800,
             }),
             wait_for_quiet_deadline_increase_seconds: 3600,
-            decided_timestamp_seconds: 1640995800,
+            decided_timestamp_seconds: 1640998800,
             proposal: Some(Proposal {
                 url: "https://example.com/proposal".to_string(),
                 title: "Test Proposal".to_string(),
@@ -704,6 +923,231 @@ mod tests {
             if proposal.executed_timestamp_seconds > 0 {
                 assert!(proposal.executed_timestamp_seconds >= proposal.proposal_creation_timestamp_seconds);
             }
+        }
+    }
+
+    #[test]
+    fn test_convert_proposal() {
+        
+        
+        // Create a test ProposalData
+        let proposal_data = ProposalData {
+            id: Some(ProposalId { id: 123 }),
+            payload_text_rendering: Some("Test payload".to_string()),
+            topic: None,
+            action: 0,
+            failure_reason: None,
+            action_auxiliary: None,
+            ballots: vec![("0x1234567890abcdef".to_string(), Ballot { 
+                vote: 1, 
+                cast_timestamp_seconds: 1640995200,
+                voting_power: 1000 
+            })],
+            minimum_yes_proportion_of_total: None,
+            reward_event_round: 1,
+            failed_timestamp_seconds: 0,
+            reward_event_end_timestamp_seconds: None,
+            proposal_creation_timestamp_seconds: 1640995200,
+            initial_voting_period_seconds: 86400,
+            reject_cost_e8s: 1000000,
+            latest_tally: Some(Tally {
+                yes: 1500,
+                no: 500,
+                total: 2000,
+                timestamp_seconds: 1640995200,
+            }),
+            wait_for_quiet_deadline_increase_seconds: 0,
+            decided_timestamp_seconds: 1640995200,
+            proposal: Some(Proposal {
+                title: "Test Proposal Title".to_string(),
+                summary: "Test proposal summary".to_string(),
+                url: "https://example.com".to_string(),
+                action: None,
+            }),
+            proposer: Some(NeuronId { id: ByteBuf::from(vec![1, 2, 3, 4, 5, 6, 7, 8]) }),
+            wait_for_quiet_state: None,
+            minimum_yes_proportion_of_exercised: None,
+            is_eligible_for_rewards: true,
+            executed_timestamp_seconds: 1640995200,
+        };
+        
+        // Convert the proposal
+        let converted = convert_proposal(&proposal_data);
+        
+        // Verify the conversion
+        assert_eq!(converted.id, 123);
+        assert_eq!(converted.title, "Test Proposal Title");
+        assert_eq!(converted.summary, "Test proposal summary");
+        assert_eq!(converted.status, "Adopted"); // decided_timestamp_seconds > 0
+        assert!(converted.executed);
+        assert_eq!(converted.executed_at, Some(1640995200 * 1_000_000_000)); // Converted to nanoseconds
+        assert_eq!(converted.proposer, "0x0102030405060708"); // Hex encoded neuron ID
+        assert_eq!(converted.votes_for, 1500);
+        assert_eq!(converted.votes_against, 500);
+        assert_eq!(converted.total_votes, 2000);
+    }
+
+    #[test]
+    fn test_convert_proposal_failed() {
+        use crate::{convert_proposal, ProposalData, ProposalId, Proposal, Tally, GovernanceError};
+        
+        // Create a failed proposal
+        let proposal_data = ProposalData {
+            id: Some(ProposalId { id: 456 }),
+            payload_text_rendering: Some("Failed payload".to_string()),
+            topic: None,
+            action: 0,
+            failure_reason: Some(GovernanceError {
+                error_message: "Insufficient votes".to_string(),
+                error_type: 1,
+            }),
+            action_auxiliary: None,
+            ballots: vec![],
+            minimum_yes_proportion_of_total: None,
+            reward_event_round: 1,
+            failed_timestamp_seconds: 1640995200, // Failed
+            reward_event_end_timestamp_seconds: None,
+            proposal_creation_timestamp_seconds: 1640995200,
+            initial_voting_period_seconds: 86400,
+            reject_cost_e8s: 1000000,
+            latest_tally: Some(Tally {
+                yes: 300,
+                no: 1700,
+                total: 2000,
+                timestamp_seconds: 1640995200,
+            }),
+            wait_for_quiet_deadline_increase_seconds: 0,
+            decided_timestamp_seconds: 0,
+            proposal: Some(Proposal {
+                title: "Failed Proposal".to_string(),
+                summary: "This proposal failed".to_string(),
+                url: "https://example.com".to_string(),
+                action: None,
+            }),
+            proposer: None,
+            wait_for_quiet_state: None,
+            minimum_yes_proportion_of_exercised: None,
+            is_eligible_for_rewards: false,
+            executed_timestamp_seconds: 0,
+        };
+        
+        // Convert the proposal
+        let converted = convert_proposal(&proposal_data);
+        
+        // Verify the conversion for failed proposal
+        assert_eq!(converted.id, 456);
+        assert_eq!(converted.title, "Failed Proposal");
+        assert_eq!(converted.summary, "This proposal failed");
+        assert_eq!(converted.status, "Failed");
+        assert!(!converted.executed);
+        assert_eq!(converted.executed_at, None);
+        assert_eq!(converted.proposer, "Unknown"); // No proposer
+        assert_eq!(converted.votes_for, 300);
+        assert_eq!(converted.votes_against, 1700);
+        assert_eq!(converted.total_votes, 2000);
+    }
+
+    #[test]
+    fn test_convert_proposal_open() {
+        use crate::{convert_proposal, ProposalData, ProposalId, Proposal, Tally, Ballot};
+        
+        // Create an open proposal
+        let proposal_data = ProposalData {
+            id: Some(ProposalId { id: 789 }),
+            payload_text_rendering: Some("Open payload".to_string()),
+            topic: None,
+            action: 0,
+            failure_reason: None,
+            action_auxiliary: None,
+            ballots: vec![("0xabcdef1234567890".to_string(), Ballot { 
+                vote: 1, 
+                cast_timestamp_seconds: 1640995200,
+                voting_power: 500 
+            })],
+            minimum_yes_proportion_of_total: None,
+            reward_event_round: 1,
+            failed_timestamp_seconds: 0,
+            reward_event_end_timestamp_seconds: None,
+            proposal_creation_timestamp_seconds: 1640995200,
+            initial_voting_period_seconds: 86400,
+            reject_cost_e8s: 1000000,
+            latest_tally: Some(Tally {
+                yes: 800,
+                no: 200,
+                total: 1000,
+                timestamp_seconds: 1640995200,
+            }),
+            wait_for_quiet_deadline_increase_seconds: 0,
+            decided_timestamp_seconds: 0,
+            proposal: Some(Proposal {
+                title: "Open Proposal".to_string(),
+                summary: "This proposal is still open".to_string(),
+                url: "https://example.com".to_string(),
+                action: None,
+            }),
+            proposer: None,
+            wait_for_quiet_state: None,
+            minimum_yes_proportion_of_exercised: None,
+            is_eligible_for_rewards: true,
+            executed_timestamp_seconds: 0,
+        };
+        
+        // Convert the proposal
+        let converted = convert_proposal(&proposal_data);
+        
+        // Verify the conversion for open proposal
+        assert_eq!(converted.id, 789);
+        assert_eq!(converted.title, "Open Proposal");
+        assert_eq!(converted.summary, "This proposal is still open");
+        assert_eq!(converted.status, "Open");
+        assert!(!converted.executed);
+        assert_eq!(converted.executed_at, None);
+        assert_eq!(converted.proposer, "0xabcdef1234567890"); // From ballots
+        assert_eq!(converted.votes_for, 800);
+        assert_eq!(converted.votes_against, 200);
+        assert_eq!(converted.total_votes, 1000);
+    }
+
+    #[test]
+    fn test_get_sns_canister() {
+        reset_state();
+        
+        // Add a test canister
+        let test_canister = SnsCanister {
+            id: "test-1".to_string(),
+            name: "Test Governance".to_string(),
+            canister_id: "test-canister-id".to_string(),
+            description: "Test canister for testing".to_string(),
+            logo: None,
+            url: None,
+            total_proposals: 10,
+            active_proposals: 2,
+            last_activity: 1640995200000000000,
+        };
+        add_sns_canister(test_canister.clone()).unwrap();
+        
+        // Test getting the canister by ID
+        let result = get_sns_canister("test-canister-id".to_string());
+        assert!(result.is_ok());
+        let canister = result.unwrap();
+        assert_eq!(canister.id, "test-1");
+        assert_eq!(canister.name, "Test Governance");
+        assert_eq!(canister.canister_id, "test-canister-id");
+        
+        // Test getting non-existent canister
+        let result = get_sns_canister("non-existent-id".to_string());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            SnsGovernanceError::CanisterNotFound => {},
+            _ => panic!("Expected CanisterNotFound error"),
+        }
+        
+        // Test with empty canister ID
+        let result = get_sns_canister("".to_string());
+        assert!(result.is_err());
+        match result.unwrap_err() {
+            SnsGovernanceError::InvalidCanisterId => {},
+            _ => panic!("Expected InvalidCanisterId error"),
         }
     }
 } 

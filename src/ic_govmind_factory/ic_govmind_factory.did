@@ -115,4 +115,5 @@ service : {
   create_gov_dao : (Dao) -> (Result);
   get_dao_info : (principal) -> (opt Dao) query;
   upgrade_dao_canister : (principal, opt CanisterArgs) -> (Result_1);
+  upgrade_gov_dao : () -> (Result_1);
 }

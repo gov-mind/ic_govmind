@@ -134,7 +134,7 @@ pub async fn create_dao_canister(arg: Option<CanisterArgs>) -> Result<Principal,
 }
 
 #[update(guard = "owner_guard")]
-async fn upgrade_dao_canister(
+pub async fn upgrade_dao_canister(
     canister_id: Principal,
     arg: Option<CanisterArgs>,
 ) -> Result<(), String> {

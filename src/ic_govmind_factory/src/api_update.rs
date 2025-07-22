@@ -1,7 +1,7 @@
 use crate::{
-    api_canister::create_dao_canister,
+    api_canister::{create_dao_canister, upgrade_dao_canister},
     guards::anonymous_guard,
-    types::{CanisterArgs, KeyEnvironment, StateInitArgs},
+    types::{CanisterArgs, KeyEnvironment, StateInitArgs, StateUpgradeArgs},
 };
 use candid::Principal;
 use ic_cdk::{api::time, update};
@@ -41,4 +41,20 @@ async fn create_gov_dao(dao: Dao) -> Result<Principal, String> {
     }
 
     create_gov_dao_core(dao).await
+}
+
+#[update(guard = "anonymous_guard")]
+async fn upgrade_gov_dao() -> Result<(), String> {
+    let caller = ic_cdk::api::msg_caller();
+
+    let dao = store::gov::get_dao(caller)
+        .ok_or_else(|| "DAO not found for this caller".to_string())?
+        .into_inner();
+
+    let canister_id = Principal::from_text(&dao.id)
+        .map_err(|e| format!("Invalid canister_id '{}': {}", dao.id, e))?;
+
+    let upgrade_arg = CanisterArgs::Upgrade(StateUpgradeArgs { root: Some(caller) });
+
+    upgrade_dao_canister(canister_id, Some(upgrade_arg)).await
 }

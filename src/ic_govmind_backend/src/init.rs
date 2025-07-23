@@ -26,6 +26,7 @@ pub struct StateInitArgs {
 #[derive(CandidType, Clone, Debug, Deserialize)]
 pub struct StateUpgradeArgs {
     pub root: Option<Principal>,
+    pub env: Option<KeyEnvironment>,
 }
 
 #[init]
@@ -44,6 +45,10 @@ fn init(args: Option<CanisterArgs>) {
                 state_ref.schnorr_key = Some(schnorr_key);
             });
             store::state::save();
+
+            ic_cdk_timers::set_timer(Duration::from_secs(0), || {
+                ic_cdk::futures::spawn(job_ecdsa_setup())
+            });
         }
         Some(CanisterArgs::Upgrade(_)) => {
             ic_cdk::trap(
@@ -63,18 +68,31 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade(args: Option<CanisterArgs>) {
+    let mut should_setup_ecdsa = false;
+
     match args {
         Some(CanisterArgs::Upgrade(upgrade_args)) => {
             store::state::with_mut(|state_ref| {
                 if let Some(root) = upgrade_args.root {
                     state_ref.root = Some(root);
                 }
+
+                if let Some(env) = upgrade_args.env.clone() {
+                    let ecdsa_key = EcdsaKeyIds::from_env(&env).to_key_id();
+                    let schnorr_key = SchnorrKeyIds::from_env(&env).to_key_id();
+                    state_ref.ecdsa_key = Some(ecdsa_key);
+                    state_ref.schnorr_key = Some(schnorr_key);
+                    should_setup_ecdsa = true;
+                }
             });
+
             store::state::save();
 
-            ic_cdk_timers::set_timer(Duration::from_secs(0), || {
-                ic_cdk::futures::spawn(job_ecdsa_setup())
-            });
+            if should_setup_ecdsa {
+                ic_cdk_timers::set_timer(Duration::from_secs(0), || {
+                    ic_cdk::futures::spawn(job_ecdsa_setup())
+                });
+            }
         }
         Some(CanisterArgs::Init(_)) => {
             ic_cdk::trap(
@@ -82,7 +100,7 @@ fn post_upgrade(args: Option<CanisterArgs>) {
             );
         }
         None => {
-            // No arguments provided; continue with the existing state
+            // No arguments provided; do nothing
         }
     }
 }

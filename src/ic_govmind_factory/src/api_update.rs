@@ -4,7 +4,10 @@ use crate::{
     types::{CanisterArgs, KeyEnvironment, StateInitArgs, StateUpgradeArgs},
 };
 use candid::Principal;
-use ic_cdk::{api::{debug_print, time}, update};
+use ic_cdk::{
+    api::{debug_print, time},
+    update,
+};
 use ic_govmind_types::dao::Dao;
 
 use crate::store::{self};
@@ -55,7 +58,10 @@ async fn upgrade_gov_dao() -> Result<(), String> {
     let canister_id = Principal::from_text(&dao.id)
         .map_err(|e| format!("Invalid canister_id '{}': {}", dao.id, e))?;
 
-    let upgrade_arg = CanisterArgs::Upgrade(StateUpgradeArgs { root: Some(caller) });
+    let upgrade_arg = CanisterArgs::Upgrade(StateUpgradeArgs {
+        root: Some(caller),
+        env: None,
+    });
 
     upgrade_dao_canister(canister_id, Some(upgrade_arg)).await
 }

@@ -101,7 +101,10 @@ type StateInitArgs = record {
   org_info : opt Dao;
   admins : vec principal;
 };
-type StateUpgradeArgs = record { root : opt principal };
+type StateUpgradeArgs = record {
+  env : opt KeyEnvironment;
+  root : opt principal;
+};
 type StatusRequest = record {
   memory_size : bool;
   cycles : bool;

@@ -91,7 +91,10 @@ type StateInitArgs = record {
   org_info : opt Dao;
   admins : vec principal;
 };
-type StateUpgradeArgs = record { root : opt principal };
+type StateUpgradeArgs = record {
+  env : opt KeyEnvironment;
+  root : opt principal;
+};
 type TokenLocation = record {
   chain : ChainType;
   canister_id : opt principal;

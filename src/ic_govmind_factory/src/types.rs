@@ -28,6 +28,7 @@ pub struct StateInitArgs {
 #[derive(CandidType, Clone, Debug, Deserialize)]
 pub struct StateUpgradeArgs {
     pub root: Option<Principal>,
+    pub env: Option<KeyEnvironment>,
 }
 
 #[derive(CandidType, Serialize, Deserialize, Debug, Clone)]

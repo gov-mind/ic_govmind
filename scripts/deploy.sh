@@ -179,7 +179,7 @@ case $CANISTER in
             exit 1
         fi
 
-        local network_flag=$(get_network_flag)
+        network_flag=$(get_network_flag)
         dfx deploy internet_identity $network_flag
         
         # Deploy backend with arguments

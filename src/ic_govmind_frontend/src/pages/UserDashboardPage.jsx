@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Building2,
   Plus,
@@ -19,11 +19,7 @@ import { useMyDao } from '../hooks/useMyDao';
 import { useAuthClient } from '../hooks/useAuthClient';
 
 function UserDashboardPage() {
-  const navigate = useNavigate();
   const { principal, factoryActor } = useAuthClient();
-  // Mock user principal
-  const [myDaos, setMyDaos] = useState([]); // Still mock for now
-
   // SNS DAOs pagination state
   const [snsPage, setSnsPage] = useState(1);
   const snsPageSize = 10;
@@ -39,25 +35,7 @@ function UserDashboardPage() {
   const hasPrevPage = !!paginationInfo.has_prev_page;
   const hasNextPage = !!paginationInfo.has_next_page;
 
-  // Debug: Log the principal used in the dashboard
-  console.log('Dashboard principal:', principal);
   const { data: myDao, isLoading: myDaoLoading, error: myDaoError } = useMyDao(principal, factoryActor);
-
-  // For demo, keep myDaos as mock
-  useEffect(() => {
-    setTimeout(() => {
-      setMyDaos([
-        {
-          id: 'dao-1',
-          name: 'AI Governance DAO',
-          icon_url: '',
-          members: 12,
-          proposals: 5,
-          description: 'A DAO for AI-powered governance.'
-        }
-      ]);
-    }, 1000);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50">
@@ -99,8 +77,8 @@ function UserDashboardPage() {
             </div>
           ) : (
             <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              <div className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                <div className="flex items-center gap-3 mb-3">
+              <div className="bg-white/80 backdrop-blur-sm border border-slate-100 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                <div className="flex items-center gap-3 mb-4">
                   <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center overflow-hidden">
                     {myDao.icon_url && ((Array.isArray(myDao.icon_url) ? myDao.icon_url[0] : myDao.icon_url)) ? (
                       <img src={Array.isArray(myDao.icon_url) ? myDao.icon_url[0] : myDao.icon_url} alt={myDao.name} className="w-full h-full object-contain" />
@@ -109,12 +87,12 @@ function UserDashboardPage() {
                     )}
                   </div>
                   <div>
-                    <h4 className="text-lg font-semibold text-slate-900">{myDao.name}</h4>
+                    <h4 className="text-lg font-semibold text-slate-900 mb-1">{myDao.name}</h4>
                     <p className="text-xs text-slate-500">{myDao.members?.length || 0} members • {myDao.proposals?.length || 0} proposals</p>
                   </div>
                 </div>
-                <p className="text-slate-600 text-sm mb-4 line-clamp-2">{myDao.description}</p>
-                <Link to={`/dao/${myDao.id}`} className="mt-auto bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2">
+                <p className="text-slate-600 text-sm mb-6 leading-relaxed line-clamp-2">{myDao.description}</p>
+                <Link to={`/dao/${myDao.id}`} className="mt-auto bg-gradient-to-r from-blue-500/90 to-cyan-500/90 text-white px-4 py-2.5 rounded-xl hover:from-blue-600 hover:to-cyan-600 transition-all duration-300 font-medium flex items-center space-x-2 shadow-sm hover:shadow-md">
                   <ArrowRight className="w-4 h-4" /> <span>Enter DAO</span>
                 </Link>
               </div>
@@ -149,8 +127,8 @@ function UserDashboardPage() {
             <>
               <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
                 {snsDaos.map(dao => (
-                  <div key={dao.canisterId} className="bg-white border border-slate-200 rounded-xl p-6 flex flex-col justify-between shadow-sm hover:shadow-md transition-shadow">
-                    <div className="flex items-center gap-3 mb-1">
+                  <div key={dao.canisterId} className="bg-white/80 backdrop-blur-sm border border-slate-100 rounded-2xl p-6 flex flex-col justify-between shadow-sm hover:shadow-lg hover:scale-[1.02] transition-all duration-300">
+                    <div className="flex items-center gap-3 mb-3">
                       <div className="w-12 h-12 bg-white rounded-lg flex items-center justify-center overflow-hidden border border-cyan-100 flex-shrink-0">
                         {dao.logo ? (
                           <img
@@ -165,15 +143,15 @@ function UserDashboardPage() {
                       </div>
                       <h4 className="text-lg font-semibold text-slate-900 truncate">{dao.name}</h4>
                     </div>
-                    <p className="text-xs text-slate-500 mb-2 line-clamp-2">{dao.description}</p>
-                    <div className="flex items-center text-xs text-slate-500 mb-2 gap-2">
+                    <p className="text-xs text-slate-500 mb-4 leading-relaxed line-clamp-2">{dao.description}</p>
+                    <div className="flex items-center text-xs text-slate-500 mb-4 gap-2">
                       <Users className="w-4 h-4" />
                       <span>{dao.totalProposals} proposals</span>
                       <span>•</span>
                       <Activity className="w-4 h-4" />
                       <span>{dao.activeProposals} active</span>
                     </div>
-                    <Link to={`/sns/${dao.canisterId}`} className="mt-auto bg-gradient-to-r from-cyan-600 to-blue-600 text-white px-4 py-2 rounded-lg hover:from-cyan-700 hover:to-blue-700 transition-all duration-200 font-medium flex items-center space-x-2">
+                    <Link to={`/sns/${dao.canisterId}`} className="mt-auto bg-gradient-to-r from-cyan-500/90 to-blue-500/90 text-white px-4 py-2.5 rounded-xl hover:from-cyan-600 hover:to-blue-600 transition-all duration-300 font-medium flex items-center space-x-2 shadow-sm hover:shadow-md">
                       <ArrowRight className="w-4 h-4" /> <span>Enter DAO</span>
                     </Link>
                   </div>

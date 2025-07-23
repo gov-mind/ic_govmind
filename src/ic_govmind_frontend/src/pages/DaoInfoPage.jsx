@@ -12,21 +12,17 @@ import {
   Plus,
   FileText,
   BarChart3,
-  Activity,
-  Clock,
-  CheckCircle,
   X,
   AlertTriangle,
-  TrendingUp,
-  Shield,
-  Zap,
-  Brain,
   Wallet,
-  Calendar,
   Hash,
-  ExternalLink
+  Copy,
+  Check
 } from 'lucide-react';
 import { Principal } from '@dfinity/principal';
+import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
+import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
+import ProposalAnalysisPanel from '../components/ProposalAnalysisPanel';
 
 function formatDate(bigintOrNumber) {
   let ms;
@@ -51,30 +47,156 @@ function formatMemberDate(joined_at) {
 }
 
 function DaoInfoPage() {
-  const { principal, factoryActor } = useAuthClient();
+  const { principal, factoryActor, authClient, agent } = useAuthClient();
   const { daoId } = useParams();
 
   // Debug: Log the principal from the frontend
-//   console.log("Frontend principal:", principal);
+  //   console.log("Frontend principal:", principal);
 
   const { data: dao, isLoading, error } = useQuery({
     queryKey: ['dao-info', principal],
     queryFn: async () => {
       if (!factoryActor || !principal) return null;
       const principalObj = Principal.fromText(principal);
-      // Debug: Log the principal used in the API call
-      console.log("Calling get_dao_info with principal:", principalObj.toText());
       const result = await factoryActor.get_dao_info(principalObj);
-      // Debug: Log the result from the backend
-      console.log("get_dao_info result:", result);
+
       return result && result.length > 0 ? result[0] : null;
     },
     enabled: !!factoryActor && !!principal,
     staleTime: 30000,
   });
 
+  // Fetch real-time proposals from the DAO canister
+  const { data: proposals = [], isLoading: proposalsLoading, error: proposalsError, refetch: refetchProposals } = useQuery({
+    queryKey: ['dao-proposals', dao?.id],
+    queryFn: async () => {
+      if (!dao?.id || !agent) return [];
+
+      try {
+        const daoActor = createBackendActor(dao.id, { agent });
+        const result = await daoActor.get_all_proposals();
+        return result || [];
+      } catch (err) {
+        console.error('Error fetching proposals:', err);
+        return [];
+      }
+    },
+    enabled: !!dao?.id && !!agent,
+    staleTime: 10000, // Refresh more frequently for proposals
+    refetchInterval: 30000, // Auto-refresh every 30 seconds
+  });
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateProposal, setShowCreateProposal] = useState(false);
+  const [copied, setCopied] = useState(false);
+  const [isUpgrading, setIsUpgrading] = useState(false);
+  const [upgradeStatus, setUpgradeStatus] = useState(null); // 'success', 'error', or null
+
+  // Proposal creation state
+  const [proposalTitle, setProposalTitle] = useState('');
+  const [proposalContent, setProposalContent] = useState('');
+  const [isCreatingProposal, setIsCreatingProposal] = useState(false);
+  const [proposalCreationStatus, setProposalCreationStatus] = useState(null); // 'success', 'error', or null
+  const [selectedProposalId, setSelectedProposalId] = useState(null);
+
+  // Handle copy to clipboard with feedback
+  const handleCopy = async (text) => {
+    try {
+      await navigator.clipboard.writeText(text);
+      setCopied(true);
+      setTimeout(() => setCopied(false), 2000); // Reset after 2 seconds
+    } catch (err) {
+      console.error('Failed to copy:', err);
+    }
+  };
+
+  // Handle DAO upgrade
+  const handleUpgrade = async () => {
+    if (!factoryActor) {
+      console.error('Factory actor not available');
+      return;
+    }
+
+    setIsUpgrading(true);
+    setUpgradeStatus(null);
+
+    try {
+      const result = await factoryActor.upgrade_gov_dao();
+      console.log(result);
+
+      if (result && result.Ok !== undefined) {
+        setUpgradeStatus('success');
+        console.log('DAO upgraded successfully');
+        setTimeout(() => setUpgradeStatus(null), 3000); // Reset after 3 seconds
+      } else {
+        setUpgradeStatus('error');
+        console.error('Upgrade failed:', result?.Err || 'Unknown error');
+        setTimeout(() => setUpgradeStatus(null), 5000); // Reset after 5 seconds
+      }
+    } catch (err) {
+      setUpgradeStatus('error');
+      console.error('Failed to upgrade DAO:', err);
+      setTimeout(() => setUpgradeStatus(null), 5000); // Reset after 5 seconds
+    } finally {
+      setIsUpgrading(false);
+    }
+  };
+
+  // Handle proposal creation
+  const handleCreateProposal = async () => {
+    if (!proposalTitle.trim() || !proposalContent.trim() || !dao) return;
+
+    setIsCreatingProposal(true);
+    setProposalCreationStatus(null);
+
+    try {
+      const daoActor = createBackendActor(dao.id, { agent });
+
+      // Call create_proposal on the DAO canister
+      const createProposalResult = await daoActor.create_proposal(
+        proposalTitle.trim(),
+        proposalContent.trim()
+      );
+
+      if (createProposalResult && createProposalResult.Ok !== undefined) {
+        const proposalId = createProposalResult.Ok;
+        console.log('Proposal created with ID:', proposalId);
+
+        // Call submit_proposal in the proposal analyzer with format: dao.id + '-' + proposal.id
+        const analyzerProposalId = `${dao.id}-${proposalId}`;
+        const analyzerResult = await ic_govmind_proposal_analyzer.submit_proposal(
+          [analyzerProposalId], // Some(proposalId)
+          proposalTitle.trim(),
+          proposalContent.trim()
+        );
+
+        console.log('Proposal submitted to analyzer:', analyzerResult);
+
+        // Clear form and close modal
+        setProposalTitle('');
+        setProposalContent('');
+        setShowCreateProposal(false);
+        setProposalCreationStatus('success');
+
+        // Refetch proposals data and switch to proposals tab
+        await refetchProposals();
+        setActiveTab('proposals');
+        setSelectedProposalId(proposalId);
+
+        setTimeout(() => setProposalCreationStatus(null), 3000);
+      } else {
+        setProposalCreationStatus('error');
+        console.error('Failed to create proposal:', createProposalResult?.Err || 'Unknown error');
+        setTimeout(() => setProposalCreationStatus(null), 5000);
+      }
+    } catch (err) {
+      setProposalCreationStatus('error');
+      console.error('Error creating proposal:', err);
+      setTimeout(() => setProposalCreationStatus(null), 5000);
+    } finally {
+      setIsCreatingProposal(false);
+    }
+  };
 
   // Mock data - replace with actual API call
   useEffect(() => {
@@ -87,7 +209,7 @@ function DaoInfoPage() {
     const diff = now - timestamp;
     const days = Math.floor(diff / (1000 * 60 * 60 * 24));
     const hours = Math.floor((diff % (1000 * 60 * 60 * 24)) / (1000 * 60 * 60));
-    
+
     if (days > 0) return `${days} day${days > 1 ? 's' : ''} ago`;
     if (hours > 0) return `${hours} hour${hours > 1 ? 's' : ''} ago`;
     return 'Just now';
@@ -117,14 +239,27 @@ function DaoInfoPage() {
   };
 
   const calculateVoteStats = (proposal) => {
-    const totalVotes = proposal.votes.length;
-    const yesVotes = proposal.votes.filter(v => v.vote_choice === 'Yes').length;
-    const noVotes = proposal.votes.filter(v => v.vote_choice === 'No').length;
-    const abstainVotes = proposal.votes.filter(v => v.vote_choice === 'Abstain').length;
-    
-    const totalWeight = proposal.votes.reduce((sum, vote) => sum + vote.weight, 0);
-    const yesWeight = proposal.votes.filter(v => v.vote_choice === 'Yes').reduce((sum, vote) => sum + vote.weight, 0);
-    
+    const totalVotes = proposal.votes?.length || 0;
+    const yesVotes = proposal.votes?.filter(v => {
+      // Handle both string and object formats
+      const choice = typeof v.vote_choice === 'string' ? v.vote_choice : Object.keys(v.vote_choice)[0];
+      return choice === 'Yes';
+    }).length || 0;
+    const noVotes = proposal.votes?.filter(v => {
+      const choice = typeof v.vote_choice === 'string' ? v.vote_choice : Object.keys(v.vote_choice)[0];
+      return choice === 'No';
+    }).length || 0;
+    const abstainVotes = proposal.votes?.filter(v => {
+      const choice = typeof v.vote_choice === 'string' ? v.vote_choice : Object.keys(v.vote_choice)[0];
+      return choice === 'Abstain';
+    }).length || 0;
+
+    const totalWeight = proposal.votes?.reduce((sum, vote) => sum + Number(vote.weight || 0), 0) || 0;
+    const yesWeight = proposal.votes?.filter(v => {
+      const choice = typeof v.vote_choice === 'string' ? v.vote_choice : Object.keys(v.vote_choice)[0];
+      return choice === 'Yes';
+    }).reduce((sum, vote) => sum + Number(vote.weight || 0), 0) || 0;
+
     return {
       totalVotes,
       yesVotes,
@@ -203,17 +338,11 @@ function DaoInfoPage() {
               <p className="text-xs text-slate-400">Created {formatDate(dao.created_at)}</p>
             </div>
           </div>
-          <button
-            onClick={() => setShowCreateProposal(true)}
-            className="ml-auto bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2"
-          >
-            <Plus className="w-4 h-4" />
-            <span>New Proposal</span>
-          </button>
+
         </div>
 
         {/* Tabs */}
-        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6">
+        <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col min-h-[600px]">
           <div className="border-b border-slate-200">
             <nav className="flex space-x-8 px-6">
               {[
@@ -221,18 +350,18 @@ function DaoInfoPage() {
                 { id: 'members', label: 'Members', icon: Users },
                 { id: 'proposals', label: 'Proposals', icon: FileText },
                 { id: 'treasury', label: 'Treasury', icon: Wallet },
-                { id: 'governance', label: 'Governance', icon: Settings }
+                { id: 'governance', label: 'Governance', icon: Settings },
+                { id: 'canister', label: 'Canister', icon: Hash }
               ].map(tab => {
                 const Icon = tab.icon;
                 return (
                   <button
                     key={tab.id}
                     onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${
-                      activeTab === tab.id
+                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
                         ? 'border-blue-500 text-blue-600'
                         : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                    }`}
+                      }`}
                   >
                     <Icon className="w-4 h-4" />
                     <span>{tab.label}</span>
@@ -243,7 +372,7 @@ function DaoInfoPage() {
           </div>
 
           {/* Tab Content */}
-          <div className="p-6">
+          <div className="p-6 flex-1 min-h-0 flex flex-col">
             {/* Overview Tab */}
             {activeTab === 'overview' && (
               <div className="space-y-6">
@@ -268,7 +397,14 @@ function DaoInfoPage() {
                       <div>
                         <p className="text-sm text-green-600 font-medium">Active Proposals</p>
                         <p className="text-2xl font-bold text-green-900">
-                          {dao.proposals.filter(p => p.status === 'Active').length}
+                          {proposalsLoading ? (
+                            <span className="text-sm">Loading...</span>
+                          ) : (
+                            proposals.filter(p => {
+                              const status = typeof p.status === 'string' ? p.status : Object.keys(p.status)[0];
+                              return status === 'Active';
+                            }).length
+                          )}
                         </p>
                       </div>
                     </div>
@@ -377,73 +513,72 @@ function DaoInfoPage() {
 
             {/* Proposals Tab */}
             {activeTab === 'proposals' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">Proposals</h3>
+              <div className="flex flex-col min-h-0 flex-1">
+                <div className="flex items-center justify-between mb-6">
+                  <div>
+                    <h3 className="text-lg font-semibold text-slate-900">Proposals</h3>
+                    {proposalsLoading && (
+                      <p className="text-sm text-slate-500 mt-1">Loading proposals...</p>
+                    )}
+                    {proposalsError && (
+                      <p className="text-sm text-red-500 mt-1">Error loading proposals</p>
+                    )}
+                  </div>
                   <button
                     onClick={() => setShowCreateProposal(true)}
-                    className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors flex items-center space-x-2"
+                    className="ml-auto bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2"
                   >
                     <Plus className="w-4 h-4" />
                     <span>New Proposal</span>
                   </button>
                 </div>
 
-                <div className="space-y-4">
-                  {dao.proposals.map(proposal => {
-                    const voteStats = calculateVoteStats(proposal);
-                    return (
-                      <div key={proposal.id} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                        <div className="flex items-start justify-between mb-4">
-                          <div className="flex-1">
-                            <div className="flex items-center space-x-3 mb-2">
-                              <h4 className="text-lg font-semibold text-slate-900">{proposal.title}</h4>
-                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getStatusBadgeClass(proposal.status)}`}>
-                                {proposal.status}
-                              </span>
-                            </div>
-                            <p className="text-slate-600 text-sm mb-2">{proposal.content}</p>
-                            <div className="flex items-center space-x-4 text-xs text-slate-500">
-                              <span>Proposed by {proposal.proposer}</span>
-                              <span>•</span>
-                              <span>{formatRelativeTime(proposal.created_at)}</span>
-                              {proposal.status === 'Active' && (
-                                <>
-                                  <span>•</span>
-                                  <span>Expires {formatRelativeTime(proposal.expires_at)}</span>
-                                </>
-                              )}
-                            </div>
-                          </div>
-                        </div>
+                {proposalsLoading ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-slate-600">Loading proposals...</p>
+                    </div>
+                  </div>
+                ) : proposalsError ? (
+                  <div className="flex-1 flex items-center justify-center">
+                    <div className="text-center">
+                      <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                      <h3 className="text-lg font-medium text-slate-900 mb-2">Error Loading Proposals</h3>
+                      <p className="text-slate-600 mb-4">Failed to load proposals from the DAO canister.</p>
+                      <button
+                        onClick={() => refetchProposals()}
+                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
+                      >
+                        Retry
+                      </button>
+                    </div>
+                  </div>
+                ) : (
+                  <ProposalAnalysisPanel
+                    proposals={proposals.map(proposal => {
+                      const voteStats = calculateVoteStats(proposal);
+                      // Handle status - it might be an object or string
+                      const status = typeof proposal.status === 'string' ? proposal.status : Object.keys(proposal.status)[0];
 
-                        <div className="border-t border-slate-200 pt-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <span className="text-sm font-medium text-slate-700">Voting Results</span>
-                            <span className="text-sm text-slate-500">
-                              {voteStats.totalVotes} votes • {voteStats.approvalPercentage}% approval
-                            </span>
-                          </div>
-                          
-                          <div className="grid grid-cols-3 gap-4">
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-green-600">{voteStats.yesVotes}</div>
-                              <div className="text-xs text-slate-500">Yes</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-red-600">{voteStats.noVotes}</div>
-                              <div className="text-xs text-slate-500">No</div>
-                            </div>
-                            <div className="text-center">
-                              <div className="text-lg font-bold text-slate-600">{voteStats.abstainVotes}</div>
-                              <div className="text-xs text-slate-500">Abstain</div>
-                            </div>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
+                      return {
+                        id: Number(proposal.id),
+                        title: proposal.title,
+                        summary: proposal.content,
+                        proposer: proposal.proposer,
+                        status: status,
+                        votesFor: voteStats.yesVotes,
+                        votesAgainst: voteStats.noVotes,
+                        compositeId: `${dao.id}-${proposal.id}`, // Format for analyzer
+                        created_at: Number(proposal.created_at),
+                        expires_at: Number(proposal.expires_at)
+                      };
+                    })}
+                    canisterName={dao?.name || 'DAO'}
+                    selectedProposalId={selectedProposalId}
+                    setSelectedProposalId={setSelectedProposalId}
+                  />
+                )}
               </div>
             )}
 
@@ -587,9 +722,248 @@ function DaoInfoPage() {
                 </div>
               </div>
             )}
+
+            {/* Canister Tab */}
+            {activeTab === 'canister' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-slate-900">Canister Information</h3>
+
+                <div className="bg-white border border-slate-200 rounded-xl p-6">
+                  <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                    <Hash className="w-5 h-5 mr-2" />
+                    Canister ID
+                  </h4>
+
+                  <div className="space-y-4">
+                    <div className="flex flex-col md:flex-row md:items-center md:justify-between p-4 bg-gradient-to-r from-blue-50 to-cyan-50 rounded-lg border border-blue-200">
+                      <div className="mb-2 md:mb-0">
+                        <p className="font-medium text-slate-900">Principal ID</p>
+                        <p className="text-sm text-slate-600">Unique identifier for this DAO canister</p>
+                      </div>
+                      <div className="flex items-center space-x-2">
+                        <span className="font-mono text-blue-600 bg-white px-3 py-1 rounded-md border">
+                          {dao.id}
+                        </span>
+                        <button
+                          onClick={() => handleCopy(dao.id)}
+                          className={`flex items-center space-x-1 px-3 py-2 rounded-md transition-all duration-200 ${copied
+                              ? 'bg-green-100 text-green-700 border border-green-200'
+                              : 'text-blue-600 hover:bg-blue-100 border border-transparent'
+                            }`}
+                          title={copied ? "Copied!" : "Copy to clipboard"}
+                        >
+                          {copied ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span className="text-sm font-medium">Copied!</span>
+                            </>
+                          ) : (
+                            <>
+                              <Copy className="w-4 h-4" />
+                              <span className="text-sm font-medium">Copy</span>
+                            </>
+                          )}
+                        </button>
+                        <button
+                          onClick={handleUpgrade}
+                          disabled={isUpgrading}
+                          className={`flex items-center space-x-1 px-3 py-2 rounded-md transition-all duration-200 ${upgradeStatus === 'success'
+                              ? 'bg-green-100 text-green-700 border border-green-200'
+                              : upgradeStatus === 'error'
+                                ? 'bg-red-100 text-red-700 border border-red-200'
+                                : isUpgrading
+                                  ? 'bg-gray-100 text-gray-500 border border-gray-200 cursor-not-allowed'
+                                  : 'text-purple-600 hover:bg-purple-100 border border-transparent'
+                            }`}
+                          title={
+                            upgradeStatus === 'success'
+                              ? "Upgraded successfully!"
+                              : upgradeStatus === 'error'
+                                ? "Upgrade failed"
+                                : isUpgrading
+                                  ? "Upgrading..."
+                                  : "Upgrade DAO canister"
+                          }
+                        >
+                          {upgradeStatus === 'success' ? (
+                            <>
+                              <Check className="w-4 h-4" />
+                              <span className="text-sm font-medium">Upgraded!</span>
+                            </>
+                          ) : upgradeStatus === 'error' ? (
+                            <>
+                              <X className="w-4 h-4" />
+                              <span className="text-sm font-medium">Failed</span>
+                            </>
+                          ) : isUpgrading ? (
+                            <>
+                              <div className="w-4 h-4 border-2 border-gray-400 border-t-transparent rounded-full animate-spin"></div>
+                              <span className="text-sm font-medium">Upgrading...</span>
+                            </>
+                          ) : (
+                            <>
+                              <Settings className="w-4 h-4" />
+                              <span className="text-sm font-medium">Upgrade</span>
+                            </>
+                          )}
+                        </button>
+                      </div>
+                    </div>
+
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-slate-900">Network</p>
+                          <p className="text-sm text-slate-600">Internet Computer</p>
+                        </div>
+                        <span className="font-medium text-green-600 mt-2 block">IC Mainnet</span>
+                      </div>
+
+                      <div className="p-3 bg-slate-50 rounded-lg">
+                        <div>
+                          <p className="font-medium text-slate-900">Canister Type</p>
+                          <p className="text-sm text-slate-600">DAO governance canister</p>
+                        </div>
+                        <span className="font-medium text-purple-600 mt-2 block">Governance</span>
+                      </div>
+                    </div>
+
+                    <div className="p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <p className="font-medium text-amber-800">Important</p>
+                          <p className="text-sm text-amber-700 mt-1">
+                            This canister ID is used to identify and interact with your DAO on the Internet Computer network.
+                            Keep it safe and use it when connecting external applications or tools.
+                          </p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            )}
           </div>
         </div>
       </main>
+
+      {/* Proposal Creation Modal */}
+      {showCreateProposal && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <h2 className="text-xl font-semibold text-slate-900">Create New Proposal</h2>
+              <button
+                onClick={() => setShowCreateProposal(false)}
+                disabled={isCreatingProposal}
+                className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto">
+              <form onSubmit={(e) => { e.preventDefault(); handleCreateProposal(); }} className="space-y-6">
+                {/* Title Input */}
+                <div>
+                  <label htmlFor="proposal-title" className="block text-sm font-medium text-slate-700 mb-2">
+                    Proposal Title
+                  </label>
+                  <input
+                    id="proposal-title"
+                    type="text"
+                    value={proposalTitle}
+                    onChange={(e) => setProposalTitle(e.target.value)}
+                    placeholder="Enter a clear, descriptive title for your proposal"
+                    disabled={isCreatingProposal}
+                    maxLength={200}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
+                    required
+                  />
+                  <p className="text-xs text-slate-500 mt-1">{proposalTitle.length}/200 characters</p>
+                </div>
+
+                {/* Content Input */}
+                <div>
+                  <label htmlFor="proposal-content" className="block text-sm font-medium text-slate-700 mb-2">
+                    Proposal Description
+                  </label>
+                  <textarea
+                    id="proposal-content"
+                    value={proposalContent}
+                    onChange={(e) => setProposalContent(e.target.value)}
+                    placeholder="Provide a detailed description of your proposal, including objectives, implementation plan, and expected outcomes..."
+                    disabled={isCreatingProposal}
+                    maxLength={5000}
+                    rows={8}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed resize-none"
+                    required
+                  />
+                  <p className="text-xs text-slate-500 mt-1">{proposalContent.length}/5000 characters</p>
+                </div>
+
+                {/* Action Buttons */}
+                <div className="flex gap-3 pt-4">
+                  <button
+                    type="button"
+                    onClick={() => setShowCreateProposal(false)}
+                    disabled={isCreatingProposal}
+                    className="flex-1 py-3 px-4 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
+                  >
+                    Cancel
+                  </button>
+                  <button
+                    type="submit"
+                    disabled={isCreatingProposal || !proposalTitle.trim() || !proposalContent.trim()}
+                    className="flex-1 bg-gradient-to-r from-blue-600 to-cyan-600 text-white py-3 px-4 rounded-xl hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
+                  >
+                    {isCreatingProposal ? (
+                      <div className="flex items-center justify-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Creating & Analyzing...</span>
+                      </div>
+                    ) : (
+                      'Create & Analyze Proposal'
+                    )}
+                  </button>
+                </div>
+
+                {/* Status Messages */}
+                {isCreatingProposal && (
+                  <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
+                    <div className="flex items-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
+                      <span className="text-sm text-blue-700 font-medium">Creating proposal and submitting for analysis...</span>
+                    </div>
+                    <p className="text-xs text-blue-600 mt-1">This may take a few moments to complete.</p>
+                  </div>
+                )}
+
+                {proposalCreationStatus === 'error' && (
+                  <div className="mt-4 p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                      <span className="text-sm text-red-700 font-medium">Failed to create proposal</span>
+                    </div>
+                    <p className="text-xs text-red-600 mt-1">Please try again. Check the console for more details.</p>
+                  </div>
+                )}
+              </form>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Success Toast */}
+      {proposalCreationStatus === 'success' && (
+        <div className="fixed top-4 right-4 bg-green-100 border border-green-200 text-green-700 px-4 py-3 rounded-xl shadow-lg z-50">
+          <div className="flex items-center space-x-2">
+            <Check className="w-5 h-5" />
+            <span className="font-medium">Proposal created successfully!</span>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

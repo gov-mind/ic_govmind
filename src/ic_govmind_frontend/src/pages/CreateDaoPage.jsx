@@ -6,18 +6,13 @@ import {
     Coins,
     Globe,
     Settings,
-    ArrowLeft,
     Plus,
     X,
     CheckCircle,
     AlertCircle,
-    Brain,
-    Shield,
     Zap,
-    BarChart3,
     Shuffle
 } from 'lucide-react';
-import { ic_govmind_factory } from 'declarations/ic_govmind_factory';
 import { Principal } from '@dfinity/principal';
 import { useAuthClient } from '../hooks/useAuthClient';
 

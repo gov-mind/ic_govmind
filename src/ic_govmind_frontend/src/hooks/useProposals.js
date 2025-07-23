@@ -21,11 +21,23 @@ export const useProposals = () => {
 export const useProposal = (proposalId) => {
   return useQuery({
     queryKey: QUERY_KEYS.proposal(proposalId),
-    queryFn: () => ic_govmind_proposal_analyzer.get_proposal(proposalId),
+    queryFn: async () => {
+      if (!proposalId) return null;
+      
+      try {
+        const result = await ic_govmind_proposal_analyzer.get_proposal(proposalId);
+        console.log('useProposal result:', { proposalId, result });
+        
+        // get_proposal returns (opt Proposal) which is either a Proposal object or null/undefined
+        return result || null;
+      } catch (error) {
+        console.error('Error fetching proposal:', error);
+        return null;
+      }
+    },
     enabled: !!proposalId, // Only run if proposalId exists
     refetchInterval: 3000,
     staleTime: 1000,
-    select: (data) => data?.[0], // Extract proposal from array
   });
 };
 
@@ -82,9 +94,18 @@ export const useProposalExists = (compositeId) => {
     queryKey: ['proposalExists', compositeId],
     queryFn: async () => {
       if (!compositeId) return null;
-      // Directly check if the proposal exists using get_proposal
-      const result = await ic_govmind_proposal_analyzer.get_proposal(compositeId);
-      return result?.[0] || null; // Return the proposal if it exists, null otherwise
+      
+      try {
+        console.log('Checking if proposal exists:', compositeId);
+        const result = await ic_govmind_proposal_analyzer.get_proposal(compositeId);
+        console.log('useProposalExists result:', { compositeId, result });
+        
+        // get_proposal returns (opt Proposal) which is either a Proposal object or null/undefined
+        return result || null;
+      } catch (error) {
+        console.error('Error checking proposal existence:', error);
+        return null;
+      }
     },
     enabled: !!compositeId,
     staleTime: 24 * 60 * 60 * 1000, // 24 hours - proposals are never deleted

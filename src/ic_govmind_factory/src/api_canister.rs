@@ -115,15 +115,17 @@ async fn upgrade_canister<T: CandidType>(
 ) -> Result<(), String> {
     let encoded_arg =
         Encode!(&upgrade_arg).map_err(|_| "ErrorCode::FailedEncodeArgs".to_string())?;
-    install_canister_code(
+
+    debug_print(&format!("upgrade_canister: canister_id: {:?}", canister_id));
+    match install_canister_code(
         canister_id,
         wasm_module,
         &encoded_arg,
         CanisterInstallMode::Upgrade(None),
-    )
-    .await?;
-
-    Ok(())
+    ).await {
+        Ok(()) => Ok(()),
+        Err(err) => Err(format!("Upgrade failed. Error: {:?}", err.to_string())),
+    }
 }
 
 #[update(guard = "owner_guard")]

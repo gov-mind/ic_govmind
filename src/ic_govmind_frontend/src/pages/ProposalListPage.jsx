@@ -147,10 +147,10 @@ function ProposalListPage() {
   };
 
   return (
-    <div className="h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50 overflow-hidden">
-      <main className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6 flex flex-col">
+    <div className="h-[90vh] bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50 overflow-hidden">
+      <main className="h-full max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 flex flex-col">
         {/* SNS Info/Header - flattened */}
-        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 mb-4 px-1 flex-shrink-0">
+        <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-4 py-4 px-1 flex-shrink-0">
           <div className="flex items-center gap-3">
             <div className="flex items-center gap-3 ml-4">
               <div className="w-12 h-12 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-xl flex items-center justify-center overflow-hidden">
@@ -169,7 +169,7 @@ function ProposalListPage() {
         </div>
 
         {/* Main Content Grid */}
-        <div className={`h-[90vh] grid gap-6 flex-1 min-h-0 transition-all duration-500 ${
+        <div className={`grid gap-4 flex-1 min-h-0 pb-4 transition-all duration-500 ${
           selectedProposalId && showAnalysisPanel 
             ? 'grid-cols-1 lg:grid-cols-[40%_60%]' 
             : 'grid-cols-1'

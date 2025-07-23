@@ -157,7 +157,10 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
                 <h4 className="text-slate-900 font-semibold text-base mb-1 line-clamp-2">{proposal.title}</h4>
                 <div className="flex items-center text-xs text-slate-500 space-x-2 mb-1">
                   <Users className="w-4 h-4 mr-1" />
-                  <span>Proposer: {proposal.proposer}</span>
+                  <span>Proposer: {proposal.proposer && proposal.proposer.length > 20 
+                    ? `${proposal.proposer.substring(0, 8)}...${proposal.proposer.substring(proposal.proposer.length - 8)}`
+                    : proposal.proposer
+                  }</span>
                 </div>
                 {proposal.summary && (
                   <p className="text-sm text-slate-600 mt-2 line-clamp-2">{proposal.summary}</p>

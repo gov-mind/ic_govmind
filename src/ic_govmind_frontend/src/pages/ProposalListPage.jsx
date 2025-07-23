@@ -54,7 +54,7 @@ function ProposalListPage() {
   const { data: existingProposal, isLoading: existingProposalLoading } = useProposalExists(selectedProposal?.compositeId);
   
   // Get the analyzed proposal if it exists
-  const { data: analyzedProposal, isLoading: analyzedProposalLoading } = useProposal(existingProposal[0]?.id || analyzedProposalId);
+  const { data: analyzedProposal, isLoading: analyzedProposalLoading } = useProposal(existingProposal?.[0]?.id || analyzedProposalId);
   
   // Submit proposal mutation
   const submitProposalMutation = useSubmitProposal();

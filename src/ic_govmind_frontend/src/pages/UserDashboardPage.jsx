@@ -1,5 +1,5 @@
-import { useState, useEffect } from 'react';
-import { Link, useNavigate } from 'react-router-dom';
+import { useState } from 'react';
+import { Link } from 'react-router-dom';
 import {
   Building2,
   Plus,
@@ -19,11 +19,7 @@ import { useMyDao } from '../hooks/useMyDao';
 import { useAuthClient } from '../hooks/useAuthClient';
 
 function UserDashboardPage() {
-  const navigate = useNavigate();
   const { principal, factoryActor } = useAuthClient();
-  // Mock user principal
-  const [myDaos, setMyDaos] = useState([]); // Still mock for now
-
   // SNS DAOs pagination state
   const [snsPage, setSnsPage] = useState(1);
   const snsPageSize = 10;
@@ -39,25 +35,7 @@ function UserDashboardPage() {
   const hasPrevPage = !!paginationInfo.has_prev_page;
   const hasNextPage = !!paginationInfo.has_next_page;
 
-  // Debug: Log the principal used in the dashboard
-  console.log('Dashboard principal:', principal);
   const { data: myDao, isLoading: myDaoLoading, error: myDaoError } = useMyDao(principal, factoryActor);
-
-  // For demo, keep myDaos as mock
-  useEffect(() => {
-    setTimeout(() => {
-      setMyDaos([
-        {
-          id: 'dao-1',
-          name: 'AI Governance DAO',
-          icon_url: '',
-          members: 12,
-          proposals: 5,
-          description: 'A DAO for AI-powered governance.'
-        }
-      ]);
-    }, 1000);
-  }, []);
 
   return (
     <div className="min-h-screen bg-gradient-to-br from-slate-50 via-cyan-50 to-blue-50">

@@ -9,7 +9,7 @@ use ic_govmind_types::dao::{Dao, DaoAsset, DaoMember, Proposal};
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     storable::Bound,
-    DefaultMemoryImpl, StableCell, Storable,
+    DefaultMemoryImpl, StableBTreeMap, StableCell, Storable,
 };
 use serde::Serialize;
 use std::borrow::Cow;
@@ -66,6 +66,7 @@ impl ProposalWrapper {
 
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
 pub const STATE_MEMORY_ID: MemoryId = MemoryId::new(0);
+pub const PROPOSALS_MEMORY_ID: MemoryId = MemoryId::new(1);
 
 thread_local! {
     pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -77,6 +78,12 @@ thread_local! {
             MEMORY_MANAGER.with_borrow(|m| m.get(STATE_MEMORY_ID)),
             State::default()
         ).expect("failed to init STATE_STORE store")
+    );
+
+    static PROPOSALS_STORE: RefCell<StableBTreeMap<u64, ProposalWrapper, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(PROPOSALS_MEMORY_ID))
+        )
     );
 }
 
@@ -152,6 +159,85 @@ pub mod state {
                 .as_ref()
                 .expect("schnorr_key not set")
                 .to_owned()
+        })
+    }
+
+    pub fn get_next_proposal_id() -> u64 {
+        state::with_mut(|s| {
+            let id = s.next_proposal_id;
+            s.next_proposal_id += 1;
+            id
+        })
+    }
+}
+
+pub mod proposals {
+    use super::*;
+    use ic_govmind_types::dao::{Proposal, ProposalStatus};
+    use crate::utils::current_time_secs;
+
+    pub fn create_proposal(
+        title: String,
+        content: String,
+        proposer: String,
+        voting_period_secs: u64,
+    ) -> Result<u64, String> {
+        let proposal_id = state::get_next_proposal_id();
+        let now = current_time_secs();
+        
+        let proposal = Proposal {
+            id: proposal_id,
+            title,
+            content,
+            proposer,
+            created_at: now,
+            expires_at: now + voting_period_secs,
+            status: ProposalStatus::Active,
+            votes: Vec::new(),
+            metadata: None,
+        };
+
+        PROPOSALS_STORE.with(|store| {
+            store
+                .borrow_mut()
+                .insert(proposal_id, ProposalWrapper(proposal))
+        });
+
+        state::save();
+        Ok(proposal_id)
+    }
+
+    pub fn get_proposal(proposal_id: u64) -> Option<Proposal> {
+        PROPOSALS_STORE.with(|store| {
+            store
+                .borrow()
+                .get(&proposal_id)
+                .map(|wrapper| wrapper.into_inner())
+        })
+    }
+
+    pub fn get_all_proposals() -> Vec<Proposal> {
+        let mut proposals: Vec<Proposal> = PROPOSALS_STORE.with(|store| {
+            store
+                .borrow()
+                .iter()
+                .map(|(_, wrapper)| wrapper.into_inner())
+                .collect()
+        });
+        proposals.reverse();
+        proposals
+    }
+
+    pub fn update_proposal_status(proposal_id: u64, status: ProposalStatus) -> Result<(), String> {
+        PROPOSALS_STORE.with(|store| {
+            let mut store_mut = store.borrow_mut();
+            if let Some(mut wrapper) = store_mut.get(&proposal_id) {
+                wrapper.0.status = status;
+                store_mut.insert(proposal_id, wrapper);
+                Ok(())
+            } else {
+                Err("Proposal not found".to_string())
+            }
         })
     }
 }

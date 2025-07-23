@@ -14,6 +14,7 @@ export function AuthProvider({ children }) {
   const [principal, setPrincipal] = useState(null);
   const [factoryActor, setFactoryActor] = useState(null);
   const [loading, setLoading] = useState(true);
+  const [agent, setAgent] = useState(null);
 
   useEffect(() => {
     AuthClient.create().then(async (client) => {
@@ -24,6 +25,7 @@ export function AuthProvider({ children }) {
         const identity = client.getIdentity();
         setPrincipal(identity.getPrincipal().toText());
         const agent = new HttpAgent({ identity });
+        setAgent(agent);
         
         setFactoryActor(createFactoryActor(process.env.CANISTER_ID_IC_GOVMIND_FACTORY, { agent }));
       }
@@ -42,6 +44,7 @@ export function AuthProvider({ children }) {
         setPrincipal(identity.getPrincipal().toText());
         setIsAuthenticated(true);
         const agent = new HttpAgent({ identity });
+        setAgent(agent);
         
         setFactoryActor(createFactoryActor(process.env.CANISTER_ID_IC_GOVMIND_FACTORY, { agent }));
       },
@@ -54,6 +57,7 @@ export function AuthProvider({ children }) {
     setIsAuthenticated(false);
     setPrincipal(null);
     setFactoryActor(null);
+    setAgent(null);
   }, [authClient]);
 
   useEffect(() => {
@@ -61,7 +65,7 @@ export function AuthProvider({ children }) {
   }, [isAuthenticated, principal, loading]);
 
   return (
-    <AuthContext.Provider value={{ isAuthenticated, principal, login, logout, factoryActor, loading }}>
+    <AuthContext.Provider value={{ isAuthenticated, principal, login, logout, factoryActor, loading, agent }}>
       {children}
     </AuthContext.Provider>
   );

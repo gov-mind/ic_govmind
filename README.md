@@ -174,6 +174,20 @@ npm start
 
 7. Witness AI in action: Submit a proposal and observe the AI analysis results appearing dynamically.
 
+### OnLine Demo
+
+#### Frontend canister via browser:
+
+ic_govmind_frontend: https://2dp5b-iiaaa-aaaaj-qnrua-cai.icp0.io/
+
+#### Backend canister via Candid interface:
+
+ic_govmind_factory: https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=3ja73-kyaaa-aaaaj-qnrta-cai
+
+ic_govmind_proposal_analyzer: https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=3obzp-haaaa-aaaaj-qnrtq-cai
+
+ic_govmind_sns: https://a4gq6-oaaaa-aaaab-qaa4q-cai.raw.icp0.io/?id=7dq5v-uaaaa-aaaaj-qnrjq-cai
+
 ### 🤝 Contributing
 We welcome contributions from the community! Feel free to open issues, submit pull requests, or join our discussions.
 

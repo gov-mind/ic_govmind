@@ -1,0 +1,39 @@
+{
+  "name": "ic_govmind_api_proxy",
+  "version": "1.0.0",
+  "description": "Secure API proxy service for IC GovMind - Linode deployment",
+  "main": "server.js",
+  "type": "module",
+  "scripts": {
+    "start": "node server.js",
+    "dev": "node server.js",
+    "test": "node test/health.test.js",
+    "logs": "pm2 logs ic-govmind-api-proxy",
+    "status": "pm2 status",
+    "restart": "pm2 restart ic-govmind-api-proxy",
+    "stop": "pm2 stop ic-govmind-api-proxy",
+    "pm2:start": "pm2 start ecosystem.config.cjs",
+    "pm2:stop": "pm2 stop ecosystem.config.cjs"
+  },
+  "engines": {
+    "node": ">=18.0.0"
+  },
+  "dependencies": {
+    "express": "^4.18.2",
+    "cors": "^2.8.5",
+    "express-rate-limit": "^7.1.5",
+    "helmet": "^7.1.0",
+    "compression": "^1.7.4",
+    "dotenv": "^16.3.1"
+  },
+  "keywords": [
+    "dao",
+    "governance", 
+    "ai",
+    "proxy",
+    "linode",
+    "vps"
+  ],
+  "author": "IC GovMind Team",
+  "license": "MIT"
+} 

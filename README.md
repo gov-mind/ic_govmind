@@ -165,6 +165,10 @@ scripts/deploy.sh
 
 4. Start the frontend:
 ```
+cp src/ic_govmind_frontend/.env.example src/ic_govmind_frontend/.env
+vim src/ic_govmind_frontend/.env 
+# Add your DeepSeek API key to the file
+
 npm start
 ```
 

@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { useSnsProposals, useSnsCanister } from '../hooks/useSnsGovernance';
-import { useProposalExists, useSubmitProposal, useProposal, getStatusString, getStatusBadgeClass, getStatusIcon } from '../hooks/useProposals';
+import { useProposalExists, useSubmitProposal, useProposal, useProposalAnalysis, getStatusString, getStatusBadgeClass, getStatusIcon } from '../hooks/useProposals';
 
 function ProposalListPage() {
   const { canisterId } = useParams();
@@ -58,9 +58,13 @@ function ProposalListPage() {
   
   // Submit proposal mutation
   const submitProposalMutation = useSubmitProposal();
+  
+  // Unified proposal analysis mutation
+  const proposalAnalysisMutation = useProposalAnalysis();
 
   // Determine if we should show loading state
   const isAnalyzing = submitProposalMutation.isLoading || 
+                     proposalAnalysisMutation.isLoading ||
                      (analyzedProposalId && !analyzedProposal && !analyzedProposalLoading) ||
                      (existingProposalLoading && !existingProposal);
 
@@ -134,15 +138,43 @@ function ProposalListPage() {
       // Reset the analyzed proposal ID to trigger loading state
       setAnalyzedProposalId(null);
       
+      // First, submit the proposal with pending status and no analysis
       const proposalId = await submitProposalMutation.mutateAsync({
         proposalId: selectedProposal.compositeId, // Use the composite ID
         title: selectedProposal.title,
-        description: selectedProposal.summary || selectedProposal.title // Use summary if available, otherwise title
+        description: selectedProposal.summary || selectedProposal.title, // Use summary if available, otherwise title
+        useAI: false // Don't use AI in initial submission
       });
       
+      
       setAnalyzedProposalId(proposalId);
+      
+      // Now perform AI analysis and update the proposal
+      await proposalAnalysisMutation.mutateAsync({
+        proposalId: proposalId,
+        title: selectedProposal.title,
+        description: selectedProposal.summary || selectedProposal.title,
+        isRetry: false
+      });
+      
     } catch (error) {
       console.error('Error submitting proposal for analysis:', error);
+    }
+  };
+
+  // Handle retrying failed analysis
+  const handleRetryAnalysis = async () => {
+    if (!selectedProposal || !analyzedProposal) return;
+    
+    try {
+      await proposalAnalysisMutation.mutateAsync({
+        proposalId: Array.isArray(analyzedProposal) ? analyzedProposal[0].id : analyzedProposal.id,
+        title: selectedProposal.title,
+        description: selectedProposal.summary || selectedProposal.title,
+        isRetry: true
+      });
+    } catch (error) {
+      console.error('Error retrying analysis:', error);
     }
   };
 
@@ -331,19 +363,11 @@ function ProposalListPage() {
                   (() => {
                     const proposalObj = Array.isArray(analyzedProposal) ? analyzedProposal[0] : analyzedProposal;
                     const status = getStatusString(proposalObj?.status || (Array.isArray(existingProposal) ? existingProposal[0]?.status : existingProposal?.status));
-                    if (isAnalyzing) {
+                    
+                    // Show loading spinner when analyzing
+                    if (isAnalyzing || status === 'Analyzing') {
                       return (
                         <div className="bg-slate-50 rounded-xl p-12 text-center h-full flex items-center justify-center">
-                          <div className="space-y-3">
-                            <RefreshCw className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto text-blue-500" />
-                            <p className="text-slate-600 font-medium">Analyzing proposal...</p>
-                            <p className="text-xs text-slate-500">This may take a few moments</p>
-                          </div>
-                        </div>
-                      );
-                    } else if (status === 'Analyzing') {
-                      return (
-                        <div className="bg-slate-50 rounded-xl p-12 text-center">
                           <div className="space-y-3">
                             <RefreshCw className="w-12 h-12 border-3 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto text-blue-500" />
                             <p className="text-slate-600 font-medium">Analyzing proposal...</p>
@@ -361,11 +385,11 @@ function ProposalListPage() {
                             <p className="text-slate-600 font-medium">Analysis failed</p>
                             <p className="text-xs text-slate-500 mb-3">There was an error analyzing this proposal</p>
                             <button
-                              onClick={handleAnalyzeProposal}
-                              disabled={submitProposalMutation.isLoading}
+                              onClick={handleRetryAnalysis}
+                              disabled={proposalAnalysisMutation.isLoading}
                               className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium cursor-pointer"
                             >
-                              {submitProposalMutation.isLoading ? 'Retrying...' : 'Retry Analysis'}
+                              {proposalAnalysisMutation.isLoading ? 'Retrying...' : 'Retry Analysis'}
                             </button>
                           </div>
                         </div>
@@ -509,7 +533,7 @@ function ProposalListPage() {
                           </div>
                         </div>
                       );
-                    } else if (status === 'Pending' || !status) {
+                    } else if ((status === 'Pending' || !status) && !isAnalyzing) {
                       return (
                         <div className="bg-slate-50 rounded-xl p-12 text-center">
                           <div className="space-y-3">

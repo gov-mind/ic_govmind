@@ -4,7 +4,7 @@ import { HttpAgent } from "@dfinity/agent";
 import { createActor as createFactoryActor } from "declarations/ic_govmind_factory";
 
 const II_LOCAL_URL = `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943`;
-const II_URL = process.env.DFX_NETWORK == 'local' ? II_LOCAL_URL: (process.env.DFX_NETWORK == 'ic' ? `https://${process.env.CANISTER_ID_INTERNET_IDENTITY}.ic0.app` : II_LOCAL_URL);
+const II_URL = process.env.DFX_NETWORK == 'local' ? II_LOCAL_URL: (process.env.DFX_NETWORK == 'ic' ? 'https://identity.ic0.app' : II_LOCAL_URL);
 
 const AuthContext = createContext();
 
@@ -35,7 +35,6 @@ export function AuthProvider({ children }) {
 
   const login = useCallback(() => {
     if (!authClient) return;
-    console.log(II_URL)
 
     authClient.login({
       identityProvider: II_URL,

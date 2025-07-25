@@ -53,8 +53,10 @@ The script will:
 - ✅ Install PM2 process manager
 - ✅ Setup UFW firewall
 - ✅ Configure Nginx reverse proxy
+- ✅ Setup SSL certificate with Let's Encrypt (if domain provided)
 - ✅ Deploy and start the API service
 - ✅ Auto-start on server reboot
+- ✅ Configure automatic SSL certificate renewal
 
 ### 3. Configure API Keys
 
@@ -81,11 +83,17 @@ pm2 restart ic-govmind-api-proxy
 # Check service status
 pm2 status
 
-# Test health endpoint
+# Test health endpoint (HTTP)
 curl http://YOUR_SERVER_IP/api/health
+
+# Test health endpoint (HTTPS - if SSL configured)
+curl https://your-domain.com/api/health
 
 # View logs
 pm2 logs ic-govmind-api-proxy
+
+# Check SSL certificate (if configured)
+sudo certbot certificates
 ```
 
 ## Management Commands
@@ -117,22 +125,34 @@ Update your frontend environment:
 ```env
 # .env.production
 VITE_USE_BACKEND_PROXY=true
+
+# Use HTTPS if SSL was configured
+VITE_BACKEND_PROXY_URL=https://your-domain.com
+
+# Or HTTP if no SSL
 VITE_BACKEND_PROXY_URL=http://YOUR_SERVER_IP
 ```
 
-## Optional: Setup SSL (Recommended)
+## SSL Certificate (Automatic)
 
+The deployment script now automatically handles SSL setup:
+
+1. **During deployment**, you'll be prompted for a domain name
+2. **If provided**, the script will:
+   - Install Certbot and dependencies
+   - Verify your domain points to the server
+   - Obtain and install SSL certificate
+   - Configure automatic renewal
+   - Redirect HTTP to HTTPS
+
+**Requirements for SSL:**
+- A domain name (e.g., `api.yourdomain.com`)
+- DNS A record pointing to your server's IP
+- Port 80 and 443 open (handled by firewall setup)
+
+**Manual SSL setup** (if needed later):
 ```bash
-# Install Certbot
-sudo apt install certbot python3-certbot-nginx
-
-# Get SSL certificate (replace with your domain)
 sudo certbot --nginx -d your-domain.com
-
-# Auto-renewal
-sudo crontab -e
-# Add this line:
-# 0 12 * * * /usr/bin/certbot renew --quiet
 ```
 
 ## File Locations
@@ -207,4 +227,4 @@ sudo ufw allow 443/tcp
 - **Linode Nanode 1GB**: $5/month
 - **Linode Shared CPU 2GB**: $10/month (recommended)
 
-Perfect for handling hundreds of AI analysis requests per day! 
+Perfect for handling hundreds of AI analysis requests per day!

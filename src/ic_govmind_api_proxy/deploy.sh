@@ -46,11 +46,31 @@ setup_nginx() {
     sudo apt-get update
     sudo apt-get install -y nginx
     
+    # Get domain name for SSL setup
+    echo ""
+    echo "🔐 SSL Certificate Setup"
+    echo "======================"
+    echo "For SSL support, you need a domain name pointing to this server."
+    echo "If you don't have a domain, the server will run on HTTP only."
+    echo ""
+    read -p "Enter your domain name (e.g., api.yourdomain.com) or press Enter to skip SSL: " DOMAIN_NAME
+    
+    if [ -z "$DOMAIN_NAME" ]; then
+        echo "⚠️  Skipping SSL setup - server will run on HTTP only"
+        SERVER_NAME="_"
+        SSL_CONFIG=""
+    else
+        echo "🔍 Setting up SSL for domain: $DOMAIN_NAME"
+        SERVER_NAME="$DOMAIN_NAME"
+        SSL_CONFIG="# SSL will be configured by Certbot"
+    fi
+    
     # Create nginx config
-    sudo tee /etc/nginx/sites-available/ic-govmind-api > /dev/null << 'EOF'
+    sudo tee /etc/nginx/sites-available/ic-govmind-api > /dev/null << EOF
 server {
     listen 80;
-    server_name _;
+    server_name $SERVER_NAME;
+    $SSL_CONFIG
 
     # Security headers
     add_header X-Frame-Options "SAMEORIGIN" always;
@@ -58,18 +78,24 @@ server {
     add_header X-Content-Type-Options "nosniff" always;
     add_header Referrer-Policy "no-referrer-when-downgrade" always;
     add_header Content-Security-Policy "default-src 'self' http: https: data: blob: 'unsafe-inline'" always;
+    add_header Strict-Transport-Security "max-age=31536000; includeSubDomains" always;
+
+    # Let's Encrypt challenge location
+    location /.well-known/acme-challenge/ {
+        root /var/www/html;
+    }
 
     # Proxy to Node.js app
     location / {
         proxy_pass http://localhost:3001;
         proxy_http_version 1.1;
-        proxy_set_header Upgrade $http_upgrade;
+        proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
-        proxy_set_header Host $host;
-        proxy_set_header X-Real-IP $remote_addr;
-        proxy_set_header X-Forwarded-For $proxy_add_x_forwarded_for;
-        proxy_set_header X-Forwarded-Proto $scheme;
-        proxy_cache_bypass $http_upgrade;
+        proxy_set_header Host \$host;
+        proxy_set_header X-Real-IP \$remote_addr;
+        proxy_set_header X-Forwarded-For \$proxy_add_x_forwarded_for;
+        proxy_set_header X-Forwarded-Proto \$scheme;
+        proxy_cache_bypass \$http_upgrade;
         
         # Timeout settings
         proxy_connect_timeout 60s;
@@ -95,6 +121,64 @@ EOF
     sudo systemctl enable nginx
     
     echo "✅ Nginx configured and running"
+    
+    # Setup SSL if domain was provided
+    if [ ! -z "$DOMAIN_NAME" ]; then
+        setup_ssl "$DOMAIN_NAME"
+    fi
+}
+
+# Setup SSL with Let's Encrypt
+setup_ssl() {
+    local domain=$1
+    echo "🔐 Setting up SSL certificate for $domain..."
+    
+    # Install Certbot
+    sudo apt-get install -y certbot python3-certbot-nginx
+    
+    # Verify domain points to this server
+    echo "🔍 Verifying domain configuration..."
+    SERVER_IP=$(curl -s http://checkip.amazonaws.com)
+    DOMAIN_IP=$(dig +short $domain | tail -n1)
+    
+    if [ "$SERVER_IP" != "$DOMAIN_IP" ]; then
+        echo "⚠️  WARNING: Domain $domain does not point to this server!"
+        echo "   Server IP: $SERVER_IP"
+        echo "   Domain IP: $DOMAIN_IP"
+        echo ""
+        echo "Please update your DNS records to point $domain to $SERVER_IP"
+        read -p "Continue with SSL setup anyway? (y/N): " CONTINUE_SSL
+        if [ "$CONTINUE_SSL" != "y" ] && [ "$CONTINUE_SSL" != "Y" ]; then
+            echo "⏭️  Skipping SSL setup. You can run it later with:"
+            echo "   sudo certbot --nginx -d $domain"
+            return
+        fi
+    fi
+    
+    # Get SSL certificate
+    echo "📜 Obtaining SSL certificate..."
+    sudo certbot --nginx -d $domain --non-interactive --agree-tos --email admin@$domain --redirect
+    
+    if [ $? -eq 0 ]; then
+        echo "✅ SSL certificate installed successfully!"
+        
+        # Setup auto-renewal
+        echo "🔄 Setting up automatic certificate renewal..."
+        # Check if certbot renewal cron job already exists
+        if ! sudo crontab -l 2>/dev/null | grep -q "certbot renew"; then
+            (sudo crontab -l 2>/dev/null; echo "0 12 * * * /usr/bin/certbot renew --quiet") | sudo crontab -
+            echo "✅ Auto-renewal cron job added"
+        else
+            echo "✅ Auto-renewal cron job already exists"
+        fi
+        
+        echo "✅ Auto-renewal configured"
+        echo "🌐 Your API is now available at: https://$domain"
+    else
+        echo "❌ SSL certificate installation failed"
+        echo "   Your API is still available at: http://$domain"
+        echo "   You can try SSL setup later with: sudo certbot --nginx -d $domain"
+    fi
 }
 
 # Deploy the application
@@ -178,6 +262,9 @@ EOF
     echo "✅ Application deployed and running"
 }
 
+# Global variables
+DOMAIN_NAME=""
+
 # Main installation flow
 main() {
     echo "Starting server setup..."
@@ -214,13 +301,22 @@ main() {
     echo "======================"
     echo ""
     echo "📍 Your API is running at:"
-    echo "   http://$(curl -s http://checkip.amazonaws.com)/api/health"
+    if [ ! -z "$DOMAIN_NAME" ]; then
+        echo "   https://$DOMAIN_NAME/api/health (SSL enabled)"
+        echo "   http://$DOMAIN_NAME/api/health (HTTP fallback)"
+    else
+        echo "   http://$(curl -s http://checkip.amazonaws.com)/api/health"
+    fi
     echo ""
     echo "🔧 Useful commands:"
     echo "   pm2 status                    # Check app status"
     echo "   pm2 logs ic-govmind-api-proxy # View logs"
     echo "   pm2 restart ic-govmind-api-proxy # Restart app"
     echo "   pm2 stop ic-govmind-api-proxy    # Stop app"
+    if [ ! -z "$DOMAIN_NAME" ]; then
+        echo "   sudo certbot certificates     # Check SSL status"
+        echo "   sudo certbot renew --dry-run # Test SSL renewal"
+    fi
     echo ""
     echo "📝 Configuration files:"
     echo "   App: /opt/ic_govmind_api_proxy"
@@ -229,9 +325,14 @@ main() {
     echo ""
     echo "🔐 Don't forget to:"
     echo "   1. Edit /opt/ic_govmind_api_proxy/.env with your API keys"
-    echo "   2. Update your frontend VITE_BACKEND_PROXY_URL"
-    echo "   3. Consider setting up SSL with Let's Encrypt"
+    if [ ! -z "$DOMAIN_NAME" ]; then
+        echo "   2. Update your frontend VITE_BACKEND_PROXY_URL=https://$DOMAIN_NAME"
+        echo "   3. SSL certificate will auto-renew (check with: sudo certbot certificates)"
+    else
+        echo "   2. Update your frontend VITE_BACKEND_PROXY_URL=http://$(curl -s http://checkip.amazonaws.com)"
+        echo "   3. Consider setting up SSL later with: sudo certbot --nginx -d your-domain.com"
+    fi
 }
 
 # Run main function
-main 
+main

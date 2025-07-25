@@ -23,6 +23,8 @@ dist/
 
 # environment variables
 .env
+.env.development
+.env*.local
 
 # Cursor Rules
 .cursor/

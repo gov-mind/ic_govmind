@@ -42,8 +42,6 @@ while [[ $# -gt 0 ]]; do
             echo ""
             echo "Special behavior:"
             echo "  • When deploying 'all' or 'ic_govmind_backend': adds initialization arguments"
-            echo "  • When deploying 'all' or 'ic_govmind_proposal_analyzer': runs setup_api_key"
-            echo "  • DEEPSEEK_API_KEY required for analyzer deployments"
             exit 0
             ;;
         *)
@@ -138,25 +136,6 @@ deploy_backend() {
     echo -e "${GREEN}✅ ic_govmind_backend deployed successfully!${NC}"
 }
 
-# Function to deploy ic_govmind_proposal_analyzer and setup API key
-deploy_analyzer() {
-    # Check if DEEPSEEK_API_KEY is set
-    if [[ -z "${DEEPSEEK_API_KEY}" ]]; then
-        echo -e "${RED}❌ Error: DEEPSEEK_API_KEY environment variable is not set${NC}"
-        echo -e "${YELLOW}Please set the DEEPSEEK_API_KEY environment variable before deploying ic_govmind_proposal_analyzer${NC}"
-        echo -e "${BLUE}Example: export DEEPSEEK_API_KEY='your-api-key-here'${NC}"
-        exit 1
-    fi
-    
-    local network_flag=$(get_network_flag)
-    echo -e "${YELLOW}📦 Deploying ic_govmind_proposal_analyzer...${NC}"
-    dfx deploy ic_govmind_proposal_analyzer $network_flag
-    echo -e "${GREEN}✅ ic_govmind_proposal_analyzer deployed successfully!${NC}"
-    
-    echo -e "${YELLOW}🔑 Setting up API key...${NC}"
-    ./scripts/setup_api_key.sh --network "$NETWORK"
-}
-
 # Function to deploy other canisters normally
 deploy_canister() {
     local canister_name=$1
@@ -171,26 +150,16 @@ case $CANISTER in
     "all")
         echo -e "${BLUE}Deploying all canisters...${NC}"
         
-        # Check if DEEPSEEK_API_KEY is set for analyzer deployment
-        if [[ -z "${DEEPSEEK_API_KEY}" ]]; then
-            echo -e "${RED}❌ Error: DEEPSEEK_API_KEY environment variable is not set${NC}"
-            echo -e "${YELLOW}Please set the DEEPSEEK_API_KEY environment variable before deploying all canisters${NC}"
-            echo -e "${BLUE}Example: export DEEPSEEK_API_KEY='your-api-key-here'${NC}"
-            exit 1
-        fi
-
         network_flag=$(get_network_flag)
         dfx deploy internet_identity $network_flag
         
         # Deploy backend with arguments
         deploy_backend
         
-        # Deploy analyzer with API key setup
-        deploy_analyzer
-        
         # Deploy other canisters
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
         dfx deploy icrc1_ledger $network_flag
+        dfx deploy ic_govmind_proposal_analyzer $network_flag
         dfx deploy ic_govmind_frontend $network_flag
         dfx deploy ic_govmind_factory $network_flag
         dfx deploy ic_govmind_sns $network_flag
@@ -200,10 +169,6 @@ case $CANISTER in
         
     "ic_govmind_backend")
         deploy_backend
-        ;;
-        
-    "ic_govmind_proposal_analyzer")
-        deploy_analyzer
         ;;
         
     *)

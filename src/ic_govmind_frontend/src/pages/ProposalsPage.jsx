@@ -26,7 +26,7 @@ import {
   useProposals,
   useProposal,
   useSubmitProposal,
-  useRetryAnalysis,
+  useProposalAnalysis,
   getStatusString,
   getStatusBadgeClass,
   getStatusIcon
@@ -37,6 +37,8 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalDescription, setProposalDescription] = useState('');
   const [isSubmitting, setIsSubmitting] = useState(false);
+  const [useAIAnalysis, setUseAIAnalysis] = useState(true);
+  const [aiProvider, setAiProvider] = useState('deepseek');
   const submitProposalMutation = useSubmitProposal();
 
   const handleSubmit = async (event) => {
@@ -47,7 +49,9 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
     try {
       const proposalId = await submitProposalMutation.mutateAsync({
         title: proposalTitle,
-        description: proposalDescription
+        description: proposalDescription,
+        useAI: useAIAnalysis,
+        aiProvider: aiProvider
       });
 
       // Clear form and state, then close modal
@@ -129,6 +133,58 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
               />
             </div>
 
+            {/* AI Analysis Configuration */}
+            <div className="bg-gradient-to-r from-blue-50 to-cyan-50 p-4 rounded-xl border border-blue-200">
+              <div className="flex items-center justify-between mb-3">
+                <div className="flex items-center space-x-2">
+                  <div className="w-5 h-5 bg-blue-600 rounded-full flex items-center justify-center">
+                    <span className="text-white text-xs font-bold">AI</span>
+                  </div>
+                  <label htmlFor="useAIAnalysis" className="text-sm font-semibold text-blue-800">
+                    AI Analysis
+                  </label>
+                </div>
+                <label className="relative inline-flex items-center cursor-pointer">
+                  <input
+                    type="checkbox"
+                    id="useAIAnalysis"
+                    checked={useAIAnalysis}
+                    onChange={(e) => setUseAIAnalysis(e.target.checked)}
+                    disabled={submitProposalMutation.isLoading || isSubmitting}
+                    className="sr-only"
+                  />
+                  <div className={`w-11 h-6 rounded-full transition-colors ${
+                    useAIAnalysis ? 'bg-blue-600' : 'bg-slate-300'
+                  }`}>
+                    <div className={`w-5 h-5 bg-white rounded-full shadow-md transform transition-transform ${
+                      useAIAnalysis ? 'translate-x-5' : 'translate-x-0.5'
+                    } mt-0.5`}></div>
+                  </div>
+                </label>
+              </div>
+              
+              {useAIAnalysis && (
+                <div>
+                  <label htmlFor="aiProvider" className="block text-xs font-medium text-blue-700 mb-2">
+                    AI Provider
+                  </label>
+                  <select
+                    id="aiProvider"
+                    value={aiProvider}
+                    onChange={(e) => setAiProvider(e.target.value)}
+                    disabled={submitProposalMutation.isLoading || isSubmitting}
+                    className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
+                  >
+                    <option value="deepseek">DeepSeek (Recommended)</option>
+                    <option value="openai">OpenAI GPT-4</option>
+                  </select>
+                  <p className="text-xs text-blue-600 mt-1">
+                    {useAIAnalysis ? 'Your proposal will be analyzed by AI for risks, recommendations, and complexity.' : 'AI analysis will be skipped.'}
+                  </p>
+                </div>
+              )}
+            </div>
+
             {/* Submit Button */}
             <div className="flex gap-3 pt-4">
               <button
@@ -147,10 +203,10 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                 {(submitProposalMutation.isLoading || isSubmitting) ? (
                   <div className="flex items-center justify-center space-x-2">
                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>Submitting...</span>
+                    <span>{useAIAnalysis ? 'Analyzing...' : 'Submitting...'}</span>
                   </div>
                 ) : (
-                  'Submit & Analyze Proposal'
+                  useAIAnalysis ? 'Submit & Analyze with AI' : 'Submit Proposal'
                 )}
               </button>
             </div>
@@ -160,9 +216,13 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
-                  <span className="text-sm text-blue-700 font-medium">Analyzing proposal...</span>
+                  <span className="text-sm text-blue-700 font-medium">
+                    {useAIAnalysis ? 'AI analyzing proposal...' : 'Submitting proposal...'}
+                  </span>
                 </div>
-                <p className="text-xs text-blue-600 mt-1">Your proposal is being processed by our AI system.</p>
+                <p className="text-xs text-blue-600 mt-1">
+                  {useAIAnalysis ? 'Your proposal is being analyzed by AI for risks, recommendations, and complexity.' : 'Your proposal is being submitted to the canister.'}
+                </p>
               </div>
             )}
 
@@ -190,7 +250,7 @@ function ProposalsPage() {
   // React Query hooks
   const { data: proposals = [], isLoading: proposalsLoading, error: proposalsError } = useProposals();
   const { data: selectedProposal, isLoading: proposalLoading } = useProposal(selectedProposalId);
-  const retryAnalysisMutation = useRetryAnalysis();
+  const proposalAnalysisMutation = useProposalAnalysis();
 
   // Utility function to format numbered text into bullet points
   const formatBulletPoints = (text) => {
@@ -264,7 +324,19 @@ function ProposalsPage() {
   // Handle retry analysis
   const handleRetryAnalysis = async (proposalId) => {
     try {
-      await retryAnalysisMutation.mutateAsync(proposalId);
+      // Find the proposal data to get title and description
+      const proposal = proposals.find(p => p.id === proposalId);
+      if (!proposal) {
+        console.error('Proposal not found for retry:', proposalId);
+        return;
+      }
+      
+      await proposalAnalysisMutation.mutateAsync({
+        proposalId: proposalId,
+        title: proposal.title,
+        description: proposal.description,
+        isRetry: true
+      });
     } catch (error) {
       console.error('Error retrying analysis:', error);
     }
@@ -272,7 +344,8 @@ function ProposalsPage() {
 
   // Check if a proposal is being retried
   const isRetrying = (proposalId) => {
-    return retryAnalysisMutation.isLoading && retryAnalysisMutation.variables === proposalId;
+    return proposalAnalysisMutation.isLoading && 
+           proposalAnalysisMutation.variables?.proposalId === proposalId;
   };
 
   return (

@@ -19,7 +19,7 @@ import {
   Hourglass
 } from 'lucide-react';
 import Markdown from 'react-markdown';
-import { useProposalExists, useSubmitProposal, useProposal, getStatusString, getStatusBadgeClass, getStatusIcon } from '../hooks/useProposals';
+import { useProposalExists, useSubmitProposal, useProposal, useProposalAnalysis, getStatusString, getStatusBadgeClass, getStatusIcon } from '../hooks/useProposals';
 
 function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedProposalId: externalSelectedProposalId, setSelectedProposalId: externalSetSelectedProposalId }) {
   const [internalSelectedProposalId, internalSetSelectedProposalId] = useState(null);
@@ -40,9 +40,13 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
   
   // Submit proposal mutation
   const submitProposalMutation = useSubmitProposal();
+  
+  // Unified proposal analysis mutation
+  const proposalAnalysisMutation = useProposalAnalysis();
 
   // Determine if we should show loading state
   const isAnalyzing = submitProposalMutation.isLoading || 
+                     proposalAnalysisMutation.isLoading ||
                      (analyzedProposalId && !analyzedProposal && !analyzedProposalLoading) ||
                      (existingProposalLoading && !existingProposal);
 
@@ -95,15 +99,42 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
       // Reset the analyzed proposal ID to trigger loading state
       setAnalyzedProposalId(null);
       
+      // First, submit the proposal with pending status and no analysis
       const proposalId = await submitProposalMutation.mutateAsync({
         proposalId: selectedProposal.compositeId, // Use the composite ID
         title: selectedProposal.title,
-        description: selectedProposal.summary || selectedProposal.title // Use summary if available, otherwise title
+        description: selectedProposal.summary || selectedProposal.title, // Use summary if available, otherwise title
+        useAI: false // Don't use AI in initial submission
       });
       
       setAnalyzedProposalId(proposalId);
+      
+      // Now perform AI analysis and update the proposal
+      await proposalAnalysisMutation.mutateAsync({
+        proposalId: proposalId,
+        title: selectedProposal.title,
+        description: selectedProposal.summary || selectedProposal.title,
+        isRetry: false
+      });
+      
     } catch (error) {
       console.error('Error submitting proposal for analysis:', error);
+    }
+  };
+
+  // Handle retrying failed analysis
+  const handleRetryAnalysis = async () => {
+    if (!selectedProposal || !analyzedProposal) return;
+    
+    try {
+      await proposalAnalysisMutation.mutateAsync({
+        proposalId: Array.isArray(analyzedProposal) ? analyzedProposal[0].id : analyzedProposal.id,
+        title: selectedProposal.title,
+        description: selectedProposal.summary || selectedProposal.title,
+        isRetry: true
+      });
+    } catch (error) {
+      console.error('Error retrying analysis:', error);
     }
   };
 
@@ -115,7 +146,7 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
     }`}>
       {/* Proposals List */}
       <div className="flex flex-col min-h-0">
-        <div className="flex-1 overflow-y-auto space-y-3 min-h-0">
+        <div className="flex-1 overflow-y-auto overflow-x-hidden space-y-3 min-h-0">
           {proposals.length === 0 ? (
             <div className="text-center py-12 text-slate-500">
               <div className="w-20 h-20 bg-slate-100 rounded-full flex items-center justify-center mx-auto mb-4">
@@ -211,11 +242,11 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
                       <p className="text-slate-600 font-medium">Analysis failed</p>
                       <p className="text-xs text-slate-500 mb-3">There was an error analyzing this proposal</p>
                       <button
-                        onClick={handleAnalyzeProposal}
-                        disabled={submitProposalMutation.isLoading}
+                        onClick={handleRetryAnalysis}
+                        disabled={proposalAnalysisMutation.isLoading}
                         className="bg-red-100 hover:bg-red-200 text-red-700 px-4 py-2 rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed text-sm font-medium cursor-pointer"
                       >
-                        {submitProposalMutation.isLoading ? 'Retrying...' : 'Retry Analysis'}
+                        {proposalAnalysisMutation.isLoading ? 'Retrying...' : 'Retry Analysis'}
                       </button>
                     </div>
                   </div>

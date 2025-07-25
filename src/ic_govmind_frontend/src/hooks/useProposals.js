@@ -1,5 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
+import { getAIAnalysis, getMockAnalysis } from '../services/aiService';
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -41,20 +42,62 @@ export const useProposal = (proposalId) => {
   });
 };
 
-// Custom hook for submitting proposals
+// Custom hook for submitting proposals with AI analysis
 export const useSubmitProposal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: ({ proposalId, title, description }) => 
-      ic_govmind_proposal_analyzer.submit_proposal(
-        proposalId ? [proposalId] : [], // Pass Some(proposalId) or None
-        title, 
-        description
-      ),
+    mutationFn: async ({ proposalId, title, description, useAI = true, aiProvider = 'deepseek' }) => {
+      let analysis = null;
+      let status = { Pending: null }; // Default status
+      
+      if (useAI) {
+        try {
+          // First, set status to Analyzing
+          const analyzingResult = await ic_govmind_proposal_analyzer.update_analysis(
+            proposalId,
+            [], // No analysis yet
+            { Analyzing: null },
+            [] // No signature yet - will be added when implementing backend signing
+          );
+          
+          if (analyzingResult.Err) {
+            throw new Error(analyzingResult.Err);
+          }
+
+          // Try to get AI analysis
+          analysis = await getAIAnalysis(title, description);
+          console.log('AI analysis completed:', analysis);
+          status = { Analyzed: null };
+        } catch (error) {
+          console.warn('AI analysis failed:', error.message);
+          // Submit with failed status - no analysis
+          status = { Failed: null };
+          analysis = null;
+        }
+      } else {
+        // If useAI is false, submit with pending status and no analysis
+        analysis = null;
+        status = { Pending: null };
+      }
+      
+      // Submit proposal with optional analysis and status
+      // TODO: Add signature from API proxy when implementing backend signing
+      return ic_govmind_proposal_analyzer.submit_proposal_with_analysis(
+        proposalId ? [proposalId] : [],
+        title,
+        description,
+        analysis ? [analysis] : [], // Convert to Option type for Candid
+        status,
+        [] // No signature yet - will be added when implementing backend signing
+      );
+    },
     onSuccess: (proposalId) => {
       // Invalidate and refetch proposals list
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
+      
+      // Invalidate proposalExists queries so they refetch when switching proposals
+      queryClient.invalidateQueries({ queryKey: ['proposalExists'] });
       
       // Pre-fetch the new proposal
       queryClient.prefetchQuery({
@@ -70,23 +113,6 @@ export const useSubmitProposal = () => {
   });
 };
 
-// Custom hook for retrying proposal analysis
-export const useRetryAnalysis = () => {
-  const queryClient = useQueryClient();
-  
-  return useMutation({
-    mutationFn: (proposalId) => 
-      ic_govmind_proposal_analyzer.retry_proposal_analysis(proposalId),
-    onSuccess: (_, proposalId) => {
-      // Invalidate both the proposals list and specific proposal
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
-      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposal(proposalId) });
-    },
-    onError: (error) => {
-      console.error('Error retrying analysis:', error);
-    },
-  });
-};
 
 // Custom hook for checking if a proposal exists in the analyzer
 export const useProposalExists = (compositeId) => {
@@ -108,7 +134,7 @@ export const useProposalExists = (compositeId) => {
       }
     },
     enabled: !!compositeId,
-    staleTime: 24 * 60 * 60 * 1000, // 24 hours - proposals are never deleted
+    staleTime: 5000, // 5 seconds - allow refetching when proposals are submitted
   });
 };
 
@@ -152,4 +178,71 @@ export const getStatusIcon = (status) => {
     default:
       return '❓';
   }
+};
+
+// Unified hook for proposal analysis (both initial and retry)
+export const useProposalAnalysis = () => {
+  const queryClient = useQueryClient();
+  
+  return useMutation({
+    mutationFn: async ({ proposalId, title, description, isRetry = false }) => {
+      try {
+        // First, set status to Analyzing
+        const analyzingResult = await ic_govmind_proposal_analyzer.update_analysis(
+          proposalId,
+          [], // No analysis yet
+          { Analyzing: null },
+          [] // No signature yet - will be added when implementing backend signing
+        );
+        
+        if (analyzingResult.Err) {
+          throw new Error(analyzingResult.Err);
+        }
+        
+        // Try to get AI analysis
+        const analysis = await getAIAnalysis(title, description);
+        console.log(`${isRetry ? 'Retry' : 'Initial'} AI analysis completed:`, analysis);
+        
+        // Update the proposal with new analysis
+        // TODO: Add signature from API proxy when implementing backend signing
+        const result = await ic_govmind_proposal_analyzer.update_analysis(
+          proposalId,
+          analysis ? [analysis] : [], // Convert to Option type for Candid
+          { Analyzed: null },
+          [] // No signature yet - will be added when implementing backend signing
+        );
+        
+        if (result.Err) {
+          throw new Error(result.Err);
+        }
+        
+        return result.Ok;
+      } catch (error) {
+        console.error(`${isRetry ? 'Retry' : 'Initial'} analysis failed:`, error.message);
+        
+        // Update status to failed with no analysis
+        const failResult = await ic_govmind_proposal_analyzer.update_analysis(
+          proposalId,
+          [], // No analysis - empty Option
+          { Failed: null },
+          [] // No signature yet - will be added when implementing backend signing
+        );
+        
+        if (failResult.Err) {
+          throw new Error(failResult.Err);
+        }
+        
+        throw error; // Re-throw original error
+      }
+    },
+    onSuccess: () => {
+      // Invalidate and refetch proposals
+      queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
+      // Invalidate proposalExists queries so they refetch when switching proposals
+      queryClient.invalidateQueries({ queryKey: ['proposalExists'] });
+    },
+    onError: (error) => {
+      console.error('Error in proposal analysis:', error);
+    },
+  });
 }; 

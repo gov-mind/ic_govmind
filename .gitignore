@@ -24,10 +24,14 @@ dist/
 # environment variables
 .env
 .env.development
+.env.test
 .env*.local
 
 # Cursor Rules
 .cursor/
+
+# Trae Rules
+.trae/
 
 # Export Files
 export*.did

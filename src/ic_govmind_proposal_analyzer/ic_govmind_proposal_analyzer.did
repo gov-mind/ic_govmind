@@ -34,9 +34,8 @@ type Proposal = record {
 };
 
 service : {
-    "submit_proposal": (opt text, text, text) -> (text);
+    "submit_proposal_with_analysis": (opt text, text, text, opt ProposalAnalysis, ProposalStatus, opt text) -> (text);
+    "update_analysis": (text, opt ProposalAnalysis, ProposalStatus, opt text) -> (variant { Ok: text; Err: text });
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
-    "retry_proposal_analysis": (text) -> (variant { Ok: text; Err: text });
-    "transform": (record { response: record { status: nat; headers: vec record { name: text; value: text }; body: opt blob; upgrade: opt bool }; context: blob }) -> (record { status: nat; headers: vec record { name: text; value: text }; body: opt blob; upgrade: opt bool }) query;
 } 

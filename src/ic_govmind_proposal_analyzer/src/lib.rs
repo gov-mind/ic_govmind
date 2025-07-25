@@ -5,7 +5,7 @@ use ic_cdk::management_canister::{
 };
 use ic_cdk::management_canister::{canister_status, CanisterStatusArgs};
 use ic_cdk::{query, update};
-use ic_cdk::api::{msg_caller};
+use ic_cdk::api::{debug_print, msg_caller};
 use ic_cdk::futures::spawn_017_compat;
 use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
 use ic_stable_structures::{StableBTreeMap, StableCell, memory_manager::{MemoryManager, VirtualMemory, MemoryId}, DefaultMemoryImpl, storable::Storable};
@@ -111,6 +111,9 @@ struct DeepSeekRequest {
     temperature: f64,
     max_tokens: u32,
     stream: bool,
+    // CF worker cache keys
+    proposal_id: String,
+    timestamp: String,
 }
 
 #[derive(SerdeSerialize)]
@@ -142,7 +145,6 @@ thread_local! {
     static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
     static PROPOSALS: RefCell<ProposalMap> = RefCell::new(ProposalMap::new(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(0)))));
     static PROPOSAL_COUNTER: RefCell<StableCell<u64, Memory>> = RefCell::new(StableCell::new(MEMORY_MANAGER.with(|m| m.borrow().get(MemoryId::new(1))), 0u64).expect("Failed to init StableCell"));
-    static API_KEY: RefCell<Option<String>> = RefCell::new(None);
 }
 
 // Implement Storable for Proposal
@@ -164,40 +166,6 @@ impl Storable for Proposal {
 #[ic_cdk::query]
 fn transform(response: TransformArgs) -> HttpRequestResult {
     response.response
-}
-
-// Set API key (only controller can call this)
-#[update]
-async fn set_api_key(api_key: String) -> Result<String, String> {
-    let caller = msg_caller();
-
-    // Check if caller is controller
-    let controllers = canister_status(
-        &CanisterStatusArgs  { canister_id: ic_cdk::api::canister_self(), },
-    )
-    .await
-    .map_err(|e| format!("Failed to get canister status: {:?}", e))?
-    .settings
-    .controllers;
-
-    if !controllers.contains(&caller) {
-        return Err("Only canister controllers can set the API key".to_string());
-    }
-
-    API_KEY.with(|key| {
-        *key.borrow_mut() = Some(api_key);
-    });
-
-    Ok("API key set successfully".to_string())
-}
-
-// Get API key from storage
-fn get_deepseek_api_key() -> Result<String, String> {
-    API_KEY.with(|key| {
-        key.borrow()
-            .clone()
-            .ok_or_else(|| "API key not configured. Please set it using set_api_key()".to_string())
-    })
 }
 
 // Submit a new proposal
@@ -248,16 +216,6 @@ async fn analyze_proposal(proposal_id: String) {
     }
 
     let proposal = proposal.unwrap();
-
-    // Get API key
-    let api_key = match get_deepseek_api_key() {
-        Ok(key) => key,
-        Err(e) => {
-            ic_cdk::println!("Failed to get API key: {}", e);
-            update_proposal_status(&proposal_id, ProposalStatus::Failed);
-            return;
-        }
-    };
 
     // Prepare the analysis prompt
     let analysis_prompt = format!(
@@ -334,23 +292,22 @@ Please return the result in JSON format without wrapping it in Markdown formatti
         temperature: 0.7,
         max_tokens: 2000,
         stream: false,
+        proposal_id: proposal.id.clone(),
+        timestamp: ic_cdk::api::time().to_string(),
     };
+    debug_print(&format!("proposal_id: {:?}", request.proposal_id));
+    debug_print(&format!("timestamp: {:?}", request.timestamp));
 
     let request_body = serde_json::to_string(&request).unwrap();
-    ic_cdk::println!("request_body: {:?}", request_body);
 
     // Prepare HTTP request
     let request = HttpRequestArgs {
-        url: "https://api.deepseek.com/chat/completions".to_string(),
+        url: "https://idempotent-proxy-cf-worker.tuminfei1981.workers.dev/proxy".to_string(),
         method: HttpMethod::POST,
         headers: vec![
             HttpHeader {
                 name: "Content-Type".to_string(),
                 value: "application/json".to_string(),
-            },
-            HttpHeader {
-                name: "Authorization".to_string(),
-                value: format!("Bearer {}", api_key),
             },
         ],
         body: Some(request_body.into_bytes()),

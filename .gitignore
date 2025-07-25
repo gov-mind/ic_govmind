@@ -30,5 +30,8 @@ dist/
 # Cursor Rules
 .cursor/
 
+# Trae Rules
+.trae/
+
 # Export Files
 export*.did

@@ -26,7 +26,7 @@ const corsOptions = {
     'http://localhost:3000',
     'http://localhost:5173',
     'https://app.govmind.info', // Our Domain
-    'https://*.icp0.io', // IC mainnet
+    'https://2dp5b-iiaaa-aaaaj-qnrua-cai.icp0.io', // IC mainnet
     'https://*.localhost:4943' // Local IC replica
   ],
   credentials: true,

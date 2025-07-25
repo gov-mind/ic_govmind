@@ -1,7 +1,7 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::{query, update};
 use ic_cdk::api::{msg_caller};
-use serde::{Deserialize as SerdeDeserialize, Serialize as SerdeSerialize};
+use serde::{Deserialize as SerdeDeserialize};
 use ic_stable_structures::{StableBTreeMap, StableCell, memory_manager::{MemoryManager, VirtualMemory, MemoryId}, DefaultMemoryImpl, storable::Storable};
 use std::cell::RefCell;
 use std::borrow::Cow;
@@ -134,7 +134,7 @@ async fn submit_proposal_with_analysis(
     description: String,
     analysis: Option<ProposalAnalysis>,
     status: ProposalStatus,
-    signature: Option<String>, // Optional signature from API proxy for verification
+    _signature: Option<String>, // Optional signature from API proxy for verification
 ) -> String {
     let caller = msg_caller();
     let proposal_id = match proposal_id_opt {
@@ -172,7 +172,7 @@ async fn update_analysis(
     proposal_id: String,
     analysis: Option<ProposalAnalysis>,
     status: ProposalStatus,
-    signature: Option<String>, // Optional signature from API proxy for verification
+    _signature: Option<String>, // Optional signature from API proxy for verification
 ) -> Result<String, String> {
     let proposal_exists = PROPOSALS.with(|proposals| {
         proposals.borrow().contains_key(&proposal_id)

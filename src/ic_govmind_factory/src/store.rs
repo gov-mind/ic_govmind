@@ -194,4 +194,30 @@ pub mod gov {
             });
         });
     }
+
+    pub fn get_dao_list_paginated(
+        page: usize,
+        page_size: usize,
+    ) -> (Vec<(Principal, DaoWrapper)>, u64) {
+        DAO_STORE.with(|r| {
+            let daos = r.borrow();
+            let total_count: usize = daos.len() as usize;
+
+            if page_size == 0 || page * page_size >= total_count {
+                return (vec![], total_count as u64);
+            }
+
+            let start = page * page_size;
+            let end = (start + page_size).min(total_count);
+
+            let dao_page: Vec<(Principal, DaoWrapper)> = daos
+                .iter()
+                .skip(start)
+                .take(end - start)
+                .map(|(pid, dao)| (pid.clone(), dao.clone()))
+                .collect();
+
+            (dao_page, total_count as u64)
+        })
+    }
 }

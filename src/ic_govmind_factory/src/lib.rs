@@ -1,6 +1,7 @@
 mod api_canister;
 mod api_update;
 mod api_query;
+mod api_init;
 mod guards;
 pub mod utils;
 pub mod store;

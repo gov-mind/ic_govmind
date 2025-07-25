@@ -7,6 +7,8 @@
 
 Together, they enable Web3 communities to create and operate **Intelligent DAOs (I-DAOs)** — organizations that can **govern autonomously, collaborate across chains, and scale with AI augmentation**.
 
+Visit us at [GovMind](https://app.govmind.info)
+
 ---
 
 ## 🌐 Project Overview

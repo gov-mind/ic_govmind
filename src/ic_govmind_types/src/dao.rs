@@ -1,4 +1,6 @@
-use candid::{CandidType, Deserialize, Principal};
+use crate::icrc::CreateCanisterArg;
+use candid::{CandidType, Deserialize, Nat, Principal};
+use icrc_ledger_types::{icrc::generic_metadata_value::MetadataValue, icrc1::account::Account};
 use serde::Serialize;
 use std::collections::HashMap;
 
@@ -141,4 +143,41 @@ pub enum VoteWeightType {
     OnePersonOneVote,
     TokenWeighted,
     ReputationWeighted,
+}
+
+#[derive(CandidType, Deserialize, Debug, Clone)]
+pub struct CreateBaseTokenArg {
+    pub name: String,
+    pub symbol: String,
+    pub decimals: u8,
+    pub total_supply: u128,
+    pub distribution_model: Option<DistributionModel>,
+}
+
+impl CreateBaseTokenArg {
+    pub fn to_create_canister_arg(
+        self,
+        logo: MetadataValue,
+        controllers: Option<Vec<Principal>>,
+    ) -> CreateCanisterArg {
+        let current_canister = ic_cdk::api::canister_self();
+        let minting_account = Account {
+            owner: current_canister,
+            subaccount: None,
+        };
+        let initial_balances = vec![(minting_account.clone(), Nat::from(self.total_supply))];
+        let mut merged_controllers = controllers.unwrap_or_default();
+        if !merged_controllers.contains(&current_canister) {
+            merged_controllers.push(current_canister);
+        }
+
+        CreateCanisterArg {
+            controllers: Some(merged_controllers),
+            token_name: self.name,
+            token_symbol: self.symbol,
+            minting_account,
+            logo,
+            initial_balances,
+        }
+    }
 }

@@ -5,7 +5,11 @@ use crate::{
 };
 use candid::{export_service, Principal};
 use ic_cdk::query;
-use ic_govmind_types::{dao::{Dao, Proposal, ProposalStatus}, icrc::CreateCanisterArg};
+use ic_govmind_types::{
+    dao::{CreateBaseTokenArg, Dao, Proposal, ProposalStatus},
+    icrc::CreateCanisterArg,
+};
+use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 
 #[query(name = "__get_candid_interface_tmp_hack")]
 fn export_candid() -> String {

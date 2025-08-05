@@ -149,6 +149,12 @@ pub mod state {
         state::with(|r| r.org_info.clone())
     }
 
+    pub fn update_org_info(updated: Dao) {
+        state::with_mut(|s| {
+            s.org_info = Some(updated);
+        });
+    }
+
     pub fn get_ecdsa_key_id() -> EcdsaKeyId {
         state::with(|r| r.ecdsa_key.as_ref().expect("ecdsa_key not set").to_owned())
     }
@@ -173,8 +179,8 @@ pub mod state {
 
 pub mod proposals {
     use super::*;
-    use ic_govmind_types::dao::{Proposal, ProposalStatus};
     use crate::utils::current_time_secs;
+    use ic_govmind_types::dao::{Proposal, ProposalStatus};
 
     pub fn create_proposal(
         title: String,
@@ -184,7 +190,7 @@ pub mod proposals {
     ) -> Result<u64, String> {
         let proposal_id = state::get_next_proposal_id();
         let now = current_time_secs();
-        
+
         let proposal = Proposal {
             id: proposal_id,
             title,

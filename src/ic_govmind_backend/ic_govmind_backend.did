@@ -21,6 +21,13 @@ type ChainType = variant {
   Bitcoin;
   Other : text;
 };
+type CreateBaseTokenArg = record {
+  decimals : nat8;
+  name : text;
+  distribution_model : opt DistributionModel;
+  total_supply : nat;
+  symbol : text;
+};
 type CreateCanisterArg = record {
   controllers : opt vec principal;
   token_symbol : text;
@@ -138,6 +145,7 @@ service : (opt CanisterArgs) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   add_admin : (principal) -> (Result);
   canister_get_status : (StatusRequest) -> (StatusResponse) query;
+  create_dao_base_token : (CreateBaseTokenArg, MetadataValue) -> (Result_1);
   create_dao_token : (CreateCanisterArg) -> (Result_1);
   create_proposal : (text, text) -> (Result_2);
   dao_info : () -> (opt Dao) query;

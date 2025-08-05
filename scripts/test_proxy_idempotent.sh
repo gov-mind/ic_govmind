@@ -1,13 +1,13 @@
 #!/usr/bin/env bash
 
-# 请求参数
+# Request target URL
 URL="https://idempotent-proxy-cf-worker.zensh.workers.dev/URL_HTTPBIN"
 
-# 创建临时目录保存响应
+# Create a temporary directory to save responses
 TMP_DIR=$(mktemp -d)
 echo "Sending 20 requests..."
 
-# 执行 20 次请求
+# Send 20 identical requests with the same idempotency key
 for i in {1..20}; do
   curl -s -v -X GET "$URL" \
     -H "idempotency-key: idempotency_key_001" \
@@ -18,9 +18,9 @@ done
 
 echo "Comparing responses..."
 
-# 用第一个响应作为基准
+# Use the first response as the base for comparison
 base_body=$(<"$TMP_DIR/body_1.json")
-# 可排除的头部字段（时间戳、CF等）
+# Exclude non-deterministic headers (like timestamps, CF-specific, etc.)
 base_headers=$(grep -v -E '^(Date:|Server:|cf-ray:|report-to:|NEL:|X-|Alt-Svc:|Connection:|Via:)' "$TMP_DIR/headers_1.txt")
 
 for i in {2..20}; do
@@ -42,5 +42,5 @@ done
 
 echo "✅ All 20 responses (body and headers) are identical."
 
-# 可选：清理临时文件
+# Optional: Clean up temporary files
 rm -rf "$TMP_DIR"

@@ -7,7 +7,10 @@ use ic_govmind_types::{
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 
-use crate::{guards::not_anonymous, store, utils::create_icrc1_canister, ICRC1_WASM};
+use crate::{
+    guards::not_anonymous, store, timer::setup_token_distribution_timer,
+    utils::create_icrc1_canister, ICRC1_WASM,
+};
 
 #[update]
 pub async fn add_admin(principal: Principal) -> Result<(), String> {
@@ -40,8 +43,7 @@ pub async fn create_dao_base_token(
     arg: CreateBaseTokenArg,
     logo: MetadataValue,
 ) -> Result<Principal, String> {
-    let icrc_arg = arg.clone().to_create_canister_arg(logo, None);
-
+    let icrc_arg = arg.to_create_canister_arg(logo, None);
     let token_canister_id = create_icrc1_canister(icrc_arg, ICRC1_WASM.to_vec()).await?;
 
     let base_token = BaseToken {
@@ -49,7 +51,7 @@ pub async fn create_dao_base_token(
         symbol: arg.symbol,
         decimals: arg.decimals,
         total_supply: arg.total_supply,
-        distribution_model: arg.distribution_model,
+        distribution_model: arg.distribution_model.clone(),
         token_location: TokenLocation {
             chain: ChainType::InternetComputer,
             canister_id: Some(token_canister_id),
@@ -63,6 +65,12 @@ pub async fn create_dao_base_token(
         ..old_dao
     };
     store::state::update_org_info(new_dao);
+
+    if let Some(ref model) = arg.distribution_model {
+        if model.emission_rate.is_some() || model.unlock_schedule.is_some() {
+            setup_token_distribution_timer(model.clone(), token_canister_id);
+        }
+    }
 
     Ok(token_canister_id)
 }

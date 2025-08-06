@@ -1,4 +1,5 @@
 use candid::{CandidType, Decode, Deserialize, Encode, Principal};
+use ic_cdk_timers::TimerId;
 use ic_management_canister_types::{
     EcdsaKeyId, EcdsaPublicKeyResult, SchnorrKeyId, SchnorrPublicKeyResult,
 };
@@ -85,6 +86,8 @@ thread_local! {
             MEMORY_MANAGER.with_borrow(|m| m.get(PROPOSALS_MEMORY_ID))
         )
     );
+
+     pub static TIMER_IDS: RefCell<Vec<TimerId>> = RefCell::new(Vec::new());
 }
 
 pub fn read_memory_manager<F, R>(f: F) -> R

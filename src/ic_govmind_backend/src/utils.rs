@@ -126,3 +126,14 @@ pub async fn create_icrc1_canister(
     .map(|()| canister)
     .map_err(|e| format!("Failed to create icrc1 canister: {:?}", e))
 }
+
+pub fn icrc1_account_from_str(addr: &str) -> icrc_ledger_types::icrc1::account::Account {
+    use candid::Principal;
+    use icrc_ledger_types::icrc1::account::Account;
+
+    let principal = Principal::from_text(addr).unwrap_or_else(|_| Principal::anonymous());
+    Account {
+        owner: principal,
+        subaccount: None,
+    }
+}

@@ -156,7 +156,7 @@ pub struct CreateBaseTokenArg {
 
 impl CreateBaseTokenArg {
     pub fn to_create_canister_arg(
-        self,
+        &self,
         logo: MetadataValue,
         controllers: Option<Vec<Principal>>,
     ) -> CreateCanisterArg {
@@ -173,8 +173,8 @@ impl CreateBaseTokenArg {
 
         CreateCanisterArg {
             controllers: Some(merged_controllers),
-            token_name: self.name,
-            token_symbol: self.symbol,
+            token_name: self.name.clone(),
+            token_symbol: self.symbol.clone(),
             minting_account,
             logo,
             initial_balances,

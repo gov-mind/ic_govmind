@@ -81,7 +81,7 @@ impl TokenICRC1 {
             .with_arg(account)
             .await
         {
-            Ok(res) => match res.candid::<(Nat,)>() {
+            Ok(res) => match res.candid() {
                 Ok(result) => Ok(result),
                 Err(e) => Err(format!("Decoding error: {:?}", e)),
             },
@@ -160,7 +160,7 @@ impl TokenICRC1 {
             .with_arg(args)
             .await
         {
-            Ok(res) => match res.candid::<(Result<Nat, ApproveError>,)>() {
+            Ok(res) => match res.candid() {
                 Ok(result) => Ok(result),
                 Err(e) => Err(format!("Decoding error: {:?}", e)),
             },

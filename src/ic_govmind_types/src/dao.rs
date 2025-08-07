@@ -8,6 +8,7 @@ use serde::Serialize;
 use std::collections::HashMap;
 
 pub const MINTING_SUBACCOUNT: Subaccount = [1u8; 32];
+pub const HOLDER_SUBACCOUNT: Subaccount = [2u8; 32];
 
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Dao {
@@ -170,7 +171,12 @@ impl CreateBaseTokenArg {
             owner: current_canister,
             subaccount: Some(MINTING_SUBACCOUNT),
         };
-        let initial_balances = vec![(minting_account.clone(), Nat::from(self.total_supply))];
+        let holder_account = Account {
+            owner: current_canister,
+            subaccount: Some(HOLDER_SUBACCOUNT),
+        };
+
+        let initial_balances = vec![(holder_account.clone(), Nat::from(self.total_supply))];
         let mut merged_controllers = controllers.unwrap_or_default();
         if !merged_controllers.contains(&current_canister) {
             merged_controllers.push(current_canister);

@@ -1,8 +1,13 @@
 use crate::icrc::CreateCanisterArg;
 use candid::{CandidType, Deserialize, Nat, Principal};
-use icrc_ledger_types::{icrc::generic_metadata_value::MetadataValue, icrc1::account::Account};
+use icrc_ledger_types::{
+    icrc::generic_metadata_value::MetadataValue,
+    icrc1::account::{Account, Subaccount},
+};
 use serde::Serialize;
 use std::collections::HashMap;
+
+pub const MINTING_SUBACCOUNT: Subaccount = [1u8; 32];
 
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Dao {
@@ -163,7 +168,7 @@ impl CreateBaseTokenArg {
         let current_canister = ic_cdk::api::canister_self();
         let minting_account = Account {
             owner: current_canister,
-            subaccount: None,
+            subaccount: Some(MINTING_SUBACCOUNT),
         };
         let initial_balances = vec![(minting_account.clone(), Nat::from(self.total_supply))];
         let mut merged_controllers = controllers.unwrap_or_default();

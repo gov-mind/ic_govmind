@@ -2,7 +2,7 @@ use crate::{services::token_icrc1::TokenICRC1, store::TIMER_IDS, utils::icrc1_ac
 use candid::{Nat, Principal};
 use ic_cdk::futures::spawn;
 use ic_cdk_timers::set_timer_interval;
-use ic_govmind_types::dao::DistributionModel;
+use ic_govmind_types::dao::{DistributionModel, MINTING_SUBACCOUNT};
 use std::time::Duration;
 
 pub fn setup_token_distribution_timer(model: DistributionModel, token_canister_id: Principal) {
@@ -27,7 +27,7 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
             let amount = Nat::from(rate);
 
             let _ = token_service
-                .icrc1_transfer(None, account, amount, None, None, None)
+                .icrc1_transfer(Some(MINTING_SUBACCOUNT), account, amount, None, None, None)
                 .await;
         }
     }
@@ -39,7 +39,14 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
                     let account = icrc1_account_from_str(addr);
                     let amount_nat = Nat::from(*amount);
                     let _ = token_service
-                        .icrc1_transfer(None, account, amount_nat, None, None, None)
+                        .icrc1_transfer(
+                            Some(MINTING_SUBACCOUNT),
+                            account,
+                            amount_nat,
+                            None,
+                            None,
+                            None,
+                        )
                         .await;
                 }
             }

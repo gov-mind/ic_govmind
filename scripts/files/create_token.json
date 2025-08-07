@@ -8,11 +8,11 @@
       initial_distribution = vec {
         record {
           0 = "p4zdu-eo2az-bkta3-djjqn-hkiuk-qoc7z-v2ery-76kwx-s4gmb-utjfe-xqe";
-          1 = 50000000000;
+          1 = 5000000;
         };
         record {
           0 = "kjmyi-ld67r-fhb37-tztjx-huazh-ziaav-3maym-yze5a-rjv5t-3c62i-3ae";
-          1 = 50000000000;
+          1 = 5000000;
         };
       };
       unlock_schedule = opt vec {

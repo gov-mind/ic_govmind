@@ -6,7 +6,7 @@ use ic_govmind_types::dao::{DistributionModel, MINTING_SUBACCOUNT};
 use std::time::Duration;
 
 pub fn setup_token_distribution_timer(model: DistributionModel, token_canister_id: Principal) {
-    let interval = Duration::from_secs(60 * 60 * 24);
+    let interval = Duration::from_secs(60);
 
     let timer_id = set_timer_interval(interval, move || {
         spawn(distribute_tokens(model.clone(), token_canister_id));
@@ -21,33 +21,72 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
     };
     let now = ic_cdk::api::time();
 
+    // Immediate emission distribution
     if let Some(rate) = model.emission_rate {
+        let amount = Nat::from(rate);
         for (addr, _) in model.initial_distribution.iter() {
             let account = icrc1_account_from_str(addr);
-            let amount = Nat::from(rate);
-
-            let _ = token_service
-                .icrc1_transfer(Some(MINTING_SUBACCOUNT), account, amount, None, None, None)
-                .await;
+            match token_service
+                .icrc1_transfer(
+                    Some(MINTING_SUBACCOUNT),
+                    account,
+                    amount.clone(),
+                    None,
+                    None,
+                    None,
+                )
+                .await
+            {
+                Ok(res) => ic_cdk::println!(
+                    "Distributed {} tokens to {} at time {}: {:?}",
+                    &amount,
+                    &addr,
+                    &now,
+                    res
+                ),
+                Err(e) => ic_cdk::println!(
+                    "Failed to distribute {} tokens to {}: {:?}",
+                    &amount,
+                    &addr,
+                    e
+                ),
+            }
         }
     }
 
+    // Unlock schedule distribution
     if let Some(schedule) = &model.unlock_schedule {
-        for (ts, amount) in schedule {
-            if *ts * 1_000_000_000 <= now {
+        for (ts_sec, amt) in schedule {
+            let scheduled_time_ns = ts_sec * 1_000_000_000;
+            if scheduled_time_ns <= now {
+                let amount_nat = Nat::from(*amt);
                 for (addr, _) in model.initial_distribution.iter() {
                     let account = icrc1_account_from_str(addr);
-                    let amount_nat = Nat::from(*amount);
-                    let _ = token_service
+                    match token_service
                         .icrc1_transfer(
                             Some(MINTING_SUBACCOUNT),
                             account,
-                            amount_nat,
+                            amount_nat.clone(),
                             None,
                             None,
                             None,
                         )
-                        .await;
+                        .await
+                    {
+                        Ok(res) => ic_cdk::println!(
+                            "Unlocked {} tokens to {} at time {}: {:?}",
+                            &amount_nat,
+                            &addr,
+                            &now,
+                            res
+                        ),
+                        Err(e) => ic_cdk::println!(
+                            "Failed to unlock {} tokens to {}: {:?}",
+                            &amount_nat,
+                            &addr,
+                            e
+                        ),
+                    }
                 }
             }
         }

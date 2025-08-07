@@ -6,8 +6,8 @@ use ic_ledger_types::{
 };
 use icrc_ledger_types::{
     icrc1::{
-        account::Account,
-        transfer::{Memo as ICRCMemo, TransferArg, TransferError},
+        account::{Account, Subaccount as ICRCSubaccount},
+        transfer::{Memo as ICRCMemo, TransferArg as ICRCTransferArg, TransferError},
     },
     icrc2::approve::{ApproveArgs, ApproveError},
 };
@@ -34,7 +34,7 @@ impl TokenICRC1 {
         };
 
         match Call::bounded_wait(self.principal, "account_balance")
-            .with_arg((args,))
+            .with_arg(args)
             .await
         {
             Ok(res) => match res.candid::<Result<Tokens, String>>() {
@@ -65,7 +65,7 @@ impl TokenICRC1 {
         };
 
         match Call::bounded_wait(self.principal, "transfer")
-            .with_arg((args,))
+            .with_arg(args)
             .await
         {
             Ok(res) => match res.candid::<(TransferResult,)>() {
@@ -78,7 +78,7 @@ impl TokenICRC1 {
 
     pub async fn icrc1_balance_of(&self, account: Account) -> Result<(Nat,), String> {
         match Call::bounded_wait(self.principal, "icrc1_balance_of")
-            .with_arg((account,))
+            .with_arg(account)
             .await
         {
             Ok(res) => match res.candid::<(Nat,)>() {
@@ -91,14 +91,14 @@ impl TokenICRC1 {
 
     pub async fn icrc1_transfer(
         &self,
-        from_subaccount: Option<[u8; 32]>,
+        from_subaccount: Option<ICRCSubaccount>,
         to: Account,
         amount: Nat,
         fee: Option<Nat>,
         memo: Option<ICRCMemo>,
         created_at_time: Option<u64>,
-    ) -> Result<(Result<Nat, TransferError>,), String> {
-        let args = TransferArg {
+    ) -> Result<Nat, TransferError> {
+        let arg = ICRCTransferArg {
             from_subaccount,
             to,
             amount,
@@ -107,15 +107,30 @@ impl TokenICRC1 {
             created_at_time,
         };
 
-        match Call::bounded_wait(self.principal, "icrc1_transfer")
-            .with_arg((args,))
-            .await
-        {
-            Ok(res) => match res.candid::<(Result<Nat, TransferError>,)>() {
-                Ok(result) => Ok(result),
-                Err(e) => Err(format!("Decoding error: {:?}", e)),
+        let res = Call::bounded_wait(self.principal, "icrc1_transfer")
+            .with_arg(&arg)
+            .change_timeout(u32::MAX)
+            .await;
+
+        match res {
+            Ok(resp) => match resp.candid() {
+                Ok(Ok(nat)) => Ok(nat),
+                Ok(Err(e)) => Err(e),
+                Err(e) => {
+                    ic_cdk::println!("Transfer error: {:?}", e);
+                    Err(TransferError::GenericError {
+                        error_code: Nat::from(99_u32),
+                        message: format!("Decode failed: {}", e),
+                    })
+                }
             },
-            Err(e) => Err(format!("Call failed: {:?}", e)),
+            Err(e) => {
+                ic_cdk::println!("Transfer error: {:?}", e);
+                Err(TransferError::GenericError {
+                    error_code: Nat::from(98_u32),
+                    message: format!("Call failed: {:?}", e),
+                })
+            }
         }
     }
 
@@ -142,7 +157,7 @@ impl TokenICRC1 {
         };
 
         match Call::bounded_wait(self.principal, "icrc2_approve")
-            .with_arg((args,))
+            .with_arg(args)
             .await
         {
             Ok(res) => match res.candid::<(Result<Nat, ApproveError>,)>() {

@@ -1,10 +1,11 @@
-use candid::{CandidType, Deserialize};
+use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
 use ic_ledger_types::AccountIdentifier;
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Serialize;
+use tiny_keccak::{Hasher, Sha3};
 
 use crate::{
     chain::{bitcoin::account_to_p2pkh_address, ethereum::account_to_eth_address},
@@ -121,5 +122,15 @@ impl From<[u8; 32]> for Addresses {
             ethereum,
             solana: String::from(""),
         }
+    }
+}
+
+impl From<&Principal> for Addresses {
+    fn from(value: &Principal) -> Self {
+        let mut hash = [0u8; 32];
+        let mut hasher = Sha3::v256();
+        hasher.update(value.as_slice());
+        hasher.finalize(&mut hash);
+        Self::from(hash)
     }
 }

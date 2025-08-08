@@ -1,4 +1,13 @@
 type Account = record { owner : principal; subaccount : opt blob };
+type Addresses = record {
+  solana : text;
+  ethereum : text;
+  icrc1_string : text;
+  account_identifier : blob;
+  icrc1 : Account;
+  bitcoin : text;
+  account_identifier_string : text;
+};
 type AssetType = variant { Fungible; NonFungible };
 type BaseToken = record {
   decimals : nat8;
@@ -150,6 +159,7 @@ service : (opt CanisterArgs) -> {
   create_proposal : (text, text) -> (Result_2);
   dao_info : () -> (opt Dao) query;
   get_all_proposals : () -> (vec Proposal) query;
+  get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
   greet : (text) -> (text) query;
   remove_admin : (principal) -> (Result);

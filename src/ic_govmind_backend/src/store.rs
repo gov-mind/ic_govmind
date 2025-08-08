@@ -162,6 +162,15 @@ pub mod state {
         state::with(|r| r.ecdsa_key.as_ref().expect("ecdsa_key not set").to_owned())
     }
 
+    pub fn get_ecdsa_public_key() -> EcdsaPublicKeyResult {
+        state::with(|r| {
+            r.ecdsa_public_key
+                .as_ref()
+                .expect("ecdsa_public_key not set")
+                .to_owned()
+        })
+    }
+
     pub fn get_schnorr_key_id() -> SchnorrKeyId {
         state::with(|r| {
             r.schnorr_key

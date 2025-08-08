@@ -1,13 +1,17 @@
 use candid::{Encode, Principal};
 use ic_cdk::management_canister::{
     create_canister_with_extra_cycles, install_code, CanisterInstallMode, CanisterSettings,
-    CreateCanisterArgs, InstallCodeArgs,
+    CreateCanisterArgs, EcdsaPublicKeyResult, InstallCodeArgs,
 };
 use ic_govmind_types::{
     constants::ICRC1_LEDGER_DEFAULT_CYCLES,
     icrc::{CreateCanisterArg, ICRC1InitArgs, LedgerArgument},
 };
 use ic_ledger_types::{AccountIdentifier, Subaccount};
+use ic_secp256k1::{DerivationIndex, DerivationPath, PublicKey};
+use icrc_ledger_types::icrc1::account::Account;
+use serde_bytes::ByteBuf;
+use sha2::Digest;
 
 #[cfg(target_arch = "wasm32")]
 const WASM_PAGE_SIZE: u64 = 64 * 1024;
@@ -135,5 +139,52 @@ pub fn icrc1_account_from_str(addr: &str) -> icrc_ledger_types::icrc1::account::
     Account {
         owner: principal,
         subaccount: None,
+    }
+}
+
+pub fn sha256(data: &[u8]) -> Vec<u8> {
+    let mut hasher = sha2::Sha256::new();
+    hasher.update(data);
+    hasher.finalize().to_vec()
+}
+
+pub fn ripemd160(data: &[u8]) -> Vec<u8> {
+    let mut hasher = ripemd::Ripemd160::new();
+    hasher.update(data);
+    hasher.finalize().to_vec()
+}
+
+pub fn account_to_derivation_path_buf(account: &Account) -> Vec<ByteBuf> {
+    vec![
+        ByteBuf::from([1u8]),
+        ByteBuf::from(account.owner.as_slice().to_vec()),
+        ByteBuf::from(account.effective_subaccount()),
+    ]
+}
+
+pub fn derive_public_key(
+    ecdsa_public_key: &EcdsaPublicKeyResult,
+    path: &[ByteBuf],
+) -> EcdsaPublicKeyResult {
+    let path = DerivationPath::new(
+        path.iter()
+            .map(|x| DerivationIndex(x.clone().into_vec()))
+            .collect(),
+    );
+
+    let pk = PublicKey::deserialize_sec1(&ecdsa_public_key.public_key)
+        .expect("failed to ECDSA public key");
+
+    let chain_code: [u8; 32] = ecdsa_public_key
+        .chain_code
+        .clone()
+        .try_into()
+        .expect("incorrect chain code size");
+
+    let (derived_public_key, derived_chain_code) =
+        pk.derive_subkey_with_chain_code(&path, &chain_code);
+    EcdsaPublicKeyResult {
+        chain_code: derived_chain_code.to_vec(),
+        public_key: derived_public_key.serialize_sec1(true),
     }
 }

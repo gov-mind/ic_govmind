@@ -16,10 +16,13 @@ ic-stable-structures = { workspace = true }
 ic-management-canister-types = { workspace = true }
 icrc-ledger-types = { workspace = true }
 ic-ledger-types = { workspace = true }
+ic-secp256k1 = { workspace = true }
 ciborium = { workspace = true }
 ciborium-io = { workspace = true }
 libsecp256k1 = { workspace = true }
 serde = { workspace = true }
+serde_bytes = { workspace = true }
+sha2 = { workspace = true }
 getrandom = { workspace = true, features = ["custom"] }
 hex = { workspace = true } 
 derive_more = { workspace = true } 
@@ -28,5 +31,6 @@ tiny-keccak = { workspace = true }
 bitcoin_hashes = { workspace = true }
 base58 = { workspace = true }
 bs58 = { workspace = true }
+ripemd = { workspace = true }
 
 ic-govmind-types = { path = "../ic_govmind_types", version = "0.1" }

@@ -2,7 +2,14 @@ use candid::{CandidType, Deserialize};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
+use ic_ledger_types::AccountIdentifier;
+use icrc_ledger_types::icrc1::account::Account;
 use serde::Serialize;
+
+use crate::{
+    chain::{bitcoin::account_to_p2pkh_address, ethereum::account_to_eth_address},
+    BITCOIN_NETWORK,
+};
 
 #[allow(non_snake_case)]
 #[derive(Debug, CandidType, Deserialize)]
@@ -79,6 +86,40 @@ impl SchnorrKeyIds {
             KeyEnvironment::Production => SchnorrKeyIds::ProductionKey,
             KeyEnvironment::Staging => SchnorrKeyIds::TestKey1,
             KeyEnvironment::Local => SchnorrKeyIds::TestKeyLocalDevelopment,
+        }
+    }
+}
+
+#[derive(CandidType, Deserialize, Debug)]
+pub struct Addresses {
+    pub icrc1: Account,
+    pub icrc1_string: String,
+    pub account_identifier: AccountIdentifier,
+    pub account_identifier_string: String,
+    pub bitcoin: String,
+    pub ethereum: String,
+    pub solana: String,
+}
+
+impl From<[u8; 32]> for Addresses {
+    fn from(subaccount: [u8; 32]) -> Self {
+        let id = ic_cdk::api::canister_self();
+        let account_identifier =
+            AccountIdentifier::new(&id, &ic_ledger_types::Subaccount(subaccount));
+        let account = Account {
+            owner: id,
+            subaccount: Some(subaccount),
+        };
+        let bitcoin = account_to_p2pkh_address(&account, BITCOIN_NETWORK);
+        let ethereum = account_to_eth_address().unwrap();
+        Addresses {
+            icrc1: account,
+            icrc1_string: account.to_string(),
+            account_identifier,
+            account_identifier_string: account_identifier.to_string(),
+            bitcoin,
+            ethereum,
+            solana: String::from(""),
         }
     }
 }

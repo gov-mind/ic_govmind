@@ -192,3 +192,11 @@ impl CreateBaseTokenArg {
         }
     }
 }
+
+#[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
+pub struct DistributionRecord {
+    pub timestamp: u64,
+    pub recipient: String, // recipient address
+    pub amount: Nat,
+    pub tx_result: String, // transaction result or status
+}

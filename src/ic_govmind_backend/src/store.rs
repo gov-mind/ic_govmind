@@ -6,7 +6,7 @@ use ic_management_canister_types::{
 use std::{cell::RefCell, collections::HashMap};
 
 use ciborium::{from_reader, into_writer};
-use ic_govmind_types::dao::{Dao, DaoAsset, DaoMember, Proposal};
+use ic_govmind_types::dao::{Dao, DaoAsset, DaoMember, DistributionRecord, Proposal};
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     storable::Bound,
@@ -22,12 +22,13 @@ pub struct State {
     pub org_info: Option<Dao>,
     pub members: HashMap<String, DaoMember>, // user_id → DaoMember
     pub assets: HashMap<String, DaoAsset>,
-    pub next_proposal_id: u64,
     pub ecdsa_key: Option<EcdsaKeyId>,
     pub schnorr_key: Option<SchnorrKeyId>,
     pub derivation_path: Vec<Vec<u8>>,
     pub ecdsa_public_key: Option<EcdsaPublicKeyResult>,
     pub schnorr_public_key: Option<SchnorrPublicKeyResult>,
+    pub next_proposal_id: u64,
+    pub next_distribution_id: u64,
 }
 
 impl Storable for State {
@@ -65,9 +66,31 @@ impl ProposalWrapper {
     }
 }
 
+#[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
+pub struct DistributionRecordWrapper(pub DistributionRecord);
+
+impl Storable for DistributionRecordWrapper {
+    const BOUND: Bound = Bound::Unbounded;
+
+    fn from_bytes(bytes: std::borrow::Cow<[u8]>) -> Self {
+        Decode!(bytes.as_ref(), Self).unwrap()
+    }
+
+    fn to_bytes(&self) -> std::borrow::Cow<'_, [u8]> {
+        std::borrow::Cow::Owned(Encode!(self).unwrap())
+    }
+}
+
+impl DistributionRecordWrapper {
+    pub fn into_inner(self) -> DistributionRecord {
+        self.0
+    }
+}
+
 pub type Memory = VirtualMemory<DefaultMemoryImpl>;
 pub const STATE_MEMORY_ID: MemoryId = MemoryId::new(0);
 pub const PROPOSALS_MEMORY_ID: MemoryId = MemoryId::new(1);
+pub const DISTRIBUTION_MEMORY_ID: MemoryId = MemoryId::new(2);
 
 thread_local! {
     pub static MEMORY_MANAGER: RefCell<MemoryManager<DefaultMemoryImpl>> = RefCell::new(MemoryManager::init(DefaultMemoryImpl::default()));
@@ -87,7 +110,13 @@ thread_local! {
         )
     );
 
-     pub static TIMER_IDS: RefCell<Vec<TimerId>> = RefCell::new(Vec::new());
+    static DISTRIBUTION_HISTORY: RefCell<StableBTreeMap<u64, DistributionRecordWrapper, Memory>> = RefCell::new(
+        StableBTreeMap::init(
+            MEMORY_MANAGER.with_borrow(|m| m.get(DISTRIBUTION_MEMORY_ID))
+        )
+    );
+
+    pub static TIMER_IDS: RefCell<Vec<TimerId>> = RefCell::new(Vec::new());
 }
 
 pub fn read_memory_manager<F, R>(f: F) -> R
@@ -256,6 +285,37 @@ pub mod proposals {
             } else {
                 Err("Proposal not found".to_string())
             }
+        })
+    }
+}
+
+pub mod distribution {
+    use super::*;
+
+    pub fn add_distribution_record(record: DistributionRecord) {
+        DISTRIBUTION_HISTORY.with(|map| {
+            STATE.with(|s| {
+                let mut st = s.borrow_mut();
+                let id = st.next_distribution_id;
+                st.next_distribution_id += 1;
+
+                map.borrow_mut()
+                    .insert(id, DistributionRecordWrapper(record));
+            });
+        });
+    }
+
+    pub fn get_distribution_record(id: u64) -> Option<DistributionRecord> {
+        DISTRIBUTION_HISTORY.with(|map| map.borrow().get(&id).map(|w| w.into_inner()))
+    }
+
+    pub fn list_distribution_records(start: u64, limit: usize) -> Vec<(u64, DistributionRecord)> {
+        DISTRIBUTION_HISTORY.with(|map| {
+            map.borrow()
+                .range(start..)
+                .take(limit)
+                .map(|(id, w)| (id, w.into_inner()))
+                .collect()
         })
     }
 }

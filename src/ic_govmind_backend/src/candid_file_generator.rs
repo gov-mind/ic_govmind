@@ -6,7 +6,7 @@ use crate::{
 use candid::{export_service, Principal};
 use ic_cdk::query;
 use ic_govmind_types::{
-    dao::{CreateBaseTokenArg, Dao, Proposal, ProposalStatus},
+    dao::{CreateBaseTokenArg, Dao, DistributionRecord, Proposal, ProposalStatus},
     icrc::CreateCanisterArg,
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;

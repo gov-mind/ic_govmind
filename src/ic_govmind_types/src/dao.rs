@@ -194,7 +194,15 @@ impl CreateBaseTokenArg {
 }
 
 #[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
+pub enum DistributionType {
+    Initial,   //  initial_distribution
+    Scheduled, //  unlock_schedule
+    Emission,  //  emission_rate
+}
+
+#[derive(CandidType, Clone, Deserialize, Serialize, Debug)]
 pub struct DistributionRecord {
+    pub distribution_type: DistributionType,
     pub timestamp: u64,
     pub recipient: String, // recipient address
     pub amount: Nat,

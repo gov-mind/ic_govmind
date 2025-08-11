@@ -1,9 +1,12 @@
+use crate::store;
 use crate::{services::token_icrc1::TokenICRC1, store::TIMER_IDS, utils::icrc1_account_from_str};
 use candid::{Nat, Principal};
 use ic_cdk::futures::spawn;
 use ic_cdk_timers::set_timer_interval;
-use ic_govmind_types::dao::{DistributionModel, HOLDER_SUBACCOUNT};
-use std::time::Duration;
+use ic_govmind_types::dao::{
+    DistributionModel, DistributionRecord, DistributionType, HOLDER_SUBACCOUNT,
+};
+use std::{collections::HashMap, time::Duration};
 
 pub fn setup_token_distribution_timer(model: DistributionModel, token_canister_id: Principal) {
     let interval = Duration::from_secs(60);
@@ -21,12 +24,61 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
     };
     let now = ic_cdk::api::time();
 
-    // Immediate emission distribution
+    // Initial Distribution
+    if !model.initial_distribution.is_empty() {
+        distribute_to_all(
+            &token_service,
+            &model.initial_distribution,
+            model.emission_rate.map(Nat::from),
+            DistributionType::Initial,
+            now,
+        )
+        .await;
+    }
+
+    // Emission
     if let Some(rate) = model.emission_rate {
         let amount = Nat::from(rate);
-        for (addr, _) in model.initial_distribution.iter() {
+        distribute_to_all(
+            &token_service,
+            &model.initial_distribution,
+            Some(amount),
+            DistributionType::Emission,
+            now,
+        )
+        .await;
+    }
+
+    // Unlock Schedule
+    if let Some(schedule) = &model.unlock_schedule {
+        for (ts_sec, amt) in schedule {
+            let scheduled_time_ns = ts_sec * 1_000_000_000;
+            if scheduled_time_ns <= now {
+                let amount_nat = Nat::from(*amt);
+                distribute_to_all(
+                    &token_service,
+                    &model.initial_distribution,
+                    Some(amount_nat),
+                    DistributionType::Scheduled,
+                    now,
+                )
+                .await;
+            }
+        }
+    }
+}
+
+async fn distribute_to_all(
+    token_service: &TokenICRC1,
+    distribution_map: &HashMap<String, u128>,
+    amount: Option<Nat>,
+    dist_type: DistributionType,
+    now: u64,
+) {
+    if let Some(amount) = amount {
+        for (addr, _) in distribution_map.iter() {
             let account = icrc1_account_from_str(addr);
-            match token_service
+            let result = token_service
                 .icrc1_transfer(
                     Some(HOLDER_SUBACCOUNT),
                     account,
@@ -35,60 +87,36 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
                     None,
                     None,
                 )
-                .await
-            {
+                .await;
+
+            match &result {
                 Ok(res) => ic_cdk::println!(
-                    "Distributed {} tokens to {} at time {}: {:?}",
-                    &amount,
-                    &addr,
-                    &now,
+                    "[{:?}] Distributed {} tokens to {} at time {}: {:?}",
+                    dist_type,
+                    amount,
+                    addr,
+                    now,
                     res
                 ),
                 Err(e) => ic_cdk::println!(
-                    "Failed to distribute {} tokens to {}: {:?}",
-                    &amount,
-                    &addr,
+                    "[{:?}] Failed to distribute {} tokens to {}: {:?}",
+                    dist_type,
+                    amount,
+                    addr,
                     e
                 ),
             }
-        }
-    }
 
-    // Unlock schedule distribution
-    if let Some(schedule) = &model.unlock_schedule {
-        for (ts_sec, amt) in schedule {
-            let scheduled_time_ns = ts_sec * 1_000_000_000;
-            if scheduled_time_ns <= now {
-                let amount_nat = Nat::from(*amt);
-                for (addr, _) in model.initial_distribution.iter() {
-                    let account = icrc1_account_from_str(addr);
-                    match token_service
-                        .icrc1_transfer(
-                            Some(HOLDER_SUBACCOUNT),
-                            account,
-                            amount_nat.clone(),
-                            None,
-                            None,
-                            None,
-                        )
-                        .await
-                    {
-                        Ok(res) => ic_cdk::println!(
-                            "Unlocked {} tokens to {} at time {}: {:?}",
-                            &amount_nat,
-                            &addr,
-                            &now,
-                            res
-                        ),
-                        Err(e) => ic_cdk::println!(
-                            "Failed to unlock {} tokens to {}: {:?}",
-                            &amount_nat,
-                            &addr,
-                            e
-                        ),
-                    }
-                }
-            }
+            store::distribution::add_distribution_record(DistributionRecord {
+                timestamp: now,
+                distribution_type: dist_type.clone(),
+                recipient: addr.clone(),
+                amount: amount.clone(),
+                tx_result: match &result {
+                    Ok(res) => format!("Success: {:?}", res),
+                    Err(e) => format!("Error: {:?}", e),
+                },
+            });
         }
     }
 }

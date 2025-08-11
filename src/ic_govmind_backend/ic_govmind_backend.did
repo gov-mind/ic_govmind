@@ -81,6 +81,14 @@ type DistributionModel = record {
   unlock_schedule : opt vec record { nat64; nat };
   emission_rate : opt nat;
 };
+type DistributionRecord = record {
+  distribution_type : DistributionType;
+  recipient : text;
+  timestamp : nat64;
+  amount : nat;
+  tx_result : text;
+};
+type DistributionType = variant { Initial; Emission; Scheduled };
 type GovernanceConfig = record {
   vote_weight_type : VoteWeightType;
   approval_threshold : nat64;
@@ -162,6 +170,9 @@ service : (opt CanisterArgs) -> {
   get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
   greet : (text) -> (text) query;
+  list_distribution_records : (nat64, nat64) -> (
+      vec record { nat64; DistributionRecord },
+    ) query;
   remove_admin : (principal) -> (Result);
   update_proposal_status : (nat64, ProposalStatus) -> (Result);
   wallet_balance : () -> (nat) query;

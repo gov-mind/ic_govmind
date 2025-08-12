@@ -37,6 +37,7 @@ ic-certified-map = "0.4"
 ic-canister-log = "0.2.0"
 ic-management-canister-types = "0.3.1"
 ic-secp256k1 = "0.1.0"
+ic-web3-rs = { git = "https://github.com/gov-mind/ic-web3-rs" }
 hex = "0.4.3"
 sha2 = "0.10.2"
 tiny-keccak = { version = "2.0.2", features = ["sha3"] }

@@ -17,6 +17,7 @@ ic-management-canister-types = { workspace = true }
 icrc-ledger-types = { workspace = true }
 ic-ledger-types = { workspace = true }
 ic-secp256k1 = { workspace = true }
+ic-web3-rs = { workspace = true }
 ciborium = { workspace = true }
 ciborium-io = { workspace = true }
 libsecp256k1 = { workspace = true }

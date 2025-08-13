@@ -60,6 +60,11 @@ impl State {
         *next_id += 1;
         id
     }
+
+    pub fn peek_next_id(&self, key: NextIdType) -> u64 {
+        let k = key.to_string();
+        *self.next_ids.get(&k).unwrap_or(&1)
+    }
 }
 
 #[derive(CandidType, Clone, Deserialize, Serialize, Debug)]

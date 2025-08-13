@@ -6,7 +6,10 @@ use ic_management_canister_types::{
 use std::{cell::RefCell, collections::HashMap};
 
 use ciborium::{from_reader, into_writer};
-use ic_govmind_types::dao::{Dao, DaoAsset, DaoMember, DistributionRecord, Proposal};
+use ic_govmind_types::{
+    chain::BlockchainConfig,
+    dao::{Dao, DaoAsset, DaoMember, DistributionRecord, Proposal},
+};
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
     storable::Bound,
@@ -14,6 +17,8 @@ use ic_stable_structures::{
 };
 use serde::Serialize;
 use std::borrow::Cow;
+
+use crate::types::{KeyEnvironment, NextIdType};
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct State {
@@ -27,8 +32,10 @@ pub struct State {
     pub derivation_path: Vec<Vec<u8>>,
     pub ecdsa_public_key: Option<EcdsaPublicKeyResult>,
     pub schnorr_public_key: Option<SchnorrPublicKeyResult>,
-    pub next_proposal_id: u64,
-    pub next_distribution_id: u64,
+
+    pub key_env: KeyEnvironment,
+    pub chain_config: Vec<BlockchainConfig>,
+    pub next_ids: HashMap<String, u64>,
 }
 
 impl Storable for State {
@@ -42,6 +49,16 @@ impl Storable for State {
 
     fn from_bytes(bytes: Cow<'_, [u8]>) -> Self {
         from_reader(&bytes[..]).expect("failed to decode State data")
+    }
+}
+
+impl State {
+    pub fn get_next_id(&mut self, key: NextIdType) -> u64 {
+        let k = key.to_string();
+        let next_id = self.next_ids.entry(k).or_insert(1);
+        let id = *next_id;
+        *next_id += 1;
+        id
     }
 }
 
@@ -210,11 +227,7 @@ pub mod state {
     }
 
     pub fn get_next_proposal_id() -> u64 {
-        state::with_mut(|s| {
-            let id = s.next_proposal_id;
-            s.next_proposal_id += 1;
-            id
-        })
+        state::with_mut(|s| s.get_next_id(NextIdType::Proposal))
     }
 }
 
@@ -296,8 +309,7 @@ pub mod distribution {
         DISTRIBUTION_HISTORY.with(|map| {
             STATE.with(|s| {
                 let mut st = s.borrow_mut();
-                let id = st.next_distribution_id;
-                st.next_distribution_id += 1;
+                let id = st.get_next_id(NextIdType::Distribution);
 
                 map.borrow_mut()
                     .insert(id, DistributionRecordWrapper(record));
@@ -317,5 +329,9 @@ pub mod distribution {
                 .map(|(id, w)| (id, w.into_inner()))
                 .collect()
         })
+    }
+
+    pub fn get_next_distribution_id() -> u64 {
+        state::with_mut(|s| s.get_next_id(NextIdType::Distribution))
     }
 }

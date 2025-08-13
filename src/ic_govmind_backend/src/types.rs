@@ -5,6 +5,7 @@ use ic_cdk::management_canister::{
 use ic_ledger_types::AccountIdentifier;
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Serialize;
+use std::str::FromStr;
 use tiny_keccak::{Hasher, Sha3};
 
 use crate::{
@@ -28,8 +29,9 @@ pub struct StatusResponse {
     pub heap_memory_size: Option<u64>,
 }
 
-#[derive(CandidType, Serialize, Deserialize, Debug, Clone)]
+#[derive(CandidType, Serialize, Deserialize, Debug, Clone, Default)]
 pub enum KeyEnvironment {
+    #[default]
     Local,
     Staging,
     Production,
@@ -132,5 +134,38 @@ impl From<&Principal> for Addresses {
         hasher.update(value.as_slice());
         hasher.finalize(&mut hash);
         Self::from(hash)
+    }
+}
+
+#[derive(Debug, Clone, PartialEq, Eq, Hash, Serialize, Deserialize)]
+pub enum NextIdType {
+    Distribution,
+    Proposal,
+    Order,
+    Payment,
+}
+
+impl ToString for NextIdType {
+    fn to_string(&self) -> String {
+        match self {
+            NextIdType::Distribution => "distribution",
+            NextIdType::Proposal => "proposal",
+            NextIdType::Order => "order",
+            NextIdType::Payment => "payment",
+        }
+        .to_string()
+    }
+}
+
+impl FromStr for NextIdType {
+    type Err = ();
+
+    fn from_str(s: &str) -> Result<Self, Self::Err> {
+        match s {
+            "distribution" => Ok(NextIdType::Distribution),
+            "order" => Ok(NextIdType::Order),
+            "payment" => Ok(NextIdType::Payment),
+            _ => Err(()),
+        }
     }
 }

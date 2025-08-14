@@ -163,6 +163,7 @@ impl FromStr for NextIdType {
     fn from_str(s: &str) -> Result<Self, Self::Err> {
         match s {
             "distribution" => Ok(NextIdType::Distribution),
+            "proposal" => Ok(NextIdType::Proposal),
             "order" => Ok(NextIdType::Order),
             "payment" => Ok(NextIdType::Payment),
             _ => Err(()),

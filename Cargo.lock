@@ -1415,6 +1415,7 @@ name = "ic-govmind-types"
 version = "0.1.0"
 dependencies = [
  "candid",
+ "evm_rpc_types",
  "ic-cdk",
  "ic-cdk-timers",
  "ic-ledger-types",
@@ -1541,6 +1542,7 @@ dependencies = [
  "ciborium-io",
  "derive_more 0.99.20",
  "ethers-core",
+ "evm_rpc_types",
  "getrandom 0.2.16",
  "hex",
  "ic-cdk",

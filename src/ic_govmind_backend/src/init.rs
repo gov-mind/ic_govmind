@@ -1,5 +1,6 @@
 use candid::{CandidType, Deserialize, Principal};
-use std::time::Duration;
+use evm_rpc_types::{EthMainnetService, RpcServices};
+use std::{collections::HashMap, time::Duration};
 
 use crate::{
     signer::ecdsa::get_ecdsa_public_key_result,
@@ -7,7 +8,11 @@ use crate::{
     types::{EcdsaKeyIds, KeyEnvironment, SchnorrKeyIds},
 };
 use ic_cdk::{init, post_upgrade, pre_upgrade};
-use ic_govmind_types::dao::Dao;
+use ic_govmind_types::{
+    chain::{BlockchainConfig, RpcConfig, SignatureType, TokenConfig, TokenStandard},
+    constants::{ETH_DEFAULT_GAS_PRICE, ETH_USDT_ADDRESS, ETH_WRAPPED_ETHER},
+    dao::{ChainType, Dao},
+};
 
 #[derive(CandidType, Clone, Debug, Deserialize)]
 pub enum CanisterArgs {
@@ -84,6 +89,12 @@ fn post_upgrade(args: Option<CanisterArgs>) {
                     state_ref.schnorr_key = Some(schnorr_key);
                     should_setup_ecdsa = true;
                 }
+
+                // init data
+                state_ref.chain_config = init_chain_config();
+                state_ref.next_ids = HashMap::new();
+                state_ref.next_ids.insert("distribution".to_string(), 1);
+                state_ref.next_ids.insert("proposal".to_string(), 1);
             });
 
             store::state::save();
@@ -114,4 +125,67 @@ async fn job_ecdsa_setup() {
         state.ecdsa_public_key = Some(ecdsa_response);
     });
     store::state::save();
+}
+
+fn init_chain_config() -> Vec<BlockchainConfig> {
+    let mut chains = Vec::new();
+
+    // 1. Initialize Ethereum Chain
+    let eth_chain = BlockchainConfig::new_eth_config(
+        "https://mainnet.infura.io/v3/862ac423417a4a4a728e181a0e4206f3c7".to_string(),
+        Some(1), // Ethereum mainnet chain ID
+        Some(RpcServices::EthMainnet(Some(vec![
+            EthMainnetService::PublicNode,
+        ]))),
+        Some(ETH_DEFAULT_GAS_PRICE),
+        vec![
+            TokenConfig {
+                token_name: "ETH".to_string(),
+                symbol: "ETH".to_string(),
+                contract_address: None,
+                wrapped_address: Some(ETH_WRAPPED_ETHER.to_string()),
+                decimal: 18,
+                chain_name: "Ethereum".to_string(),
+                standard: TokenStandard::Native,
+                ..Default::default()
+            },
+            TokenConfig {
+                token_name: "USDT".to_string(),
+                symbol: "USDT".to_string(),
+                contract_address: Some(ETH_USDT_ADDRESS.to_string()),
+                decimal: 6,
+                chain_name: "Ethereum".to_string(),
+                standard: TokenStandard::ERC20,
+                ..Default::default()
+            },
+        ],
+    );
+
+    // 2. Initialize Bitcoin Chain
+    let btc_chain = BlockchainConfig {
+        chain_type: ChainType::Bitcoin,
+        signature_type: SignatureType::Secp256k1,
+        nonce: None,
+        gas_price: None,
+        rpc_config: Some(RpcConfig {
+            rpc_url: "https://blockstream.info/api/".to_string(),
+            chain_id: None,
+            rpc_services: None,
+        }),
+        supported_tokens: vec![TokenConfig {
+            token_name: "BTC".to_string(),
+            symbol: "BTC".to_string(),
+            contract_address: None,
+            decimal: 8,
+            chain_name: "Bitcoin".to_string(),
+            standard: TokenStandard::Native,
+            ..Default::default()
+        }],
+        ..Default::default()
+    };
+
+    chains.push(eth_chain);
+    chains.push(btc_chain);
+
+    chains
 }

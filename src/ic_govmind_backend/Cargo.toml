@@ -35,3 +35,4 @@ bs58 = { workspace = true }
 ripemd = { workspace = true }
 
 ic-govmind-types = { path = "../ic_govmind_types", version = "0.1" }
+evm_rpc_types = { path = "../evm_rpc_types" }

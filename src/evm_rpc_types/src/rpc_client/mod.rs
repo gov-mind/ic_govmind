@@ -64,7 +64,7 @@ pub enum ConsensusStrategy {
     },
 }
 
-#[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize)]
+#[derive(Clone, Debug, PartialEq, Eq, CandidType, Deserialize, Serialize)]
 pub enum RpcServices {
     Custom {
         #[serde(rename = "chainId")]

@@ -1,7 +1,5 @@
-use std::collections::HashMap;
-
 use candid::{CandidType, Deserialize};
-
+use evm_rpc_types::RpcServices;
 use serde::Serialize;
 
 use crate::dao::ChainType;
@@ -42,13 +40,14 @@ pub struct TokenConfig {
     pub standard: TokenStandard,
 }
 
-#[derive(CandidType, Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(CandidType, Clone, Deserialize, Debug, Default, Serialize)]
 pub struct RpcConfig {
     pub rpc_url: String,
     pub chain_id: Option<u64>,
+    pub rpc_services: Option<RpcServices>,
 }
 
-#[derive(CandidType, Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(CandidType, Debug, Clone, Deserialize, Default, Serialize)]
 pub struct BlockchainConfig {
     pub chain_type: ChainType,
     pub signature_type: SignatureType,
@@ -62,6 +61,7 @@ impl BlockchainConfig {
     pub fn new_eth_config(
         rpc_url: String,
         chain_id: Option<u64>,
+        rpc_services: Option<RpcServices>,
         gas_price: Option<u64>,
         supported_tokens: Vec<TokenConfig>,
     ) -> Self {
@@ -70,7 +70,11 @@ impl BlockchainConfig {
             signature_type: SignatureType::Secp256k1,
             nonce: None,
             gas_price,
-            rpc_config: Some(RpcConfig { rpc_url, chain_id }),
+            rpc_config: Some(RpcConfig {
+                rpc_url,
+                chain_id,
+                rpc_services,
+            }),
             supported_tokens,
         }
     }

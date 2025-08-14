@@ -4,7 +4,7 @@ use crate::{
     store::{self, proposals, state},
     types::Addresses,
 };
-use ic_govmind_types::dao::{Dao, DistributionRecord, Proposal};
+use ic_govmind_types::{chain::BlockchainConfig, dao::{Dao, DistributionRecord, Proposal}};
 
 #[query]
 fn greet(name: String) -> String {
@@ -30,6 +30,11 @@ fn get_proposal(proposal_id: u64) -> Option<Proposal> {
 pub fn get_dao_wallet_addresses() -> Addresses {
     let dao = ic_cdk::api::canister_self();
     Addresses::from(&dao)
+}
+
+#[query]
+pub fn get_chain_configs() -> Vec<BlockchainConfig> {
+    store::state::with(|state| state.chain_config.clone())
 }
 
 #[query]

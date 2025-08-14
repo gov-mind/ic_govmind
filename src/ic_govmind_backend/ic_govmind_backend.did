@@ -17,6 +17,14 @@ type BaseToken = record {
   total_supply : nat;
   symbol : text;
 };
+type BlockchainConfig = record {
+  rpc_config : opt RpcConfig;
+  signature_type : SignatureType;
+  nonce : opt nat64;
+  chain_type : ChainType;
+  supported_tokens : vec TokenConfig;
+  gas_price : opt nat64;
+};
 type CanisterArgs = variant {
   Upgrade : StateUpgradeArgs;
   Init : StateInitArgs;
@@ -89,13 +97,30 @@ type DistributionRecord = record {
   tx_result : text;
 };
 type DistributionType = variant { Initial; Emission; Scheduled };
+type EthMainnetService = variant {
+  Alchemy;
+  Llama;
+  BlockPi;
+  Cloudflare;
+  PublicNode;
+  Ankr;
+};
+type EthSepoliaService = variant {
+  Alchemy;
+  BlockPi;
+  PublicNode;
+  Ankr;
+  Sepolia;
+};
 type GovernanceConfig = record {
   vote_weight_type : VoteWeightType;
   approval_threshold : nat64;
   voting_period_secs : nat64;
   quorum : nat64;
 };
+type HttpHeader = record { value : text; name : text };
 type KeyEnvironment = variant { Local; Production; Staging };
+type L2MainnetService = variant { Alchemy; Llama; BlockPi; PublicNode; Ankr };
 type MemberRole = variant { Founder; Voter; Contributor; Council; Observer };
 type MetadataValue = variant { Int : int; Nat : nat; Blob : blob; Text : text };
 type Proposal = record {
@@ -120,6 +145,21 @@ type ProposalStatus = variant {
 type Result = variant { Ok; Err : text };
 type Result_1 = variant { Ok : principal; Err : text };
 type Result_2 = variant { Ok : nat64; Err : text };
+type RpcApi = record { url : text; headers : opt vec HttpHeader };
+type RpcConfig = record {
+  rpc_services : opt RpcServices;
+  chain_id : opt nat64;
+  rpc_url : text;
+};
+type RpcServices = variant {
+  EthSepolia : opt vec EthSepoliaService;
+  BaseMainnet : opt vec L2MainnetService;
+  Custom : record { chainId : nat64; services : vec RpcApi };
+  OptimismMainnet : opt vec L2MainnetService;
+  ArbitrumOne : opt vec L2MainnetService;
+  EthMainnet : opt vec EthMainnetService;
+};
+type SignatureType = variant { Ed25519; Secp256k1 };
 type StateInitArgs = record {
   env : KeyEnvironment;
   root : principal;
@@ -140,11 +180,21 @@ type StatusResponse = record {
   cycles : opt nat64;
   heap_memory_size : opt nat64;
 };
+type TokenConfig = record {
+  wrapped_address : opt text;
+  chain_name : text;
+  contract_address : opt text;
+  token_name : text;
+  decimal : nat8;
+  standard : TokenStandard;
+  symbol : text;
+};
 type TokenLocation = record {
   chain : ChainType;
   canister_id : opt principal;
   contract_address : opt text;
 };
+type TokenStandard = variant { SPL; BEP20; ICRC1; Native; ERC20 };
 type Vote = record {
   weight : nat64;
   vote_choice : VoteChoice;
@@ -167,6 +217,7 @@ service : (opt CanisterArgs) -> {
   create_proposal : (text, text) -> (Result_2);
   dao_info : () -> (opt Dao) query;
   get_all_proposals : () -> (vec Proposal) query;
+  get_chain_configs : () -> (vec BlockchainConfig) query;
   get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
   greet : (text) -> (text) query;

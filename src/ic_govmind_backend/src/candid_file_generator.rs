@@ -6,6 +6,7 @@ use crate::{
 use candid::{export_service, Principal};
 use ic_cdk::query;
 use ic_govmind_types::{
+    chain::BlockchainConfig,
     dao::{CreateBaseTokenArg, Dao, DistributionRecord, Proposal, ProposalStatus},
     icrc::CreateCanisterArg,
 };

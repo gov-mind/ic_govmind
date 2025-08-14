@@ -48,6 +48,11 @@ fn init(args: Option<CanisterArgs>) {
                 state_ref.org_info = init_args.org_info;
                 state_ref.ecdsa_key = Some(ecdsa_key);
                 state_ref.schnorr_key = Some(schnorr_key);
+                // init data
+                state_ref.chain_config = init_chain_config();
+                state_ref.next_ids = HashMap::new();
+                state_ref.next_ids.insert("distribution".to_string(), 1);
+                state_ref.next_ids.insert("proposal".to_string(), 1);
             });
             store::state::save();
 
@@ -89,12 +94,6 @@ fn post_upgrade(args: Option<CanisterArgs>) {
                     state_ref.schnorr_key = Some(schnorr_key);
                     should_setup_ecdsa = true;
                 }
-
-                // init data
-                state_ref.chain_config = init_chain_config();
-                state_ref.next_ids = HashMap::new();
-                state_ref.next_ids.insert("distribution".to_string(), 1);
-                state_ref.next_ids.insert("proposal".to_string(), 1);
             });
 
             store::state::save();

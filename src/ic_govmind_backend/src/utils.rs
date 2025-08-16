@@ -188,3 +188,29 @@ pub fn derive_public_key(
         public_key: derived_public_key.serialize_sec1(true),
     }
 }
+
+/// Converts an IC Principal to a 32-byte Ethereum-compatible hexadecimal string.
+///
+/// # Arguments
+///
+/// * `principal` - An IC Principal to be converted.
+///
+/// # Returns
+///
+/// A 32-byte hexadecimal string representation of the Principal.
+pub fn principal_to_eth_hex(principal: &Principal) -> [u8; 32] {
+    let principal_bytes = principal.as_slice();
+    let n = principal_bytes.len();
+
+    let mut fixed_bytes = [0u8; 32];
+    fixed_bytes[0] = n as u8;
+    fixed_bytes[1..=n].copy_from_slice(principal_bytes);
+
+    fixed_bytes
+}
+
+pub fn principal_to_eth_hex_str(principal: &Principal) -> String {
+    let fixed_bytes = principal_to_eth_hex(principal);
+    // Convert the array to a hexadecimal string prefixed with `0x`
+    format!("0x{}", hex::encode(fixed_bytes))
+}

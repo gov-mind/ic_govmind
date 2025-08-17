@@ -1,4 +1,4 @@
-use candid::{Encode, Principal};
+use candid::{Encode, Nat, Principal};
 use ic_cdk::management_canister::{
     create_canister_with_extra_cycles, install_code, CanisterInstallMode, CanisterSettings,
     CreateCanisterArgs, EcdsaPublicKeyResult, InstallCodeArgs,
@@ -213,4 +213,12 @@ pub fn principal_to_eth_hex_str(principal: &Principal) -> String {
     let fixed_bytes = principal_to_eth_hex(principal);
     // Convert the array to a hexadecimal string prefixed with `0x`
     format!("0x{}", hex::encode(fixed_bytes))
+}
+
+pub fn convert_subaccount(subaccount: Option<Subaccount>) -> Option<[u8; 32]> {
+    subaccount.map(|s| s.0)
+}
+
+pub fn nat_to_u128(nat: &Nat) -> Option<u128> {
+    nat.0.clone().try_into().ok()
 }

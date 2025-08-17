@@ -25,6 +25,7 @@ pub enum TokenStandard {
     Native,
     ERC20,
     ICRC1,
+    ICRC2,
     SPL,
     BEP20,
 }
@@ -94,9 +95,8 @@ impl BlockchainConfig {
         }
     }
 
-    fn get_token_config(&self, token_name: &str) -> Result<&TokenConfig, String> {
-        self
-            .supported_tokens
+    pub fn get_token_config(&self, token_name: &str) -> Result<&TokenConfig, String> {
+        self.supported_tokens
             .iter()
             .find(|t| t.token_name == token_name)
             .ok_or_else(|| format!("Token {} not supported", token_name))

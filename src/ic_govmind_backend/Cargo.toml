@@ -20,15 +20,15 @@ ic-secp256k1 = { workspace = true }
 ic-web3-rs = { workspace = true }
 ciborium = { workspace = true }
 ciborium-io = { workspace = true }
+ethers-core = { workspace = true }
 libsecp256k1 = { workspace = true }
 serde = { workspace = true }
 serde_bytes = { workspace = true }
 serde_json = { workspace = true }
 sha2 = { workspace = true }
 getrandom = { workspace = true, features = ["custom"] }
-hex = { workspace = true } 
-derive_more = { workspace = true } 
-ethers-core = { workspace = true }
+hex = { workspace = true }
+derive_more = { workspace = true }
 tiny-keccak = { workspace = true }
 bitcoin_hashes = { workspace = true }
 base58 = { workspace = true }

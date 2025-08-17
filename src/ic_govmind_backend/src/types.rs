@@ -1,4 +1,5 @@
 use candid::{CandidType, Deserialize, Principal};
+use evm_rpc_types::{EthMainnetService, EthSepoliaService, RpcApi, RpcService};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
@@ -35,6 +36,19 @@ pub enum KeyEnvironment {
     Local,
     Staging,
     Production,
+}
+
+impl KeyEnvironment {
+    pub fn get_rpc_service(&self) -> RpcService {
+        match self {
+            KeyEnvironment::Staging => RpcService::EthSepolia(EthSepoliaService::PublicNode),
+            KeyEnvironment::Local => RpcService::Custom(RpcApi {
+                url: "http://127.0.0.1:8545".to_string(),
+                headers: None,
+            }),
+            KeyEnvironment::Production => RpcService::EthMainnet(EthMainnetService::PublicNode),
+        }
+    }
 }
 
 #[derive(CandidType, Serialize, Deserialize, Debug, Clone)]

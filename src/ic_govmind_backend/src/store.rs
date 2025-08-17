@@ -234,6 +234,10 @@ pub mod state {
     pub fn get_next_proposal_id() -> u64 {
         state::with_mut(|s| s.get_next_id(NextIdType::Proposal))
     }
+
+    pub fn get_env() -> KeyEnvironment {
+        state::with(|r| r.key_env.clone())
+    }
 }
 
 pub mod proposals {

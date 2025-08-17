@@ -5,7 +5,7 @@ use crate::{
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
 use candid::{CandidType, Deserialize};
-use ic_govmind_types::dao::ChainType;
+use ic_govmind_types::{chain::BlockchainConfig, dao::ChainType};
 use ic_ledger_types::Subaccount;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
 use serde::Serialize;
@@ -102,3 +102,6 @@ impl WalletConfig {
         return Ok(address);
     }
 }
+
+#[derive(Debug, Clone)]
+pub struct WalletBlockchainConfig(pub BlockchainConfig);

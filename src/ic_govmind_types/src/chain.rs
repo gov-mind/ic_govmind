@@ -93,4 +93,12 @@ impl BlockchainConfig {
             supported_tokens,
         }
     }
+
+    fn get_token_config(&self, token_name: &str) -> Result<&TokenConfig, String> {
+        self
+            .supported_tokens
+            .iter()
+            .find(|t| t.token_name == token_name)
+            .ok_or_else(|| format!("Token {} not supported", token_name))
+    }
 }

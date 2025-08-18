@@ -2,14 +2,20 @@ use candid::Principal;
 
 use ic_cdk::update;
 use ic_govmind_types::{
+    chain::BlockchainConfig,
     dao::{BaseToken, ChainType, CreateBaseTokenArg, Dao, ProposalStatus, TokenLocation},
     icrc::CreateCanisterArg,
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 
 use crate::{
-    guards::not_anonymous, store, timer::setup_token_distribution_timer,
-    utils::create_icrc1_canister, ICRC1_WASM,
+    guards::not_anonymous,
+    store,
+    timer::setup_token_distribution_timer,
+    types::{BalanceResult, QueryBalanceArg},
+    utils::create_icrc1_canister,
+    wallet::WalletBlockchainConfig,
+    ICRC1_WASM,
 };
 
 #[update]
@@ -129,4 +135,21 @@ pub async fn update_proposal_status(
     }
 
     store::proposals::update_proposal_status(proposal_id, status)
+}
+
+#[update]
+pub async fn query_wallet_balance(arg: QueryBalanceArg) -> Result<BalanceResult, String> {
+    let chain_config = store::state::get_chain_config(&arg.chain_type)
+        .ok_or_else(|| format!("Chain config not found for {:?}", arg.chain_type))?;
+
+    let wallet_chain = WalletBlockchainConfig(chain_config);
+
+    let balance = wallet_chain
+        .query_balance(&arg.token_name, &arg.wallet_address, &arg.subaccount)
+        .await?;
+
+    Ok(BalanceResult {
+        token_name: arg.token_name,
+        balance,
+    })
 }

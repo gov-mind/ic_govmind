@@ -25,7 +25,7 @@ pub struct Dao {
     pub created_at: u64,
 }
 
-#[derive(CandidType, Debug, Clone, Serialize, Deserialize, Default)]
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize, Default, PartialEq, Eq)]
 pub enum ChainType {
     #[default]
     InternetComputer,

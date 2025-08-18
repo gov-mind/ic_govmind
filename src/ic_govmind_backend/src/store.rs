@@ -8,7 +8,7 @@ use std::{cell::RefCell, collections::HashMap};
 use ciborium::{from_reader, into_writer};
 use ic_govmind_types::{
     chain::BlockchainConfig,
-    dao::{Dao, DaoAsset, DaoMember, DistributionRecord, Proposal},
+    dao::{ChainType, Dao, DaoAsset, DaoMember, DistributionRecord, Proposal},
 };
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
@@ -64,6 +64,13 @@ impl State {
     pub fn peek_next_id(&self, key: NextIdType) -> u64 {
         let k = key.to_string();
         *self.next_ids.get(&k).unwrap_or(&1)
+    }
+
+    pub fn get_chain_config_by_type(&self, chain_type: &ChainType) -> Option<BlockchainConfig> {
+        self.chain_config
+            .iter()
+            .find(|cfg| &cfg.chain_type == chain_type)
+            .cloned()
     }
 }
 
@@ -149,6 +156,8 @@ where
 }
 
 pub mod state {
+    use ethers_core::utils::ChainConfig;
+
     use super::*;
 
     pub fn with<R>(f: impl FnOnce(&State) -> R) -> R {
@@ -237,6 +246,10 @@ pub mod state {
 
     pub fn get_env() -> KeyEnvironment {
         state::with(|r| r.key_env.clone())
+    }
+
+    pub fn get_chain_config(chain_type: &ChainType) -> Option<BlockchainConfig> {
+        state::with(|r| r.get_chain_config_by_type(chain_type))
     }
 }
 

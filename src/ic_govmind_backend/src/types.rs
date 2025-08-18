@@ -3,7 +3,8 @@ use evm_rpc_types::{EthMainnetService, EthSepoliaService, RpcApi, RpcService};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
-use ic_ledger_types::AccountIdentifier;
+use ic_govmind_types::dao::ChainType;
+use ic_ledger_types::{AccountIdentifier, Subaccount};
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Serialize;
 use std::str::FromStr;
@@ -183,4 +184,18 @@ impl FromStr for NextIdType {
             _ => Err(()),
         }
     }
+}
+
+#[derive(Debug, Clone, CandidType, Deserialize)]
+pub struct QueryBalanceArg {
+    pub chain_type: ChainType,
+    pub token_name: String,
+    pub wallet_address: String,
+    pub subaccount: Option<Subaccount>,
+}
+
+#[derive(Debug, Clone, CandidType, Deserialize)]
+pub struct BalanceResult {
+    pub token_name: String,
+    pub balance: u128,
 }

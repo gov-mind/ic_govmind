@@ -129,7 +129,7 @@ impl WalletBlockchainConfig {
         // Match the blockchain type and query balance based on the token standard
         let balance = match self.0.chain_type {
             ChainType::InternetComputer => {
-                self.query_balance_internet_computer(&token_config, subaccount)
+                self.query_balance_internet_computer(&token_config, wallet_address, subaccount)
                     .await
             }
             ChainType::Ethereum => {
@@ -145,11 +145,19 @@ impl WalletBlockchainConfig {
     async fn query_balance_internet_computer(
         &self,
         token: &TokenConfig,
+        wallet_address: &str,
         subaccount: &Option<Subaccount>,
     ) -> Result<u128, String> {
+        let wallet_pid = if !wallet_address.is_empty() {
+            Principal::from_text(wallet_address)
+                .map_err(|_| "Invalid wallet_address Principal".to_string())?
+        } else {
+            owner_wallet_pid()
+        };
+
         match token.standard {
             TokenStandard::Native => {
-                let wallet_account_id = account_id(owner_wallet_pid(), subaccount.clone());
+                let wallet_account_id = account_id(wallet_pid, subaccount.clone());
                 let balance_arg = AccountBalanceArgs {
                     account: wallet_account_id,
                 };

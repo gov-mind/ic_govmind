@@ -9,6 +9,7 @@ type Addresses = record {
   account_identifier_string : text;
 };
 type AssetType = variant { Fungible; NonFungible };
+type BalanceResult = record { balance : nat; token_name : text };
 type BaseToken = record {
   decimals : nat8;
   name : text;
@@ -142,9 +143,16 @@ type ProposalStatus = variant {
   Executed;
   Expired;
 };
+type QueryBalanceArg = record {
+  subaccount : opt blob;
+  wallet_address : text;
+  chain_type : ChainType;
+  token_name : text;
+};
 type Result = variant { Ok; Err : text };
 type Result_1 = variant { Ok : principal; Err : text };
 type Result_2 = variant { Ok : nat64; Err : text };
+type Result_3 = variant { Ok : BalanceResult; Err : text };
 type RpcApi = record { url : text; headers : opt vec HttpHeader };
 type RpcConfig = record {
   rpc_services : opt RpcServices;
@@ -194,7 +202,7 @@ type TokenLocation = record {
   canister_id : opt principal;
   contract_address : opt text;
 };
-type TokenStandard = variant { SPL; BEP20; ICRC1; Native; ERC20 };
+type TokenStandard = variant { SPL; BEP20; ICRC1; ICRC2; Native; ERC20 };
 type Vote = record {
   weight : nat64;
   vote_choice : VoteChoice;
@@ -217,6 +225,7 @@ service : (opt CanisterArgs) -> {
   create_proposal : (text, text) -> (Result_2);
   dao_info : () -> (opt Dao) query;
   get_all_proposals : () -> (vec Proposal) query;
+  get_chain_config_by_type : (ChainType) -> (opt BlockchainConfig) query;
   get_chain_configs : () -> (vec BlockchainConfig) query;
   get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
@@ -224,6 +233,7 @@ service : (opt CanisterArgs) -> {
   list_distribution_records : (nat64, nat64) -> (
       vec record { nat64; DistributionRecord },
     ) query;
+  query_wallet_balance : (QueryBalanceArg) -> (Result_3);
   remove_admin : (principal) -> (Result);
   update_proposal_status : (nat64, ProposalStatus) -> (Result);
   wallet_balance : () -> (nat) query;

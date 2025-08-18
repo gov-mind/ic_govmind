@@ -1,13 +1,13 @@
 use crate::{
     api_cycles::WalletReceiveResult,
     init::CanisterArgs,
-    types::{Addresses, StatusRequest, StatusResponse},
+    types::{Addresses, BalanceResult, QueryBalanceArg, StatusRequest, StatusResponse},
 };
 use candid::{export_service, Principal};
 use ic_cdk::query;
 use ic_govmind_types::{
     chain::BlockchainConfig,
-    dao::{CreateBaseTokenArg, Dao, DistributionRecord, Proposal, ProposalStatus},
+    dao::{ChainType, CreateBaseTokenArg, Dao, DistributionRecord, Proposal, ProposalStatus},
     icrc::CreateCanisterArg,
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;

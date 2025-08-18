@@ -39,6 +39,7 @@ pub struct TokenConfig {
     pub decimal: u8,
     pub chain_name: String,
     pub standard: TokenStandard,
+    pub fee: u64,
 }
 
 #[derive(CandidType, Clone, Deserialize, Debug, Default, Serialize)]

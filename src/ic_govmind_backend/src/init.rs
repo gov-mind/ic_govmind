@@ -126,10 +126,66 @@ async fn job_ecdsa_setup() {
     store::state::save();
 }
 
-fn init_chain_config() -> Vec<BlockchainConfig> {
+pub fn init_chain_config() -> Vec<BlockchainConfig> {
     let mut chains = Vec::new();
 
-    // 1. Initialize Ethereum Chain
+    // 1. Initialize Internet Computer Chain
+    let icp_chain = BlockchainConfig {
+        chain_type: ChainType::InternetComputer,
+        signature_type: SignatureType::Ed25519,
+        nonce: None,
+        gas_price: None,
+        rpc_config: Some(RpcConfig {
+            rpc_url: "https://icp.network.rpc".to_string(),
+            chain_id: None,
+            rpc_services: None,
+        }),
+        supported_tokens: vec![
+            TokenConfig {
+                token_name: "ICP".to_string(),
+                symbol: "ICP".to_string(),
+                contract_address: Some(String::from("ryjl3-tyaaa-aaaaa-aaaba-cai")),
+                decimal: 8,
+                chain_name: "Internet Computer".to_string(),
+                standard: TokenStandard::Native,
+                fee: 10_000,
+                ..Default::default()
+            },
+            TokenConfig {
+                token_name: "ckETH".to_string(),
+                symbol: "ckETH".to_string(),
+                contract_address: Some(String::from("ss2fx-dyaaa-aaaar-qacoq-cai")),
+                decimal: 18,
+                chain_name: "Internet Computer".to_string(),
+                standard: TokenStandard::ICRC2,
+                fee: 2_000_000_000_000,
+                ..Default::default()
+            },
+            TokenConfig {
+                token_name: "ckUSDT".to_string(),
+                symbol: "ckUSDT".to_string(),
+                contract_address: Some(String::from("cngnf-vqaaa-aaaar-qag4q-cai")),
+                decimal: 6,
+                chain_name: "Internet Computer".to_string(),
+                standard: TokenStandard::ICRC1,
+                fee: 10_000,
+                ..Default::default()
+            },
+            TokenConfig {
+                token_name: "ckUSDC".to_string(),
+                symbol: "ckUSDC".to_string(),
+                contract_address: Some(String::from("xevnm-gaaaa-aaaar-qafnq-cai")),
+                decimal: 6,
+                chain_name: "Internet Computer".to_string(),
+                standard: TokenStandard::ICRC1,
+                fee: 10_000,
+                ..Default::default()
+            },
+        ],
+        ..Default::default()
+    };
+
+    // 2. Initialize Ethereum Chain
     let eth_chain = BlockchainConfig::new_eth_config(
         "https://mainnet.infura.io/v3/862ac423417a4a4a728e181a0e4206f3c7".to_string(),
         Some(1), // Ethereum mainnet chain ID
@@ -160,7 +216,7 @@ fn init_chain_config() -> Vec<BlockchainConfig> {
         ],
     );
 
-    // 2. Initialize Bitcoin Chain
+    // 3. Initialize Bitcoin Chain
     let btc_chain = BlockchainConfig {
         chain_type: ChainType::Bitcoin,
         signature_type: SignatureType::Secp256k1,
@@ -183,6 +239,7 @@ fn init_chain_config() -> Vec<BlockchainConfig> {
         ..Default::default()
     };
 
+    chains.push(icp_chain);
     chains.push(eth_chain);
     chains.push(btc_chain);
 

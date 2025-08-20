@@ -156,8 +156,6 @@ where
 }
 
 pub mod state {
-    use ethers_core::utils::ChainConfig;
-
     use super::*;
 
     pub fn with<R>(f: impl FnOnce(&State) -> R) -> R {
@@ -250,6 +248,24 @@ pub mod state {
 
     pub fn get_chain_config(chain_type: &ChainType) -> Option<BlockchainConfig> {
         state::with(|r| r.get_chain_config_by_type(chain_type))
+    }
+
+    pub fn update_chain_config(
+        chain_type: ChainType,
+        f: impl FnOnce(&mut BlockchainConfig),
+    ) -> Result<(), String> {
+        state::with_mut(|s| {
+            if let Some(chain) = s
+                .chain_config
+                .iter_mut()
+                .find(|c| c.chain_type == chain_type)
+            {
+                f(chain);
+                Ok(())
+            } else {
+                Err(format!("Chain {:?} not found", chain_type))
+            }
+        })
     }
 }
 

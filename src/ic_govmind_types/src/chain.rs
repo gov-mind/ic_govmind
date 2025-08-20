@@ -102,4 +102,16 @@ impl BlockchainConfig {
             .find(|t| t.token_name == token_name)
             .ok_or_else(|| format!("Token {} not supported", token_name))
     }
+
+    pub fn add_token_config(&mut self, token_config: TokenConfig) {
+        if self
+            .supported_tokens
+            .iter()
+            .any(|t| t.token_name == token_config.token_name)
+        {
+            return;
+        }
+
+        self.supported_tokens.push(token_config);
+    }
 }

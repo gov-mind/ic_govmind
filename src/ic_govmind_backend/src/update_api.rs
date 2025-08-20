@@ -2,7 +2,7 @@ use candid::Principal;
 
 use ic_cdk::update;
 use ic_govmind_types::{
-    chain::BlockchainConfig,
+    chain::{TokenConfig, TokenStandard},
     dao::{BaseToken, ChainType, CreateBaseTokenArg, Dao, ProposalStatus, TokenLocation},
     icrc::CreateCanisterArg,
 };
@@ -53,8 +53,8 @@ pub async fn create_dao_base_token(
     let token_canister_id = create_icrc1_canister(icrc_arg, ICRC1_WASM.to_vec()).await?;
 
     let base_token = BaseToken {
-        name: arg.name,
-        symbol: arg.symbol,
+        name: arg.name.clone(),
+        symbol: arg.symbol.clone(),
         decimals: arg.decimals,
         total_supply: arg.total_supply,
         distribution_model: arg.distribution_model.clone(),
@@ -71,6 +71,22 @@ pub async fn create_dao_base_token(
         ..old_dao
     };
     store::state::update_org_info(new_dao);
+
+    // Add token to the Internet Computer chain config
+    let token_cfg = TokenConfig {
+        token_name: arg.name,
+        symbol: arg.symbol,
+        contract_address: Some(token_canister_id.to_string()),
+        decimal: arg.decimals,
+        chain_name: "Internet Computer".to_string(),
+        standard: TokenStandard::ICRC1,
+        fee: 10_000,
+        ..Default::default()
+    };
+
+    store::state::update_chain_config(ChainType::InternetComputer, |icp_chain| {
+        icp_chain.add_token_config(token_cfg);
+    })?;
 
     if let Some(ref model) = arg.distribution_model {
         if model.emission_rate.is_some() || model.unlock_schedule.is_some() {

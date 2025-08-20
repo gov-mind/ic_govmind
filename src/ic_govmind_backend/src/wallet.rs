@@ -186,11 +186,14 @@ impl WalletBlockchainConfig {
                 let canister_service = TokenICRC1::new(token_address)?;
 
                 match canister_service.icrc1_balance_of(wallet_account).await {
-                    Ok(balance) => match nat_to_u128(&balance.0) {
+                    Ok(balance) => match nat_to_u128(&balance) {
                         Some(value) => Ok(value),
                         None => Err("Balance is too large to fit in a u64".to_string()),
                     },
-                    Err(_) => Err("Failed to query ICRC1 balance".to_string()),
+                    Err(e) => {
+                        ic_cdk::println!("[query_balance_internet_computer] Failed to query ICRC1 balance, wallet_account={:?}, token_canister={:?}, err={:?}", wallet_account.to_string(), token.contract_address, e);
+                        Err("Failed to query ICRC1 balance".to_string())
+                    }
                 }
             }
             _ => Err("Token standard not supported on Internet Computer".to_string()),

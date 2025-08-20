@@ -76,13 +76,14 @@ impl TokenICRC1 {
         }
     }
 
-    pub async fn icrc1_balance_of(&self, account: Account) -> Result<(Nat,), String> {
-        match Call::bounded_wait(self.principal, "icrc1_balance_of")
-            .with_arg(account)
-            .await
-        {
-            Ok(res) => match res.candid() {
-                Ok(result) => Ok(result),
+    pub async fn icrc1_balance_of(&self, account: Account) -> Result<Nat, String> {
+        let res = Call::bounded_wait(self.principal, "icrc1_balance_of")
+            .with_arg(&account)
+            .await;
+
+        match res {
+            Ok(resp) => match resp.candid::<Nat>() {
+                Ok(balance) => Ok(balance),
                 Err(e) => Err(format!("Decoding error: {:?}", e)),
             },
             Err(e) => Err(format!("Call failed: {:?}", e)),

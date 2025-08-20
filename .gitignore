@@ -33,5 +33,9 @@ dist/
 # Trae Rules
 .trae/
 
+# Qwen Coder
+GEMINI.md
+QWEN.md
+
 # Export Files
 export*.did

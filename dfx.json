@@ -54,8 +54,8 @@
     },
     "evm_rpc": {
       "type": "custom",
-      "candid": "https://github.com/internet-computer-protocol/evm-rpc-canister/releases/latest/download/evm_rpc.did",
-      "wasm": "https://github.com/internet-computer-protocol/evm-rpc-canister/releases/latest/download/evm_rpc.wasm.gz"
+      "candid": "wasm/evm_rpc/evm_rpc.did",
+      "wasm": "wasm/evm_rpc/evm_rpc.wasm.gz"
     }
   },
   "defaults": {

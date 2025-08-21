@@ -3,6 +3,19 @@ import { AuthClient } from "@dfinity/auth-client";
 import { HttpAgent } from "@dfinity/agent";
 import { createActor as createFactoryActor } from "declarations/ic_govmind_factory";
 
+// Debug environment variables
+console.log('Process.env variables:', {
+  CANISTER_ID_INTERNET_IDENTITY: process.env.CANISTER_ID_INTERNET_IDENTITY,
+  CANISTER_ID_IC_GOVMIND_FACTORY: process.env.CANISTER_ID_IC_GOVMIND_FACTORY,
+  DFX_NETWORK: process.env.DFX_NETWORK
+});
+console.log('Import.meta.env variables:', {
+  CANISTER_ID_INTERNET_IDENTITY: import.meta.env.CANISTER_ID_INTERNET_IDENTITY,
+  CANISTER_ID_IC_GOVMIND_FACTORY: import.meta.env.CANISTER_ID_IC_GOVMIND_FACTORY,
+  DFX_NETWORK: import.meta.env.DFX_NETWORK
+});
+console.log('All import.meta.env:', import.meta.env);
+
 const II_LOCAL_URL = `http://${process.env.CANISTER_ID_INTERNET_IDENTITY}.localhost:4943`;
 const II_URL = process.env.DFX_NETWORK == 'local' ? II_LOCAL_URL: (process.env.DFX_NETWORK == 'ic' ? 'https://identity.ic0.app' : II_LOCAL_URL);
 
@@ -72,4 +85,4 @@ export function AuthProvider({ children }) {
 
 export function useAuthClient() {
   return useContext(AuthContext);
-} 
+}

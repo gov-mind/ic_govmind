@@ -36,17 +36,30 @@ import {
 function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
   const [proposalTitle, setProposalTitle] = useState('');
   const [proposalDescription, setProposalDescription] = useState('');
-  const [isSubmitting, setIsSubmitting] = useState(false);
   const [useAIAnalysis, setUseAIAnalysis] = useState(true);
   const [aiProvider, setAiProvider] = useState('deepseek');
   const submitProposalMutation = useSubmitProposal();
 
   const handleSubmit = async (event) => {
     event.preventDefault();
-    if (!proposalTitle.trim() || !proposalDescription.trim() || isSubmitting) return;
+    
+    console.log('🔍 DEBUG: handleSubmit called');
+    console.log('🔍 DEBUG: submitProposalMutation state:', {
+      isPending: submitProposalMutation.isPending,
+      isLoading: submitProposalMutation.isLoading,
+      status: submitProposalMutation.status,
+      isIdle: submitProposalMutation.isIdle,
+      isError: submitProposalMutation.isError,
+      isSuccess: submitProposalMutation.isSuccess
+    });
+    
+    if (!proposalTitle.trim() || !proposalDescription.trim() || submitProposalMutation.isPending || submitProposalMutation.isLoading) {
+      console.log('🔍 DEBUG: Early return - validation failed or mutation is pending/loading');
+      return;
+    }
 
-    setIsSubmitting(true);
     try {
+      console.log('🔍 DEBUG: About to call mutateAsync');
       const proposalId = await submitProposalMutation.mutateAsync({
         title: proposalTitle,
         description: proposalDescription,
@@ -54,10 +67,11 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
         aiProvider: aiProvider
       });
 
-      // Clear form and state, then close modal
+      console.log('🔍 DEBUG: mutateAsync completed successfully');
+      
+      // Clear form and close modal
       setProposalTitle('');
       setProposalDescription('');
-      setIsSubmitting(false);
       onClose();
 
       // Auto-select the newly submitted proposal
@@ -66,14 +80,12 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
       }
 
     } catch (error) {
-      console.error('Error submitting proposal:', error);
-      setIsSubmitting(false);
+      console.error('🔍 DEBUG: Error submitting proposal:', error);
     }
   };
 
   const handleClose = () => {
-    if (!isSubmitting && !submitProposalMutation.isLoading) {
-      setIsSubmitting(false);
+    if (!submitProposalMutation.isPending && !submitProposalMutation.isLoading) {
       onClose();
     }
   };
@@ -95,7 +107,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
             <button
               onClick={handleClose}
               className="w-8 h-8 rounded-full bg-slate-100 hover:bg-slate-200 flex items-center justify-center transition-colors"
-              disabled={submitProposalMutation.isLoading || isSubmitting}
+              disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
             >
               <span className="text-slate-600 text-lg">×</span>
             </button>
@@ -114,7 +126,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                 onChange={(e) => setProposalTitle(e.target.value)}
                 placeholder="e.g., Marketing Budget Allocation for Q1 2024"
                 className="w-full h-12 px-4 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-slate-50 focus:bg-white transition-all duration-200 text-sm"
-                disabled={submitProposalMutation.isLoading || isSubmitting}
+                disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
               />
             </div>
 
@@ -129,7 +141,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                 placeholder="Provide a detailed description of your proposal, including objectives, budget breakdown, timeline, and expected outcomes..."
                 rows={8}
                 className="w-full px-4 py-3 border border-slate-300 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent resize-none transition-all duration-200 bg-slate-50 focus:bg-white text-sm"
-                disabled={submitProposalMutation.isLoading || isSubmitting}
+                disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
               />
             </div>
 
@@ -150,7 +162,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                     id="useAIAnalysis"
                     checked={useAIAnalysis}
                     onChange={(e) => setUseAIAnalysis(e.target.checked)}
-                    disabled={submitProposalMutation.isLoading || isSubmitting}
+                    disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
                     className="sr-only"
                   />
                   <div className={`w-11 h-6 rounded-full transition-colors ${
@@ -172,7 +184,7 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
                     id="aiProvider"
                     value={aiProvider}
                     onChange={(e) => setAiProvider(e.target.value)}
-                    disabled={submitProposalMutation.isLoading || isSubmitting}
+                    disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
                     className="w-full px-3 py-2 text-sm border border-blue-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-transparent bg-white"
                   >
                     <option value="deepseek">DeepSeek (Recommended)</option>
@@ -190,29 +202,43 @@ function ProposalSubmissionModal({ isOpen, onClose, onProposalSubmitted }) {
               <button
                 type="button"
                 onClick={handleClose}
-                disabled={submitProposalMutation.isLoading || isSubmitting}
+                disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
                 className="flex-1 py-3 px-4 border border-slate-300 text-slate-700 rounded-xl hover:bg-slate-50 disabled:opacity-50 disabled:cursor-not-allowed transition-all duration-200 font-medium"
               >
                 Cancel
               </button>
               <button
                 type="submit"
-                disabled={submitProposalMutation.isLoading || isSubmitting || !proposalTitle.trim() || !proposalDescription.trim()}
+                disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading || !proposalTitle.trim() || !proposalDescription.trim()}
                 className="flex-1 bg-gradient-to-r from-blue-700 to-cyan-600 text-white py-3 px-4 rounded-xl hover:from-blue-800 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm"
+                onClick={() => {
+                  console.log('🔍 DEBUG: Submit button clicked');
+                  console.log('🔍 DEBUG: Button disabled state:', {
+                    titleEmpty: !proposalTitle.trim(),
+                    descriptionEmpty: !proposalDescription.trim(),
+                    isPending: submitProposalMutation.isPending,
+                    isLoading: submitProposalMutation.isLoading,
+                    overallDisabled: submitProposalMutation.isPending || submitProposalMutation.isLoading || !proposalTitle.trim() || !proposalDescription.trim()
+                  });
+                }}
               >
-                {(submitProposalMutation.isLoading || isSubmitting) ? (
-                  <div className="flex items-center justify-center space-x-2">
-                    <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                    <span>{useAIAnalysis ? 'Analyzing...' : 'Submitting...'}</span>
-                  </div>
-                ) : (
-                  useAIAnalysis ? 'Submit & Analyze with AI' : 'Submit Proposal'
-                )}
+                {(() => {
+                  const isLoading = submitProposalMutation.isPending || submitProposalMutation.isLoading;
+                  console.log('🔍 DEBUG: Button render - isLoading:', isLoading);
+                  return isLoading ? (
+                    <div className="flex items-center justify-center space-x-2">
+                      <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                      <span>{useAIAnalysis ? 'Analyzing...' : 'Submitting...'}</span>
+                    </div>
+                  ) : (
+                    useAIAnalysis ? 'Submit & Analyze with AI' : 'Submit Proposal'
+                  );
+                })()}
               </button>
             </div>
 
             {/* Loading Status */}
-            {(submitProposalMutation.isLoading || isSubmitting) && (
+            {(submitProposalMutation.isPending || submitProposalMutation.isLoading) && (
               <div className="mt-4 p-4 bg-blue-50 border border-blue-200 rounded-xl">
                 <div className="flex items-center space-x-2">
                   <div className="w-4 h-4 border-2 border-blue-500 border-t-transparent rounded-full animate-spin"></div>
@@ -324,17 +350,8 @@ function ProposalsPage() {
   // Handle retry analysis
   const handleRetryAnalysis = async (proposalId) => {
     try {
-      // Find the proposal data to get title and description
-      const proposal = proposals.find(p => p.id === proposalId);
-      if (!proposal) {
-        console.error('Proposal not found for retry:', proposalId);
-        return;
-      }
-      
       await proposalAnalysisMutation.mutateAsync({
         proposalId: proposalId,
-        title: proposal.title,
-        description: proposal.description,
         isRetry: true
       });
     } catch (error) {
@@ -832,4 +849,4 @@ function ProposalsPage() {
   );
 }
 
-export default ProposalsPage; 
+export default ProposalsPage;

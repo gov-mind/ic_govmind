@@ -24,7 +24,7 @@ import {
 } from 'lucide-react';
 import Markdown from 'react-markdown';
 import { useSnsProposals, useSnsCanister } from '../hooks/useSnsGovernance';
-import { useProposalExists, useSubmitProposal, useProposal, useProposalAnalysis, getStatusString, getStatusBadgeClass, getStatusIcon } from '../hooks/useProposals';
+import { useProposalExists, useSubmitProposal, useProposal, useProposalAnalysis, getStatusString } from '../hooks/useProposals';
 
 function ProposalListPage() {
   const { canisterId } = useParams();
@@ -63,8 +63,8 @@ function ProposalListPage() {
   const proposalAnalysisMutation = useProposalAnalysis();
 
   // Determine if we should show loading state
-  const isAnalyzing = submitProposalMutation.isLoading || 
-                     proposalAnalysisMutation.isLoading ||
+  const isAnalyzing = submitProposalMutation.isPending || submitProposalMutation.isLoading || 
+                     proposalAnalysisMutation.isPending || proposalAnalysisMutation.isLoading ||
                      (analyzedProposalId && !analyzedProposal && !analyzedProposalLoading) ||
                      (existingProposalLoading && !existingProposal);
 
@@ -169,8 +169,6 @@ function ProposalListPage() {
     try {
       await proposalAnalysisMutation.mutateAsync({
         proposalId: Array.isArray(analyzedProposal) ? analyzedProposal[0].id : analyzedProposal.id,
-        title: selectedProposal.title,
-        description: selectedProposal.summary || selectedProposal.title,
         isRetry: true
       });
     } catch (error) {
@@ -513,11 +511,19 @@ function ProposalListPage() {
                               <p className="text-slate-700 font-medium mb-2">No analysis available</p>
                               <p className="text-sm text-slate-500 mb-4">This proposal hasn't been analyzed yet</p>
                               <button
-                                onClick={handleAnalyzeProposal}
-                                disabled={submitProposalMutation.isLoading}
+                                onClick={() => {
+                                  console.log('🔍 DEBUG: Analyze Proposal button clicked');
+                                  console.log('🔍 DEBUG: submitProposalMutation state:', {
+                                    isPending: submitProposalMutation.isPending,
+                                    isLoading: submitProposalMutation.isLoading,
+                                    status: submitProposalMutation.status
+                                  });
+                                  handleAnalyzeProposal();
+                                }}
+                                disabled={submitProposalMutation.isPending || submitProposalMutation.isLoading}
                                 className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm flex items-center space-x-2 mx-auto cursor-pointer"
                               >
-                                {submitProposalMutation.isLoading ? (
+                                {(submitProposalMutation.isPending || submitProposalMutation.isLoading) ? (
                                   <>
                                     <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
                                     <span>Analyzing...</span>
@@ -570,4 +576,4 @@ function ProposalListPage() {
   );
 }
 
-export default ProposalListPage; 
+export default ProposalListPage;

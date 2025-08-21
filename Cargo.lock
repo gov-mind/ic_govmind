@@ -1591,6 +1591,7 @@ dependencies = [
  "candid",
  "ic-cdk",
  "ic-cdk-timers",
+ "ic-management-canister-types",
  "ic-stable-structures",
  "serde",
  "serde_json",

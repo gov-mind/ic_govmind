@@ -162,36 +162,25 @@ function DaoInfoPage() {
         const proposalId = createProposalResult.Ok;
         console.log('Proposal created with ID:', proposalId);
 
-        // Call submit_proposal_with_analysis in the proposal analyzer with AI analysis
+        // Call submit_proposal_and_analyze in the proposal analyzer with automatic AI analysis
         const analyzerProposalId = `${dao.id}-${proposalId}`;
         
         let analyzerResult;
         try {
-          // Get AI analysis
-          const { getAIAnalysis, getMockAnalysis } = await import('../services/aiService');
-          let analysis = null;
-          let status = { Pending: null };
+          // Use the new combined submit and analyze function
+          const { submitProposalAndAnalyze } = await import('../services/aiService');
           
-          try {
-            analysis = await getAIAnalysis(proposalTitle.trim(), proposalContent.trim());
-            status = { Analyzed: null };
-          } catch (aiError) {
-            console.warn('AI analysis failed:', aiError.message);
-            // Submit with failed status and no analysis
-            status = { Failed: null };
-            analysis = null;
-          }
-          
-          // Submit with optional analysis and status
-          // TODO: Add signature from API proxy when implementing backend signing
-          analyzerResult = await ic_govmind_proposal_analyzer.submit_proposal_with_analysis(
-            [analyzerProposalId], // Some(proposalId)
+          const result = await submitProposalAndAnalyze(
             proposalTitle.trim(),
             proposalContent.trim(),
-            analysis ? [analysis] : [], // Convert to Option type for Candid
-            status,
-            [] // No signature yet - will be added when implementing backend signing
+            analyzerProposalId
           );
+          
+          if (result.success) {
+            analyzerResult = result.proposalId;
+          } else {
+            throw new Error(result.error);
+          }
         } catch (analyzerError) {
           console.error('Analysis submission failed:', analyzerError.message);
           throw analyzerError; // Re-throw the error since we no longer have a fallback
@@ -995,4 +984,4 @@ function DaoInfoPage() {
   );
 }
 
-export default DaoInfoPage; 
+export default DaoInfoPage;

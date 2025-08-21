@@ -22,7 +22,7 @@ function UserDashboardPage() {
   const { principal, factoryActor } = useAuthClient();
   // SNS DAOs pagination state
   const [snsPage, setSnsPage] = useState(1);
-  const snsPageSize = 10;
+  const snsPageSize = 9;
   const {
     data: snsData = { canisters: [], paginationInfo: {} },
     isLoading: snsLoading,

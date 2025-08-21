@@ -69,6 +69,7 @@ setup_nginx() {
     sudo tee /etc/nginx/sites-available/ic-govmind-api > /dev/null << EOF
 server {
     listen 80;
+    listen [::]:80; # IPv6
     server_name $SERVER_NAME;
     $SSL_CONFIG
 

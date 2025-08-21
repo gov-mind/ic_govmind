@@ -51,14 +51,16 @@ async fn distribute_tokens(model: DistributionModel, token_canister_id: Principa
 
     // Unlock Schedule
     if let Some(schedule) = &model.unlock_schedule {
-        for (ts_sec, amt) in schedule {
+        for (addr, ts_sec, amt) in schedule {
             let scheduled_time_ns = ts_sec * 1_000_000_000;
             if scheduled_time_ns <= now {
-                let amount_nat = Nat::from(*amt);
+                let mut single_map = HashMap::new();
+                single_map.insert(addr.clone(), *amt);
+
                 distribute_to_all(
                     &token_service,
-                    &model.initial_distribution,
-                    Some(amount_nat),
+                    &single_map,
+                    Some(Nat::from(*amt)),
                     DistributionType::Scheduled,
                     now,
                 )
@@ -75,48 +77,51 @@ async fn distribute_to_all(
     dist_type: DistributionType,
     now: u64,
 ) {
-    if let Some(amount) = amount {
-        for (addr, _) in distribution_map.iter() {
-            let account = icrc1_account_from_str(addr);
-            let result = token_service
-                .icrc1_transfer(
-                    Some(HOLDER_SUBACCOUNT),
-                    account,
-                    amount.clone(),
-                    None,
-                    None,
-                    None,
-                )
-                .await;
+    for (addr, val) in distribution_map.iter() {
+        let send_amount = match &amount {
+            Some(a) => a.clone(),
+            None => Nat::from(*val),
+        };
 
-            match &result {
-                Ok(res) => ic_cdk::println!(
-                    "[{:?}] Distributed {} tokens to {} at time {}: {:?}",
-                    dist_type,
-                    amount,
-                    addr,
-                    now,
-                    res
-                ),
-                Err(e) => ic_cdk::println!(
-                    "[{:?}] Failed to distribute {} tokens to {}: {:?}",
-                    dist_type,
-                    amount,
-                    addr,
-                    e
-                ),
-            }
+        let account = icrc1_account_from_str(addr);
+        let result = token_service
+            .icrc1_transfer(
+                Some(HOLDER_SUBACCOUNT),
+                account,
+                send_amount.clone(),
+                None,
+                None,
+                None,
+            )
+            .await;
 
-            store::distribution::add_distribution_record(DistributionRecord {
-                timestamp: now,
-                distribution_type: dist_type.clone(),
-                recipient: addr.clone(),
-                amount: amount.clone(),
-                tx_result: match &result {
-                    Ok(res) => format!("Success: {:?}", res),
-                    Err(e) => format!("Error: {:?}", e),
-                },
-            });
+        match &result {
+            Ok(res) => ic_cdk::println!(
+                "[{:?}] Distributed {} tokens to {} at time {}: {:?}",
+                dist_type,
+                send_amount,
+                addr,
+                now,
+                res
+            ),
+            Err(e) => ic_cdk::println!(
+                "[{:?}] Failed to distribute {} tokens to {}: {:?}",
+                dist_type,
+                send_amount,
+                addr,
+                e
+            ),
         }
+
+        store::distribution::add_distribution_record(DistributionRecord {
+            timestamp: now,
+            distribution_type: dist_type.clone(),
+            recipient: addr.clone(),
+            amount: send_amount.clone(),
+            tx_result: match &result {
+                Ok(res) => format!("Success: {:?}", res),
+                Err(e) => format!("Error: {:?}", e),
+            },
+        });
     }
 }

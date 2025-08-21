@@ -87,7 +87,7 @@ type DaoMember = record {
 };
 type DistributionModel = record {
   initial_distribution : vec record { text; nat };
-  unlock_schedule : opt vec record { nat64; nat };
+  unlock_schedule : opt vec record { text; nat64; nat };
   emission_rate : opt nat;
 };
 type DistributionRecord = record {
@@ -189,6 +189,7 @@ type StatusResponse = record {
   heap_memory_size : opt nat64;
 };
 type TokenConfig = record {
+  fee : nat64;
   wrapped_address : opt text;
   chain_name : text;
   contract_address : opt text;

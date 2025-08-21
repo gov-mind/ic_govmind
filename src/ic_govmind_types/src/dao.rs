@@ -58,7 +58,7 @@ pub struct TokenLocation {
 pub struct DistributionModel {
     pub initial_distribution: HashMap<String, u128>, // Initial allocation: address → token amount
     pub emission_rate: Option<u128>, // Optional: number of tokens emitted per period (e.g., per day/week)
-    pub unlock_schedule: Option<Vec<(u64, u128)>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
+    pub unlock_schedule: Option<Vec<(String, u64, u128)>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
 }
 
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
@@ -207,4 +207,26 @@ pub struct DistributionRecord {
     pub recipient: String, // recipient address
     pub amount: Nat,
     pub tx_result: String, // transaction result or status
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq)]
+pub enum DistributionStatus {
+    Pending,
+    Completed,
+    Failed(String),
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize)]
+pub struct JobSchedule {
+    pub job_id: String,
+    pub description: String,
+    pub created_at: u64,
+    pub status: JobStatus,
+}
+
+#[derive(Clone, Debug, CandidType, Deserialize, Serialize, PartialEq)]
+pub enum JobStatus {
+    Scheduled,
+    Running,
+    Finished,
 }

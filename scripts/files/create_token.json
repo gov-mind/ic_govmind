@@ -17,12 +17,14 @@
       };
       unlock_schedule = opt vec {
         record {
-          0 = 1723075200;
-          1 = 2500;
+          0 = "p4zdu-eo2az-bkta3-djjqn-hkiuk-qoc7z-v2ery-76kwx-s4gmb-utjfe-xqe";
+          1 = 1723075200;
+          2 = 2500;
         };
         record {
-          0 = 1725753600;
-          1 = 2600;
+          0 = "kjmyi-ld67r-fhb37-tztjx-huazh-ziaav-3maym-yze5a-rjv5t-3c62i-3ae";
+          1 = 1725753600;
+          2 = 2600;
         };
       };
       emission_rate = opt 1000000;

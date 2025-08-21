@@ -87,7 +87,9 @@ type DaoMember = record {
 };
 type DistributionModel = record {
   initial_distribution : vec record { text; nat };
-  unlock_schedule : opt vec record { text; nat64; nat };
+  last_emission_time : opt nat64;
+  initial_executed_at : opt nat64;
+  unlock_schedule : opt vec UnlockScheduleItem;
   emission_rate : opt nat;
 };
 type DistributionRecord = record {
@@ -204,6 +206,12 @@ type TokenLocation = record {
   contract_address : opt text;
 };
 type TokenStandard = variant { SPL; BEP20; ICRC1; ICRC2; Native; ERC20 };
+type UnlockScheduleItem = record {
+  addr : text;
+  timestamp : nat64;
+  executed : bool;
+  amount : nat;
+};
 type Vote = record {
   weight : nat64;
   vote_choice : VoteChoice;

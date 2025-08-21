@@ -6,65 +6,90 @@ use ic_cdk_timers::set_timer_interval;
 use ic_govmind_types::dao::{
     DistributionModel, DistributionRecord, DistributionType, HOLDER_SUBACCOUNT,
 };
-use std::{collections::HashMap, time::Duration};
+use std::{
+    cell::RefCell,
+    rc::Rc,
+    {collections::HashMap, time::Duration},
+};
 
 pub fn setup_token_distribution_timer(model: DistributionModel, token_canister_id: Principal) {
+    let model = Rc::new(RefCell::new(model));
     let interval = Duration::from_secs(60);
 
+    let model_clone = model.clone();
     let timer_id = set_timer_interval(interval, move || {
-        spawn(distribute_tokens(model.clone(), token_canister_id));
+        let model_clone = model_clone.clone();
+        let token_canister_id = token_canister_id;
+        spawn(async move {
+            distribute_tokens_shared(model_clone, token_canister_id).await;
+        });
     });
 
     TIMER_IDS.with(|timer_ids| timer_ids.borrow_mut().push(timer_id));
 }
 
-async fn distribute_tokens(model: DistributionModel, token_canister_id: Principal) {
+async fn distribute_tokens_shared(
+    model: Rc<RefCell<DistributionModel>>,
+    token_canister_id: Principal,
+) {
+    let now = ic_cdk::api::time();
     let token_service = TokenICRC1 {
         principal: token_canister_id,
     };
-    let now = ic_cdk::api::time();
 
-    // Initial Distribution
-    if !model.initial_distribution.is_empty() {
+    let mut m = model.borrow_mut();
+
+    // ---- Initial Distribution ----
+    if m.initial_executed_at.is_none() && !m.initial_distribution.is_empty() {
         distribute_to_all(
             &token_service,
-            &model.initial_distribution,
-            model.emission_rate.map(Nat::from),
+            &m.initial_distribution,
+            None,
             DistributionType::Initial,
             now,
         )
         .await;
+        m.initial_executed_at = Some(now);
     }
 
-    // Emission
-    if let Some(rate) = model.emission_rate {
-        let amount = Nat::from(rate);
-        distribute_to_all(
-            &token_service,
-            &model.initial_distribution,
-            Some(amount),
-            DistributionType::Emission,
-            now,
-        )
-        .await;
+    // ---- Emission ----
+    if let Some(rate) = m.emission_rate {
+        let should_emit = match m.last_emission_time {
+            Some(last) => now.saturating_sub(last) >= 60,
+            None => true,
+        };
+        if should_emit {
+            let amount = Nat::from(rate);
+            distribute_to_all(
+                &token_service,
+                &m.initial_distribution,
+                Some(amount),
+                DistributionType::Emission,
+                now,
+            )
+            .await;
+            m.last_emission_time = Some(now);
+        }
     }
 
-    // Unlock Schedule
-    if let Some(schedule) = &model.unlock_schedule {
-        for (addr, ts_sec, amt) in schedule {
-            let scheduled_time_ns = ts_sec * 1_000_000_000;
-            if scheduled_time_ns <= now {
+    // ---- Unlock Schedule ----
+    if let Some(schedule) = &mut m.unlock_schedule {
+        for item in schedule.iter_mut() {
+            let scheduled_time_ns = item.timestamp * 1_000_000_000;
+            if !item.executed && scheduled_time_ns <= now {
                 let mut single_map = HashMap::new();
-                single_map.insert(addr.clone(), *amt);
+                single_map.insert(item.addr.clone(), item.amount);
 
                 distribute_to_all(
                     &token_service,
                     &single_map,
-                    Some(Nat::from(*amt)),
+                    Some(Nat::from(item.amount)),
                     DistributionType::Scheduled,
                     now,
                 )
                 .await;
+
+                item.executed = true;
             }
         }
     }

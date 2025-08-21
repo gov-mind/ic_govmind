@@ -58,7 +58,17 @@ pub struct TokenLocation {
 pub struct DistributionModel {
     pub initial_distribution: HashMap<String, u128>, // Initial allocation: address → token amount
     pub emission_rate: Option<u128>, // Optional: number of tokens emitted per period (e.g., per day/week)
-    pub unlock_schedule: Option<Vec<(String, u64, u128)>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
+    pub unlock_schedule: Option<Vec<UnlockScheduleItem>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
+    pub initial_executed_at: Option<u64>,
+    pub last_emission_time: Option<u64>,
+}
+
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
+pub struct UnlockScheduleItem {
+    pub addr: String,
+    pub timestamp: u64,
+    pub amount: u128,
+    pub executed: bool,
 }
 
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]

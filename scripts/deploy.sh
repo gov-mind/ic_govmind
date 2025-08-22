@@ -112,7 +112,6 @@ case $CANISTER in
         
         # Deploy other canisters
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
-        dfx deploy icrc1_ledger $network_flag
         dfx deploy ic_govmind_frontend $network_flag
         
         echo -e "${GREEN}🎉 All canisters deployed successfully!${NC}"

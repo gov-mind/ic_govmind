@@ -150,6 +150,9 @@ function DaoInfoPage() {
               console.log('Balance for', walletAddress, ':', balanceResult);
               balances[member.user_id] = balanceResult.Ok.balance;
             }
+            else {
+              console.log('Error fetching balance for', walletAddress, ':', balanceResult);
+            }
           } catch (err) {
             console.error(`Error fetching balance for ${member.user_id}:`, err);
             balances[member.user_id] = 0n;

@@ -1,10 +1,5 @@
 {
   "canisters": {
-    "ic_govmind_backend": {
-      "candid": "src/ic_govmind_backend/ic_govmind_backend.did",
-      "package": "ic_govmind_backend",
-      "type": "rust"
-    },
     "ic_govmind_factory": {
       "candid": "src/ic_govmind_factory/ic_govmind_factory.did",
       "package": "ic_govmind_factory",
@@ -29,16 +24,6 @@
       "source": ["src/ic_govmind_frontend/dist"],
       "type": "assets",
       "workspace": "ic_govmind_frontend"
-    },
-    "icrc1_ledger": {
-      "type": "custom",
-      "candid": "src/icrc1_ledger/icrc1-ledger.did",
-      "wasm": "src/icrc1_ledger/icrc1-ledger.wasm.gz",
-      "metadata": [
-        {
-          "name": "candid:service"
-        }
-      ]
     },
     "internet_identity": {
       "type": "custom",

@@ -22,9 +22,9 @@
     },
     "ic_govmind_frontend": {
       "dependencies": [
-        "ic_govmind_backend",
         "ic_govmind_proposal_analyzer",
-        "ic_govmind_sns"
+        "ic_govmind_sns",
+        "ic_govmind_factory"
       ],
       "source": ["src/ic_govmind_frontend/dist"],
       "type": "assets",

@@ -15,6 +15,7 @@ import {
 } from 'lucide-react';
 import { Principal } from '@dfinity/principal';
 import { useAuthClient } from '../hooks/useAuthClient';
+import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
 
 function CreateDaoPage() {
     const navigate = useNavigate();
@@ -25,14 +26,14 @@ function CreateDaoPage() {
         description: '',
         iconUrl: '',
         baseToken: {
-            name: '',
-            symbol: '',
-            decimals: 8,
-            totalSupply: '',
-            chain: 'InternetComputer',
-            canisterId: '',
-            contractAddress: ''
-        },
+                name: '',
+                symbol: '',
+                decimals: 8,
+                totalSupply: '',
+                canisterId: '',
+                contractAddress: '',
+                emissionRate: ''
+            },
         chains: ['InternetComputer'],
         governance: {
             voteWeightType: 'TokenWeighted',
@@ -49,7 +50,9 @@ function CreateDaoPage() {
                 solAddress: '',
                 icpPrincipal: '',
                 joinedAt: Date.now(),
-                metadata: []
+                metadata: [],
+                distributionAmount: '',
+                unlockSchedule: []
             }
         ]
     });
@@ -180,7 +183,9 @@ function CreateDaoPage() {
                 solAddress: '',
                 icpPrincipal: '',
                 joinedAt: Date.now(),
-                metadata: []
+                metadata: [],
+                distributionAmount: '',
+                unlockSchedule: []
             }]
         }));
     };
@@ -203,12 +208,70 @@ function CreateDaoPage() {
         }));
     };
 
+    const addUnlockScheduleItem = (memberIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            members: prev.members.map((member, i) =>
+                i === memberIndex ? {
+                    ...member,
+                    unlockSchedule: [...member.unlockSchedule, {
+                        timestamp: '',
+                        amount: '',
+                        executed: false
+                    }]
+                } : member
+            )
+        }));
+    };
+
+    const removeUnlockScheduleItem = (memberIndex, scheduleIndex) => {
+        setFormData(prev => ({
+            ...prev,
+            members: prev.members.map((member, i) =>
+                i === memberIndex ? {
+                    ...member,
+                    unlockSchedule: member.unlockSchedule.filter((_, si) => si !== scheduleIndex)
+                } : member
+            )
+        }));
+    };
+
+    const updateUnlockScheduleItem = (memberIndex, scheduleIndex, field, value) => {
+        setFormData(prev => ({
+            ...prev,
+            members: prev.members.map((member, i) =>
+                i === memberIndex ? {
+                    ...member,
+                    unlockSchedule: member.unlockSchedule.map((item, si) =>
+                        si === scheduleIndex ? { ...item, [field]: value } : item
+                    )
+                } : member
+            )
+        }));
+    };
+
     const handleCreateDao = async () => {
         if (!validateStep(currentStep)) return;
 
         setIsCreating(true);
         setErrors({});
         try {
+            console.log('Starting DAO creation with factoryActor:', factoryActor);
+            console.log('Form data:', formData);
+
+            const unlockItems = 
+              formData
+                .members
+                .flatMap(m => m.unlockSchedule
+                    .filter(s => s.timestamp && s.amount && m.icpPrincipal)
+                    .map(s => ({
+                        addr: m.icpPrincipal,
+                        timestamp: BigInt(new Date(s.timestamp).getTime()),
+                        amount: BigInt(s.amount),
+                        executed: false
+                    }))
+                );
+            
             // Map formData to backend Dao type
             const dao = {
                 id: '', // Will be set by backend
@@ -221,9 +284,17 @@ function CreateDaoPage() {
                     symbol: formData.baseToken.symbol,
                     decimals: Number(formData.baseToken.decimals),
                     total_supply: BigInt(formData.baseToken.totalSupply),
-                    distribution_model: [], // TODO: handle if needed
+                    distribution_model: formData.members.some(m => m.distributionAmount || m.unlockSchedule.length > 0) ? [{
+                        initial_distribution: formData.members
+                            .filter(m => m.distributionAmount && m.icpPrincipal)
+                            .map(m => [m.icpPrincipal, BigInt(m.distributionAmount)]),
+                        unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
+                        emission_rate: formData.baseToken.emissionRate ? [parseFloat(formData.baseToken.emissionRate)] : [],
+                        last_emission_time: [],
+                        initial_executed_at: []
+                    }] : [],
                     token_location: {
-                        chain: { [formData.baseToken.chain]: null },
+                        chain: { InternetComputer: null }, // Default to InternetComputer
                         canister_id: formData.baseToken.canisterId && isValidPrincipal(formData.baseToken.canisterId) ? [Principal.fromText(formData.baseToken.canisterId)] : [],
                         contract_address: formData.baseToken.contractAddress ? [formData.baseToken.contractAddress] : [],
                     },
@@ -250,10 +321,48 @@ function CreateDaoPage() {
             };
 
             // Call backend
+            console.log('Calling factoryActor.create_gov_dao...');
             const result = await factoryActor.create_gov_dao(dao);
+            console.log('Backend response:', result);
             if (result && result.Ok) {
+                const daoId = result.Ok;
+                
+                // Create base token after successful DAO creation
+                try {
+                    // Create backend actor for the newly created DAO
+                    const daoActor = createBackendActor(daoId);
+                    
+                    const tokenArg = {
+                        name: formData.baseToken.name,
+                        symbol: formData.baseToken.symbol,
+                        decimals: Number(formData.baseToken.decimals),
+                        total_supply: BigInt(formData.baseToken.totalSupply),
+                        distribution_model: formData.members.some(m => m.distributionAmount || m.unlockSchedule.length > 0) ? [{
+                            initial_distribution: formData.members
+                                .filter(m => m.distributionAmount && m.icpPrincipal)
+                                .map(m => [m.icpPrincipal, BigInt(m.distributionAmount)]),
+                            unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
+                            emission_rate: formData.baseToken.emissionRate ? [parseFloat(formData.baseToken.emissionRate)] : [],
+                            last_emission_time: [], // Use null
+                            initial_executed_at: [] // Use null
+                        }] : []
+                    };
+                    
+                    const tokenResult = await daoActor.create_dao_base_token(tokenArg, {Text: 'Token Logo'});
+                    if (tokenResult && tokenResult.Err) {
+                        console.warn('Token creation failed:', tokenResult.Err);
+                        // Continue to navigate even if token creation fails
+                    }
+                    else {
+                        console.log('Token creation successful:', tokenResult);
+                    }
+                } catch (tokenErr) {
+                    console.warn('Error creating token:', tokenErr);
+                    // Continue to navigate even if token creation fails
+                }
+                
                 // Navigate to the created DAO page
-                navigate(`/dao/${result.Ok}`);
+                navigate(`/dao/${daoId}`);
             } else {
                 setErrors({ submit: result && result.Err ? result.Err : 'Failed to create DAO. Please try again.' });
             }
@@ -290,9 +399,8 @@ function CreateDaoPage() {
                         {steps.map((step, index) => (
                             <div key={step.number} className="flex items-center">
                                 <div className={`flex items-center justify-center w-8 h-8 rounded-full border-2 ${currentStep >= step.number
-                                        ? 'bg-blue-600 border-blue-600 text-white'
-                                        : 'border-slate-300 text-slate-500'
-                                    }`}>
+                                          ? 'bg-blue-600 border-blue-600 text-white'
+                                          : 'border-slate-300 text-slate-500'}`}>
                                     {currentStep > step.number ? (
                                         <CheckCircle className="w-5 h-5" />
                                     ) : (
@@ -423,19 +531,35 @@ function CreateDaoPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-4">
-                                    <label className="block text-sm font-medium text-slate-700 mb-2">
-                                        Total Supply *
-                                    </label>
-                                    <input
-                                        type="number"
-                                        value={formData.baseToken.totalSupply}
-                                        onChange={(e) => handleBaseTokenChange('totalSupply', e.target.value)}
-                                        className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.totalSupply ? 'border-red-300' : 'border-slate-300'
-                                            }`}
-                                        placeholder="e.g., 1000000000"
-                                    />
-                                    {errors.totalSupply && <p className="mt-1 text-sm text-red-600">{errors.totalSupply}</p>}
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Total Supply *
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.baseToken.totalSupply}
+                                            onChange={(e) => handleBaseTokenChange('totalSupply', e.target.value)}
+                                            className={`w-full px-4 py-3 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${errors.totalSupply ? 'border-red-300' : 'border-slate-300'
+                                                }`}
+                                            placeholder="e.g., 1000000000"
+                                        />
+                                        {errors.totalSupply && <p className="mt-1 text-sm text-red-600">{errors.totalSupply}</p>}
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Emission Rate
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.baseToken.emissionRate || ''}
+                                            onChange={(e) => handleBaseTokenChange('emissionRate', e.target.value)}
+                                            min="0"
+                                            step="1"
+                                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="e.g., 10000"
+                                        />
+                                    </div>
                                 </div>
                             </div>
                         </div>
@@ -562,6 +686,74 @@ function CreateDaoPage() {
                                                 className="w-full px-4 py-2.5 h-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                             />
                                         </div>
+                                        <div>
+                                            <label className="block text-sm font-medium text-slate-700 mb-2">
+                                                Initial Distribution Amount
+                                            </label>
+                                            <input
+                                                type="number"
+                                                value={member.distributionAmount}
+                                                onChange={(e) => updateMember(index, 'distributionAmount', e.target.value)}
+                                                min="0"
+                                                className="w-full px-4 py-2.5 h-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                placeholder="Token amount"
+                                            />
+                                        </div>
+                                    </div>
+
+                                    {/* Unlock Schedule Section */}
+                                    <div className="mt-6 border-t border-slate-200 pt-4">
+                                        <div className="flex items-center justify-between mb-4">
+                                            <h4 className="text-md font-medium text-slate-900">Unlock Schedule</h4>
+                                            <button
+                                                type="button"
+                                                onClick={() => addUnlockScheduleItem(index)}
+                                                className="flex items-center space-x-1 text-blue-600 hover:text-blue-800 transition-colors text-sm"
+                                            >
+                                                <Plus className="w-4 h-4" />
+                                                <span>Add Schedule</span>
+                                            </button>
+                                        </div>
+                                        
+                                        {member.unlockSchedule.map((schedule, scheduleIndex) => (
+                                            <div key={scheduleIndex} className="flex items-center space-x-3 mb-3 p-3 bg-slate-50 rounded-lg">
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                        Unlock Date
+                                                    </label>
+                                                    <input
+                                                        type="datetime-local"
+                                                        value={schedule.timestamp}
+                                                        onChange={(e) => updateUnlockScheduleItem(index, scheduleIndex, 'timestamp', e.target.value)}
+                                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                    />
+                                                </div>
+                                                <div className="flex-1">
+                                                    <label className="block text-xs font-medium text-slate-600 mb-1">
+                                                        Amount
+                                                    </label>
+                                                    <input
+                                                        type="number"
+                                                        value={schedule.amount}
+                                                        onChange={(e) => updateUnlockScheduleItem(index, scheduleIndex, 'amount', e.target.value)}
+                                                        min="0"
+                                                        className="w-full px-3 py-2 text-sm border border-slate-300 rounded focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                                        placeholder="Token amount"
+                                                    />
+                                                </div>
+                                                <button
+                                                    type="button"
+                                                    onClick={() => removeUnlockScheduleItem(index, scheduleIndex)}
+                                                    className="text-red-600 hover:text-red-800 transition-colors mt-5"
+                                                >
+                                                    <X className="w-4 h-4" />
+                                                </button>
+                                            </div>
+                                        ))}
+                                        
+                                        {member.unlockSchedule.length === 0 && (
+                                            <p className="text-sm text-slate-500 italic">No unlock schedule configured</p>
+                                        )}
                                     </div>
                                 </div>
                             ))}
@@ -712,6 +904,36 @@ function CreateDaoPage() {
                                     </div>
                                 </div>
 
+                                {/* Token Configuration */}
+                                <div className="border border-slate-200 rounded-lg p-6">
+                                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
+                                        <Coins className="w-5 h-5 mr-2" />
+                                        Token Configuration
+                                    </h3>
+                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                        <div>
+                                            <p className="text-sm text-slate-600">Token Name</p>
+                                            <p className="font-medium">{formData.baseToken.name}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-slate-600">Token Symbol</p>
+                                            <p className="font-medium">{formData.baseToken.symbol}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-slate-600">Total Supply</p>
+                                            <p className="font-medium">{formData.baseToken.totalSupply ? Number(formData.baseToken.totalSupply).toLocaleString() : '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-slate-600">Emission Rate</p>
+                                            <p className="font-medium">{formData.baseToken.emissionRate || '-'}</p>
+                                        </div>
+                                        <div>
+                                            <p className="text-sm text-slate-600">Decimals</p>
+                                            <p className="font-medium">{formData.baseToken.decimals}</p>
+                                        </div>
+                                    </div>
+                                </div>
+
                                 {/* Members */}
                                 <div className="border border-slate-200 rounded-lg p-6">
                                     <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
@@ -720,14 +942,34 @@ function CreateDaoPage() {
                                     </h3>
                                     <div className="space-y-3">
                                         {formData.members.map((member, index) => (
-                                            <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                                                <div>
-                                                    <p className="font-medium">{member.userId}</p>
-                                                    <p className="text-sm text-slate-600">ICP Principal: {member.icpPrincipal || '-'}</p>
-                                                    <p className="text-sm text-slate-600">Ethereum Address: {member.ethAddress || '-'}</p>
-                                                    <p className="text-sm text-slate-600">Solana Address: {member.solAddress || '-'}</p>
-                                                    <p className="text-sm text-slate-600">Role: {member.role} • Reputation: {member.reputation}</p>
-                                                    <p className="text-sm text-slate-600">Joined At: {new Date(member.joinedAt).toLocaleDateString()}</p>
+                                            <div key={index} className="p-4 bg-slate-50 rounded-lg">
+                                                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                                                    <div>
+                                                        <p className="font-medium text-slate-900">{member.userId}</p>
+                                                        <p className="text-sm text-slate-600">Role: {member.role}</p>
+                                                        <p className="text-sm text-slate-600">Reputation: {member.reputation}</p>
+                                                        <p className="text-sm text-slate-600">ICP Principal: {member.icpPrincipal || '-'}</p>
+                                                        <p className="text-sm text-slate-600">Ethereum Address: {member.ethAddress || '-'}</p>
+                                                        <p className="text-sm text-slate-600">Solana Address: {member.solAddress || '-'}</p>
+                                                    </div>
+                                                    <div>
+                                                        <p className="text-sm font-medium text-slate-700 mb-2">Token Distribution</p>
+                                                        <p className="text-sm text-slate-600">Initial Amount: {member.distributionAmount || '-'}</p>
+                                                        {member.unlockSchedule && member.unlockSchedule.length > 0 ? (
+                                                            <div className="mt-2">
+                                                                <p className="text-sm text-slate-600 mb-1">Unlock Schedule:</p>
+                                                                <div className="space-y-1">
+                                                                    {member.unlockSchedule.map((schedule, scheduleIndex) => (
+                                                                        <p key={scheduleIndex} className="text-xs text-slate-500">
+                                                                            {schedule.amount} tokens at {new Date(schedule.timestamp).toLocaleDateString()}
+                                                                        </p>
+                                                                    ))}
+                                                                </div>
+                                                            </div>
+                                                        ) : (
+                                                            <p className="text-sm text-slate-600">Unlock Schedule: No vesting</p>
+                                                        )}
+                                                    </div>
                                                 </div>
                                             </div>
                                         ))}
@@ -834,4 +1076,4 @@ function CreateDaoPage() {
     );
 }
 
-export default CreateDaoPage; 
+export default CreateDaoPage;

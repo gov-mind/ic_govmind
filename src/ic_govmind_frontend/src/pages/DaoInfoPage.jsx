@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery } from '@tanstack/react-query';
+import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthClient } from '../hooks/useAuthClient';
 import {
   Building2,
@@ -17,18 +17,18 @@ import {
   Wallet,
   Hash,
   Copy,
-  Check
+  Check,
+  RefreshCw
 } from 'lucide-react';
 import { Principal } from '@dfinity/principal';
 import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
-import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
 import ProposalAnalysisPanel from '../components/ProposalAnalysisPanel';
 
 function formatDate(bigintOrNumber) {
   let ms;
   if (typeof bigintOrNumber === 'bigint') {
     // Assume nanoseconds, convert to milliseconds
-    ms = Number(bigintOrNumber / 1000000n);
+    ms = Number(bigintOrNumber);
   } else {
     ms = Number(bigintOrNumber);
   }
@@ -36,19 +36,13 @@ function formatDate(bigintOrNumber) {
 }
 
 function formatMemberDate(joined_at) {
-  if (typeof joined_at === 'bigint') {
-    // Assume nanoseconds, convert to ms
-    return new Date(Number(joined_at) / 1_000_000).toLocaleDateString();
-  } else if (typeof joined_at === 'number') {
-    // If value is suspiciously small, treat as seconds
-    return new Date(joined_at < 10000000000 ? joined_at * 1000 : joined_at).toLocaleDateString();
-  }
-  return '-';
+  return new Date(Number(joined_at)).toLocaleDateString();
 }
 
 function DaoInfoPage() {
   const { principal, factoryActor, authClient, agent } = useAuthClient();
   const { daoId } = useParams();
+  const queryClient = useQueryClient();
 
   // Debug: Log the principal from the frontend
   //   console.log("Frontend principal:", principal);
@@ -63,6 +57,25 @@ function DaoInfoPage() {
       return result && result.length > 0 ? result[0] : null;
     },
     enabled: !!factoryActor && !!principal,
+    staleTime: 30000,
+  });
+
+  // Fetch complete DAO info from backend canister for accurate distribution model
+  const { data: backendDao, isLoading: backendDaoLoading } = useQuery({
+    queryKey: ['backend-dao-info', dao?.id],
+    queryFn: async () => {
+      if (!dao?.id || !agent) return null;
+      
+      try {
+        const daoActor = createBackendActor(dao.id, { agent });
+        const result = await daoActor.dao_info();
+        return result && result.length > 0 ? result[0] : null;
+      } catch (err) {
+        console.error('Error fetching backend DAO info:', err);
+        return null;
+      }
+    },
+    enabled: !!dao?.id && !!agent,
     staleTime: 30000,
   });
 
@@ -86,6 +99,73 @@ function DaoInfoPage() {
     refetchInterval: 30000, // Auto-refresh every 30 seconds
   });
 
+  // Fetch distribution records
+  const { data: distributionRecords = [], isLoading: distributionRecordsLoading, error: distributionRecordsError } = useQuery({
+    queryKey: ['distribution-records', dao?.id],
+    queryFn: async () => {
+      if (!dao?.id || !agent) return [];
+
+      try {
+        const daoActor = createBackendActor(dao.id, { agent });
+        const result = await daoActor.list_distribution_records(0n, 100n); // offset, limit
+        return result || [];
+      } catch (err) {
+        console.error('Error fetching distribution records:', err);
+        return [];
+      }
+    },
+    enabled: !!dao?.id && !!agent,
+    staleTime: 60000, // Cache for 1 minute
+  });
+
+  // Fetch member token balances
+  const { data: memberBalances = {}, isLoading: balancesLoading } = useQuery({
+    queryKey: ['member-balances', dao?.id, dao?.members?.length],
+    queryFn: async () => {
+      if (!dao?.id || !agent || !dao?.members) return {};
+
+      try {
+        const daoActor = createBackendActor(dao.id, { agent });
+        const balances = {};
+        
+        // Query balance for each member
+        for (const member of dao.members) {
+          try {
+            // Use ICP principal if available, otherwise use user_id
+            const walletAddress = member.icp_principal && member.icp_principal.length > 0 
+              ? (typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText 
+                 ? member.icp_principal[0].toText() 
+                 : String(member.icp_principal[0]))
+              : member.user_id;
+            
+            console.log('Querying wallet balance for:', walletAddress);
+            const balanceResult = await daoActor.query_wallet_balance({
+              chain_type: { InternetComputer: null },
+              token_name: dao.base_token.name,
+              wallet_address: walletAddress,
+              subaccount: []
+            });
+            
+            if (balanceResult.Ok) {
+              console.log('Balance for', walletAddress, ':', balanceResult);
+              balances[member.user_id] = balanceResult.Ok.balance;
+            }
+          } catch (err) {
+            console.error(`Error fetching balance for ${member.user_id}:`, err);
+            balances[member.user_id] = 0n;
+          }
+        }
+        
+        return balances;
+      } catch (err) {
+        console.error('Error fetching member balances:', err);
+        return {};
+      }
+    },
+    enabled: !!dao?.id && !!agent && !!dao?.members,
+    staleTime: 30000, // Cache for 30 seconds
+  });
+
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateProposal, setShowCreateProposal] = useState(false);
   const [copied, setCopied] = useState(false);
@@ -98,6 +178,8 @@ function DaoInfoPage() {
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
   const [proposalCreationStatus, setProposalCreationStatus] = useState(null); // 'success', 'error', or null
   const [selectedProposalId, setSelectedProposalId] = useState(null);
+  const [isRetryingToken, setIsRetryingToken] = useState(false);
+  const [tokenRetryStatus, setTokenRetryStatus] = useState(null); // 'success', 'error', or null
 
   // Handle copy to clipboard with feedback
   const handleCopy = async (text) => {
@@ -211,6 +293,53 @@ function DaoInfoPage() {
       setTimeout(() => setProposalCreationStatus(null), 5000);
     } finally {
       setIsCreatingProposal(false);
+    }
+  };
+
+  // Handle retry token creation
+  const handleRetryTokenCreation = async () => {
+    if (!dao || !dao.base_token.distribution_model) {
+      console.error('Missing required data for token creation retry');
+      return;
+    }
+
+    setIsRetryingToken(true);
+    setTokenRetryStatus(null);
+
+    try {
+      
+      
+      const tokenArg = {
+        name: dao.base_token.name,
+        symbol: dao.base_token.symbol,
+        decimals: dao.base_token.decimals,
+        total_supply: dao.base_token.total_supply,
+        distribution_model: dao.base_token.distribution_model,
+      };
+
+      console.log('Retrying token creation...');
+
+      // Create backend actor for the DAO canister
+      const daoActor = createBackendActor(dao.id);
+      
+      const tokenResult = await daoActor.create_dao_base_token(tokenArg, {Text: 'Token Logo'});
+
+      if (tokenResult && tokenResult.Ok) {
+        setTokenRetryStatus('success');
+        console.log('Token created successfully:', tokenResult.Ok);
+        // Refresh the backend DAO data to show the new token
+        await queryClient.invalidateQueries({ queryKey: ['backend-dao-info', dao.id] });
+      } else {
+        setTokenRetryStatus('error');
+        console.error('Token creation failed:', tokenResult?.Err || tokenResult);
+      }
+    } catch (err) {
+      setTokenRetryStatus('error');
+      console.error('Failed to retry token creation:', err);
+    } finally {
+      setIsRetryingToken(false);
+      // Reset status after 5 seconds
+      setTimeout(() => setTokenRetryStatus(null), 5000);
     }
   };
 
@@ -365,6 +494,7 @@ function DaoInfoPage() {
                 { id: 'overview', label: 'Overview', icon: BarChart3 },
                 { id: 'members', label: 'Members', icon: Users },
                 { id: 'proposals', label: 'Proposals', icon: FileText },
+                { id: 'distribution', label: 'Distribution', icon: Coins },
                 { id: 'treasury', label: 'Treasury', icon: Wallet },
                 { id: 'governance', label: 'Governance', icon: Settings },
                 { id: 'canister', label: 'Canister', icon: Hash }
@@ -432,10 +562,16 @@ function DaoInfoPage() {
                         <Coins className="text-purple-600 w-5 h-5" />
                       </div>
                       <div>
-                        <p className="text-sm text-purple-600 font-medium">Total Supply</p>
+                        <p className="text-sm text-purple-600 font-medium">Token Information</p>
                         <p className="text-2xl font-bold text-purple-900">
                           {parseInt(dao.base_token.total_supply).toLocaleString()}
                         </p>
+                        <p className="text-xs text-purple-600 mt-1">Total Supply</p>
+                        {dao.base_token.distribution_model && dao.base_token.distribution_model.length > 0 && dao.base_token.distribution_model[0].emission_rate && dao.base_token.distribution_model[0].emission_rate.length > 0 && (
+                          <p className="text-sm text-purple-700 mt-2">
+                            Emission Rate: {parseInt(dao.base_token.distribution_model[0].emission_rate[0]).toLocaleString()} per period
+                          </p>
+                        )}
                       </div>
                     </div>
                   </div>
@@ -448,8 +584,8 @@ function DaoInfoPage() {
                       Supported Chains
                     </h3>
                     <div className="flex flex-wrap gap-2">
-                      {dao.chains.map(chain => (
-                        <span key={chain} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-sm">
+                      {dao.chains.map((chain, index) => (
+                        <span key={`${Object.keys(chain)[0]}-${index}`} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-sm">
                           {Object.keys(chain)[0]}
                         </span>
                       ))}
@@ -502,10 +638,25 @@ function DaoInfoPage() {
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
                   {dao.members.map((member) => (
                     <div key={member.user_id} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
-                      <div className="flex flex-col md:flex-row md:items-center md:justify-between gap-2 mb-2">
-                        <div>
-                          <h4 className="font-semibold text-slate-900 mb-1">{member.user_id}</h4>
-                          <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(member.role)}`}>{Object.keys(member.role)[0]}</span>
+                      <div className="flex flex-col gap-3">
+                        <div className="flex items-center justify-between">
+                          <div>
+                            <h4 className="font-semibold text-slate-900 mb-1">{member.user_id}</h4>
+                            <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(member.role)}`}>{Object.keys(member.role)[0]}</span>
+                          </div>
+                          <div className="text-right">
+                            <div className="flex items-center space-x-1">
+                              <Wallet className="w-4 h-4 text-green-600" />
+                              <span className="text-sm font-semibold text-green-700">
+                                {balancesLoading ? (
+                                  <span className="text-xs text-slate-500">Loading...</span>
+                                ) : (
+                                  `${memberBalances[member.user_id] ? parseInt(memberBalances[member.user_id]).toLocaleString() : '0'} ${dao.base_token.symbol}`
+                                )}
+                              </span>
+                            </div>
+                            <p className="text-xs text-slate-500">Token Balance</p>
+                          </div>
                         </div>
                         <div className="flex flex-wrap gap-4 text-xs text-slate-600">
                           <span>Reputation: <span className="font-semibold text-slate-800">{Number(member.reputation)}</span></span>
@@ -594,6 +745,104 @@ function DaoInfoPage() {
                     selectedProposalId={selectedProposalId}
                     setSelectedProposalId={setSelectedProposalId}
                   />
+                )}
+              </div>
+            )}
+
+            {/* Distribution Tab */}
+            {activeTab === 'distribution' && (
+              <div className="space-y-6">
+                <h3 className="text-lg font-semibold text-slate-900">Token Distribution Records</h3>
+
+                {distributionRecordsLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="text-center">
+                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
+                      <p className="text-slate-600">Loading distribution records...</p>
+                    </div>
+                  </div>
+                ) : distributionRecordsError ? (
+                  <div className="text-center py-12">
+                    <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
+                    <h3 className="text-lg font-medium text-slate-900 mb-2">Error Loading Distribution Records</h3>
+                    <p className="text-slate-600">Failed to load token distribution history.</p>
+                  </div>
+                ) : (
+                  <div className="space-y-4">
+                    {distributionRecords && distributionRecords.length > 0 ? (
+                      distributionRecords.map((record_with_index) => {
+                        const [index, record] = record_with_index;
+
+                        const distributionType = typeof record.distribution_type === 'string' 
+                          ? record.distribution_type 
+                          : Object.keys(record.distribution_type)[0];
+                        
+                        return (
+                          <div key={index} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                            <div className="flex items-center justify-between mb-4">
+                              <div className="flex items-center space-x-3">
+                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
+                                  distributionType === 'Initial' ? 'bg-blue-100' :
+                                  distributionType === 'Emission' ? 'bg-green-100' :
+                                  'bg-purple-100'
+                                }`}>
+                                  <Coins className={`w-5 h-5 ${
+                                    distributionType === 'Initial' ? 'text-blue-600' :
+                                    distributionType === 'Emission' ? 'text-green-600' :
+                                    'text-purple-600'
+                                  }`} />
+                                </div>
+                                <div>
+                                  <h4 className="font-semibold text-slate-900">{distributionType} Distribution</h4>
+                                  <p className="text-sm text-slate-500">{formatDate(record.timestamp)}</p>
+                                </div>
+                              </div>
+                              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
+                                distributionType === 'Initial' ? 'bg-blue-100 text-blue-800' :
+                                distributionType === 'Emission' ? 'bg-green-100 text-green-800' :
+                                'bg-purple-100 text-purple-800'
+                              }`}>
+                                {distributionType}
+                              </div>
+                            </div>
+                            
+                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Recipient:</span>
+                                  <span className="font-mono text-sm truncate max-w-32">
+                                    {record.recipient.slice(0, 8)}...{record.recipient.slice(-8)}
+                                  </span>
+                                </div>
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Amount:</span>
+                                  <span className="font-medium text-green-600">
+                                    {parseInt(record.amount).toLocaleString()} {dao.base_token.symbol}
+                                  </span>
+                                </div>
+                              </div>
+                              <div className="space-y-2">
+                                <div className="flex justify-between">
+                                  <span className="text-slate-600">Status:</span>
+                                  <span className={`font-medium ${
+                                    record.tx_result.startsWith('Success') ? 'text-green-600' : 'text-red-600'
+                                  }`}>
+                                    {record.tx_result.startsWith('Success') ? 'Success' : 'Failed'}
+                                  </span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                        );
+                      })
+                    ) : (
+                      <div className="text-center py-12">
+                        <Coins className="w-12 h-12 text-slate-400 mx-auto mb-4" />
+                        <h3 className="text-lg font-medium text-slate-900 mb-2">No Distribution Records</h3>
+                        <p className="text-slate-600">No token distribution history found for this DAO.</p>
+                      </div>
+                    )}
+                  </div>
                 )}
               </div>
             )}
@@ -733,8 +982,70 @@ function DaoInfoPage() {
                           {parseInt(dao.base_token.total_supply).toLocaleString()}
                         </span>
                       </div>
+
+                      {dao.base_token.distribution_model && dao.base_token.distribution_model.emission_rate && (
+                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
+                          <div>
+                            <p className="font-medium text-slate-900">Emission Rate</p>
+                            <p className="text-sm text-slate-600">Tokens emitted per period</p>
+                          </div>
+                          <span className="font-medium text-cyan-600">
+                            {parseInt(dao.base_token.distribution_model.emission_rate).toLocaleString()}
+                          </span>
+                        </div>
+                      )}
                     </div>
                   </div>
+
+                  {/* Token Creation Retry Section */}
+                  {(() => {
+                    if (!backendDao) return false;
+                    console.log('Backend DAO base_token:', backendDao.base_token);
+                    return (!backendDao.base_token.token_location || !backendDao.base_token.token_location.canister_id || backendDao.base_token.token_location.canister_id.length === 0) && dao.base_token.distribution_model;
+                  })() && (
+                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
+                      <div className="flex items-start space-x-3">
+                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
+                        <div className="flex-1">
+                          <h5 className="font-medium text-amber-900 mb-1">Token Creation Failed</h5>
+                          <p className="text-sm text-amber-700 mb-3">
+                            The DAO token was not created successfully during initial setup. You can retry the token creation process using the stored parameters.
+                          </p>
+                          <button
+                            onClick={handleRetryTokenCreation}
+                            disabled={isRetryingToken}
+                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 disabled:cursor-not-allowed rounded-md transition-colors"
+                          >
+                            {isRetryingToken ? (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
+                                Retrying...
+                              </>
+                            ) : (
+                              <>
+                                <RefreshCw className="w-4 h-4 mr-2" />
+                                Retry Token Creation
+                              </>
+                            )}
+                          </button>
+                          
+                          {/* Status Messages */}
+                          {tokenRetryStatus === 'success' && (
+                            <div className="mt-2 text-sm text-green-700 flex items-center">
+                              <Check className="w-4 h-4 mr-1" />
+                              Token created successfully! Page will refresh shortly.
+                            </div>
+                          )}
+                          {tokenRetryStatus === 'error' && (
+                            <div className="mt-2 text-sm text-red-700 flex items-center">
+                              <X className="w-4 h-4 mr-1" />
+                              Failed to create token. Please check the console for details.
+                            </div>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  )}
                 </div>
               </div>
             )}

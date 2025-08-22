@@ -180,7 +180,7 @@ impl WalletBlockchainConfig {
                 let icrc1_subaccount = convert_subaccount(subaccount.clone());
 
                 let wallet_account = Account {
-                    owner: owner_wallet_pid(),
+                    owner: wallet_pid,
                     subaccount: icrc1_subaccount,
                 };
                 let canister_service = TokenICRC1::new(token_address)?;

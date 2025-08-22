@@ -53,7 +53,9 @@ type DaoMember = record {
 };
 type DistributionModel = record {
   initial_distribution : vec record { text; nat };
-  unlock_schedule : opt vec record { nat64; nat };
+  last_emission_time : opt nat64;
+  initial_executed_at : opt nat64;
+  unlock_schedule : opt vec UnlockScheduleItem;
   emission_rate : opt nat;
 };
 type GovernanceConfig = record {
@@ -99,6 +101,12 @@ type TokenLocation = record {
   chain : ChainType;
   canister_id : opt principal;
   contract_address : opt text;
+};
+type UnlockScheduleItem = record {
+  addr : text;
+  timestamp : nat64;
+  executed : bool;
+  amount : nat;
 };
 type Vote = record {
   weight : nat64;

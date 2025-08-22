@@ -36,9 +36,9 @@ function AppLayout({ children }) {
 }
 
 function RequireAuth({ children }) {
-  const { isAuthenticated, loading } = useAuthClient();
+  const { isAuthenticated, isLoading } = useAuthClient();
   const location = useLocation();
-  if (loading) return null;
+  if (isLoading) return null;
   if (!isAuthenticated && location.pathname !== '/') {
     return <Navigate to="/" replace />;
   }

@@ -116,6 +116,7 @@ function DaoInfoPage() {
     },
     enabled: !!dao?.id && !!agent,
     staleTime: 60000, // Cache for 1 minute
+    refetchInterval: 60000, // Auto-refresh every 1 minute
   });
 
   // Fetch member token balances
@@ -167,6 +168,7 @@ function DaoInfoPage() {
     },
     enabled: !!dao?.id && !!agent && !!dao?.members,
     staleTime: 30000, // Cache for 30 seconds
+    refetchInterval: 60000, // Auto-refresh every 1 minute
   });
 
   const [activeTab, setActiveTab] = useState('overview');

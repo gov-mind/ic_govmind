@@ -41,7 +41,9 @@ import {
   Hash,
   Copy,
   Check,
-  RefreshCw
+  RefreshCw,
+  Clock,
+  Calendar
 } from 'lucide-react';
 import { Principal } from '@dfinity/principal';
 import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
@@ -60,6 +62,62 @@ function formatDate(bigintOrNumber) {
 
 function formatMemberDate(joined_at) {
   return new Date(Number(joined_at)).toLocaleDateString();
+}
+
+// Helper function to get unlock schedule for a specific member
+function getMemberUnlockSchedule(dao, member) {
+  if (!dao.base_token?.distribution_model || dao.base_token.distribution_model.length === 0) {
+    return [];
+  }
+  
+  const distributionModel = dao.base_token.distribution_model[0];
+  if (!distributionModel.unlock_schedule || distributionModel.unlock_schedule.length === 0) {
+    return [];
+  }
+  
+  const unlockSchedule = distributionModel.unlock_schedule[0] || [];
+  
+  // Get member's principal address
+  const memberPrincipal = member.icp_principal && member.icp_principal.length > 0 
+    ? (typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText 
+        ? member.icp_principal[0].toText() 
+        : String(member.icp_principal[0]))
+    : null;
+  
+  if (!memberPrincipal) {
+    return [];
+  }
+  
+  // Filter unlock schedule items for this member
+  return unlockSchedule.filter(item => item.addr === memberPrincipal)
+    .sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
+}
+
+// Helper function to format unlock schedule timestamp
+function formatUnlockDate(timestamp) {
+  return new Date(Number(timestamp)/ 1000000).toLocaleDateString('en-US', {
+    year: 'numeric',
+    month: 'short',
+    day: 'numeric'
+  });
+}
+
+// Helper function to calculate total locked tokens for a member
+function getTotalLockedTokens(unlockSchedule) {
+  return unlockSchedule.reduce((total, item) => {
+    return total + Number(item.amount);
+  }, 0);
+}
+
+// Helper function to calculate available (unlocked) tokens
+function getAvailableTokens(unlockSchedule) {
+  const now = Date.now() * 1000000; // Convert to nanoseconds
+  return unlockSchedule.reduce((total, item) => {
+    if (Number(item.timestamp) <= now) {
+      return total + Number(item.amount);
+    }
+    return total;
+  }, 0);
 }
 
 // Centralized Treasury Data Object (simulating backend response)
@@ -1046,44 +1104,104 @@ function DaoInfoPage() {
                 </div>
 
                 <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dao.members.map((member) => (
-                    <div key={member.user_id} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
-                      <div className="flex flex-col gap-3">
-                        <div className="flex items-center justify-between">
-                          <div>
-                            <h4 className="font-semibold text-slate-900 mb-1">{member.user_id}</h4>
-                            <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(member.role)}`}>{Object.keys(member.role)[0]}</span>
-                          </div>
-                          <div className="text-right">
-                            <div className="flex items-center space-x-1">
-                              <Wallet className="w-4 h-4 text-green-600" />
-                              <span className="text-sm font-semibold text-green-700">
-                                {balancesLoading ? (
-                                  <span className="text-xs text-slate-500">Loading...</span>
-                                ) : (
-                                  `${memberBalances[member.user_id] ? parseInt(memberBalances[member.user_id]).toLocaleString() : '0'} ${dao.base_token.symbol}`
-                                )}
-                              </span>
+                  {dao.members.map((member) => {
+                    const unlockSchedule = getMemberUnlockSchedule(dao, member);
+                    const totalLocked = getTotalLockedTokens(unlockSchedule);
+                    const availableTokens = getAvailableTokens(unlockSchedule);
+                    const pendingTokens = totalLocked - availableTokens;
+                    
+                    return (
+                      <div key={member.user_id} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
+                        <div className="flex flex-col gap-3">
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <h4 className="font-semibold text-slate-900 mb-1">{member.user_id}</h4>
+                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(member.role)}`}>{Object.keys(member.role)[0]}</span>
                             </div>
-                            <p className="text-xs text-slate-500">Token Balance</p>
+                            <div className="text-right">
+                              <div className="flex items-center space-x-1">
+                                <Wallet className="w-4 h-4 text-green-600" />
+                                <span className="text-sm font-semibold text-green-700">
+                                  {balancesLoading ? (
+                                    <span className="text-xs text-slate-500">Loading...</span>
+                                  ) : (
+                                    `${memberBalances[member.user_id] ? parseInt(memberBalances[member.user_id]).toLocaleString() : '0'} ${dao.base_token.symbol}`
+                                  )}
+                                </span>
+                              </div>
+                              <p className="text-xs text-slate-500">Current Balance</p>
+                            </div>
                           </div>
-                        </div>
-                        <div className="flex flex-wrap gap-4 text-xs text-slate-600">
-                          <span>Reputation: <span className="font-semibold text-slate-800">{Number(member.reputation)}</span></span>
-                          {member.icp_principal && member.icp_principal.length > 0 && (
-                            <span>ICP: <span className="font-mono">{typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText ? member.icp_principal[0].toText() : String(member.icp_principal[0])}</span></span>
+                          
+                          {/* Token Vesting Information */}
+                          {unlockSchedule.length > 0 && (
+                            <div className="bg-white rounded-lg p-3 border border-slate-200">
+                              <div className="flex items-center justify-between mb-2">
+                                <h5 className="text-sm font-medium text-slate-900 flex items-center">
+                                  <Clock className="w-4 h-4 mr-1 text-blue-600" />
+                                  Token Vesting
+                                </h5>
+                                <span className="text-xs text-slate-500">{unlockSchedule.length} schedules</span>
+                              </div>
+                              
+                              <div className="grid grid-cols-2 gap-2 mb-3">
+                                <div className="text-center p-2 bg-green-50 rounded border border-green-200">
+                                  <p className="text-xs text-green-600 font-medium">Available</p>
+                                  <p className="text-sm font-semibold text-green-800">
+                                    {availableTokens.toLocaleString()}
+                                  </p>
+                                </div>
+                                <div className="text-center p-2 bg-orange-50 rounded border border-orange-200">
+                                  <p className="text-xs text-orange-600 font-medium">Locked</p>
+                                  <p className="text-sm font-semibold text-orange-800">
+                                    {pendingTokens.toLocaleString()}
+                                  </p>
+                                </div>
+                              </div>
+                              
+                              <div className="space-y-1 max-h-24 overflow-y-auto">
+                                {unlockSchedule.slice(0, 3).map((schedule, index) => {
+                                  const isUnlocked = Number(schedule.timestamp) <= Date.now() * 1000000;
+                                  return (
+                                    <div key={index} className="flex items-center justify-between text-xs">
+                                      <div className="flex items-center space-x-1">
+                                        <Calendar className="w-3 h-3 text-slate-400" />
+                                        <span className={isUnlocked ? 'text-green-600' : 'text-slate-600'}>
+                                          {formatUnlockDate(schedule.timestamp)}
+                                        </span>
+                                      </div>
+                                      <span className={`font-medium ${isUnlocked ? 'text-green-700' : 'text-slate-700'}`}>
+                                        {Number(schedule.amount).toLocaleString()} {dao.base_token.symbol}
+                                      </span>
+                                    </div>
+                                  );
+                                })}
+                                {unlockSchedule.length > 3 && (
+                                  <p className="text-xs text-slate-500 text-center pt-1">
+                                    +{unlockSchedule.length - 3} more schedules
+                                  </p>
+                                )}
+                              </div>
+                            </div>
                           )}
-                          {member.eth_address && member.eth_address.length > 0 && (
-                            <span>ETH: <span className="font-mono">{member.eth_address[0]}</span></span>
-                          )}
-                          {member.sol_address && member.sol_address.length > 0 && (
-                            <span>SOL: <span className="font-mono">{member.sol_address[0]}</span></span>
-                          )}
-                          <span>Joined: <span className="font-mono">{formatMemberDate(member.joined_at)}</span></span>
+                          
+                          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
+                            <span>Reputation: <span className="font-semibold text-slate-800">{Number(member.reputation)}</span></span>
+                            {member.icp_principal && member.icp_principal.length > 0 && (
+                              <span>ICP: <span className="font-mono">{typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText ? member.icp_principal[0].toText() : String(member.icp_principal[0])}</span></span>
+                            )}
+                            {member.eth_address && member.eth_address.length > 0 && (
+                              <span>ETH: <span className="font-mono">{member.eth_address[0]}</span></span>
+                            )}
+                            {member.sol_address && member.sol_address.length > 0 && (
+                              <span>SOL: <span className="font-mono">{member.sol_address[0]}</span></span>
+                            )}
+                            <span>Joined: <span className="font-mono">{formatMemberDate(member.joined_at)}</span></span>
+                          </div>
                         </div>
                       </div>
-                    </div>
-                  ))}
+                    );
+                  })}
                 </div>
               </div>
             )}

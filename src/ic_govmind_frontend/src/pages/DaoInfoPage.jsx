@@ -28,7 +28,7 @@ function formatDate(bigintOrNumber) {
   let ms;
   if (typeof bigintOrNumber === 'bigint') {
     // Assume nanoseconds, convert to milliseconds
-    ms = Number(bigintOrNumber);
+    ms = Number(bigintOrNumber) / 1000000;
   } else {
     ms = Number(bigintOrNumber);
   }

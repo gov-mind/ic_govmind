@@ -43,6 +43,15 @@ pub struct ComplexityBreakdown {
     pub comparison: String,           // How it compares to typical DAO proposals
 }
 
+// Candid types for proposal draft
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct ProposalDraft {
+    pub title: String,
+    pub summary: String,
+    pub rationale: String,
+    pub specifications: String,
+}
+
 // Serde types for JSON parsing (from AI API)
 #[derive(SerdeDeserialize, Debug)]
 struct JsonProposalAnalysis {
@@ -52,6 +61,14 @@ struct JsonProposalAnalysis {
     pub complexity_score: f64,
     pub complexity_breakdown: JsonComplexityBreakdown,
     pub estimated_impact: String,
+}
+
+#[derive(SerdeDeserialize, Debug)]
+struct JsonProposalDraft {
+    pub title: String,
+    pub summary: String,
+    pub rationale: String,
+    pub specifications: String,
 }
 
 #[derive(SerdeDeserialize, Debug)]
@@ -87,6 +104,17 @@ impl From<JsonComplexityBreakdown> for ComplexityBreakdown {
             timeline_complexity: json.timeline_complexity,
             explanation: json.explanation,
             comparison: json.comparison,
+        }
+    }
+}
+
+impl From<JsonProposalDraft> for ProposalDraft {
+    fn from(json: JsonProposalDraft) -> Self {
+        ProposalDraft {
+            title: json.title,
+            summary: json.summary,
+            rationale: json.rationale,
+            specifications: json.specifications,
         }
     }
 }
@@ -245,6 +273,11 @@ async fn analyze_proposal(proposal_id: String) -> Result<ProposalAnalysis, Strin
     }
 }
 
+#[update]
+async fn draft_proposal(idea: String) -> Result<ProposalDraft, String> {
+    call_ai_draft_api(&idea).await
+}
+
 // HTTP outcall to AI API through idempotent proxy
 async fn call_ai_api(title: &str, description: &str) -> Result<ProposalAnalysis, String> {
     const MAX_RETRIES: u32 = 3;
@@ -334,6 +367,91 @@ async fn call_ai_api_single_attempt(title: &str, description: &str) -> Result<Pr
     }
 }
 
+// HTTP outcall to AI API for proposal drafting
+async fn call_ai_draft_api(idea: &str) -> Result<ProposalDraft, String> {
+    const MAX_RETRIES: u32 = 3;
+    let mut last_error = String::new();
+    
+    for attempt in 0..MAX_RETRIES {
+        match call_ai_draft_api_single_attempt(idea).await {
+            Ok(draft) => return Ok(draft),
+            Err(error) => {
+                last_error = error.clone();
+                
+                // Check if error is retryable (connection timeout or DNS failure)
+                let is_retryable = error.contains("TimedOut") || 
+                                 error.contains("dns error") || 
+                                 error.contains("failed to lookup address information") ||
+                                 error.contains("Connecting to") ||
+                                 error.contains("tcp connect error");
+                
+                if !is_retryable || attempt == MAX_RETRIES - 1 {
+                    break;
+                }
+            }
+        }
+    }
+    
+    Err(format!("Failed after {} attempts: {}", MAX_RETRIES, last_error))
+}
+
+async fn call_ai_draft_api_single_attempt(idea: &str) -> Result<ProposalDraft, String> {
+    let mut request_body = HashMap::new();
+    request_body.insert("idea".to_string(), idea.to_string());
+    
+    let request_body_json = serde_json::to_string(&request_body)
+        .map_err(|e| format!("Failed to serialize request: {}", e))?;
+    
+    // Generate idempotent key from idea hash
+    let idempotency_key = generate_idempotency_key_for_idea(idea);
+    
+    let request_headers = vec![
+        HttpHeader {
+            name: "Content-Type".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "Accept".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "idempotency-key".to_string(),
+            value: idempotency_key,
+        },
+    ];
+    
+    let request = HttpRequestArgs {
+        url: "https://ai-api.govmind.info/URL_AI_PROPOSAL_DRAFT".to_string(),
+        method: HttpMethod::POST,
+        body: Some(request_body_json.into_bytes()),
+        max_response_bytes: Some(10_000),
+        transform: Some(TransformContext {
+            function: TransformFunc(candid::Func {
+                principal: canister_self(),
+                method: "transform_response".to_string(),
+            }),
+            context: vec![],
+        }),
+        headers: request_headers,
+    };
+    
+    match http_request(&request).await {
+        Ok(response) => {
+            let response_body = String::from_utf8(response.body)
+                .map_err(|e| format!("Invalid UTF-8 response: {}", e))?;
+            
+            // Parse the direct JSON response from proxy server
+            let json_draft: JsonProposalDraft = serde_json::from_str(&response_body)
+                .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
+            
+            Ok(ProposalDraft::from(json_draft))
+        }
+        Err(error) => {
+            Err(format!("HTTP request failed: {:?}", error))
+        }
+    }
+}
+
 // Generate idempotent key from title and description hash
 fn generate_idempotency_key(title: &str, description: &str) -> String {
     let mut hasher = DefaultHasher::new();
@@ -341,6 +459,14 @@ fn generate_idempotency_key(title: &str, description: &str) -> String {
     description.hash(&mut hasher);
     let hash = hasher.finish();
     format!("govmind-{:x}", hash)
+}
+
+// Generate idempotent key from idea hash
+fn generate_idempotency_key_for_idea(idea: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    idea.hash(&mut hasher);
+    let hash = hasher.finish();
+    format!("govmind-draft-{:x}", hash)
 }
 
 // Transform function for HTTP outcalls

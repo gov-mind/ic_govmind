@@ -267,7 +267,7 @@ function CreateDaoPage() {
                     .filter(s => s.timestamp && s.amount && m.icpPrincipal)
                     .map(s => ({
                         addr: m.icpPrincipal,
-                        timestamp: BigInt(new Date(s.timestamp).getTime()),
+                        timestamp: BigInt(new Date(s.timestamp).getTime() * 1000000),
                         amount: BigInt(s.amount),
                         executed: false
                     }))

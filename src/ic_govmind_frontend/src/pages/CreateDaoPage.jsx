@@ -21,6 +21,7 @@ function CreateDaoPage() {
     const navigate = useNavigate();
     const [isCreating, setIsCreating] = useState(false);
     const [currentStep, setCurrentStep] = useState(1);
+    const [showSuccessMessage, setShowSuccessMessage] = useState(false);
     const [formData, setFormData] = useState({
         name: '',
         description: '',
@@ -266,7 +267,7 @@ function CreateDaoPage() {
                     .filter(s => s.timestamp && s.amount && m.icpPrincipal)
                     .map(s => ({
                         addr: m.icpPrincipal,
-                        timestamp: BigInt(new Date(s.timestamp).getTime()),
+                        timestamp: BigInt(new Date(s.timestamp).getTime() * 1000000),
                         amount: BigInt(s.amount),
                         executed: false
                     }))
@@ -361,8 +362,13 @@ function CreateDaoPage() {
                     // Continue to navigate even if token creation fails
                 }
                 
-                // Navigate to the created DAO page
-                navigate(`/dao/${daoId}`);
+                // Show success message with token distribution info
+                setShowSuccessMessage(true);
+                
+                // Navigate to the created DAO page after showing the message
+                setTimeout(() => {
+                    navigate(`/dao/${daoId}`);
+                }, 3000); // Show message for 3 seconds
             } else {
                 setErrors({ submit: result && result.Err ? result.Err : 'Failed to create DAO. Please try again.' });
             }
@@ -1072,6 +1078,21 @@ function CreateDaoPage() {
                     </div>
                 </div>
             </main>
+            
+            {/* Success Toast */}
+            {showSuccessMessage && (
+                <div className="fixed top-4 right-4 bg-green-100 border border-green-200 text-green-700 px-6 py-4 rounded-xl shadow-lg z-50 max-w-md">
+                    <div className="flex items-start space-x-3">
+                        <CheckCircle className="w-6 h-6 mt-0.5 flex-shrink-0" />
+                        <div>
+                            <div className="font-medium mb-1">DAO Created Successfully!</div>
+                            <div className="text-sm text-green-600">
+                                Token distribution will begin in 1-2 minutes. You'll be redirected to your DAO page shortly.
+                            </div>
+                        </div>
+                    </div>
+                </div>
+            )}
         </div>
     );
 }

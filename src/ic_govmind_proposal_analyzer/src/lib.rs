@@ -1,10 +1,14 @@
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::{query, update};
-use ic_cdk::api::{msg_caller};
+use ic_cdk::api::{canister_self, debug_print, msg_caller};
+use ic_cdk::management_canister::{HttpRequestResult, TransformArgs, http_request, HttpRequestArgs, HttpMethod, HttpHeader, TransformContext, TransformFunc};
 use serde::{Deserialize as SerdeDeserialize};
 use ic_stable_structures::{StableBTreeMap, StableCell, memory_manager::{MemoryManager, VirtualMemory, MemoryId}, DefaultMemoryImpl, storable::Storable};
 use std::cell::RefCell;
 use std::borrow::Cow;
+use std::collections::HashMap;
+use std::collections::hash_map::DefaultHasher;
+use std::hash::{Hash, Hasher};
 
 // Types for proposal analysis (Candid types)
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -95,10 +99,6 @@ pub enum ProposalStatus {
     Failed,
 }
 
-
-
-
-
 // Stable memory management
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 type ProposalMap = StableBTreeMap<String, Proposal, Memory>;
@@ -124,32 +124,28 @@ impl Storable for Proposal {
     };
 }
 
-// Submit a new proposal with optional AI analysis and status
-// TODO: signature will be used to verify the request is signed by our API proxy
-// This will prevent unauthorized frontend submissions and ensure analysis comes from trusted source
+// Submit a new proposal and automatically run AI analysis
 #[update]
-async fn submit_proposal_with_analysis(
+async fn submit_proposal_and_analyze(
     proposal_id_opt: Option<String>,
     title: String,
     description: String,
-    analysis: Option<ProposalAnalysis>,
-    status: ProposalStatus,
-    _signature: Option<String>, // Optional signature from API proxy for verification
-) -> String {
+) -> Result<String, String> {
     let caller = msg_caller();
     let proposal_id = match proposal_id_opt {
         Some(id) if !id.is_empty() => id,
         _ => generate_proposal_id(),
     };
 
+    // First, submit the proposal with Pending status
     let proposal = Proposal {
         id: proposal_id.clone(),
         title,
         description,
         submitted_by: caller,
         submitted_at: ic_cdk::api::time(),
-        analysis,
-        status,
+        analysis: None,
+        status: ProposalStatus::Pending,
     };
 
     PROPOSALS.with(|proposals| {
@@ -161,40 +157,18 @@ async fn submit_proposal_with_analysis(
         cell.set(val).expect("Failed to update counter");
     });
 
-    proposal_id
-}
+    // Then automatically run analysis
+    match analyze_proposal(proposal_id.clone()).await {
+        Ok(_) => Ok(proposal_id),
+        Err(e) => {
+            // Even if analysis fails, we still return the proposal_id since the proposal was created
+            // The status will be set to Failed by the analyze_proposal function
+            debug_print(e);
 
-// Update analysis for an existing proposal (for retry scenarios)
-// TODO: signature will be used to verify the request is signed by our API proxy
-// This will prevent unauthorized frontend submissions and ensure analysis comes from trusted source
-#[update]
-async fn update_analysis(
-    proposal_id: String,
-    analysis: Option<ProposalAnalysis>,
-    status: ProposalStatus,
-    _signature: Option<String>, // Optional signature from API proxy for verification
-) -> Result<String, String> {
-    let proposal_exists = PROPOSALS.with(|proposals| {
-        proposals.borrow().contains_key(&proposal_id)
-    });
-
-    if !proposal_exists {
-        return Err("Proposal not found".to_string());
-    }
-
-    PROPOSALS.with(|proposals| {
-        let mut proposals_mut = proposals.borrow_mut();
-        if let Some(mut proposal) = proposals_mut.get(&proposal_id).map(|x| x.clone()) {
-            proposal.analysis = analysis;
-            proposal.status = status;
-            proposals_mut.insert(proposal_id.clone(), proposal);
+            Ok(proposal_id)
         }
-    });
-
-    Ok("Analysis updated successfully".to_string())
+    }
 }
-
-
 
 // Get proposal by ID
 #[query]
@@ -219,8 +193,170 @@ fn get_all_proposals() -> Vec<Proposal> {
 // Helper functions
 fn generate_proposal_id() -> String {
     PROPOSAL_COUNTER.with(|counter| {
-        let binding = counter.borrow();
-        let current = binding.get();
-        format!("proposal_{}", current)
+        let mut counter = counter.borrow_mut();
+        let current = counter.get();
+        let new_id = current + 1;
+        let _ = counter.set(new_id);
+        format!("proposal_{}", new_id)
     })
 }
+
+// Simplified AI Analysis function - only takes proposal_id
+#[update]
+async fn analyze_proposal(proposal_id: String) -> Result<ProposalAnalysis, String> {
+    // Get the proposal from storage
+    let (title, description) = PROPOSALS.with(|proposals| {
+        let mut proposals = proposals.borrow_mut();
+        if let Some(mut proposal) = proposals.get(&proposal_id) {
+            // Update status to Analyzing
+            proposal.status = ProposalStatus::Analyzing;
+            proposals.insert(proposal_id.clone(), proposal.clone());
+            Ok((proposal.title.clone(), proposal.description.clone()))
+        } else {
+            Err(format!("Proposal with ID '{}' not found", proposal_id))
+        }
+    })?;
+
+    // Call AI API through idempotent proxy
+    match call_ai_api(&title, &description).await {
+        Ok(analysis) => {
+            // Update proposal with analysis
+            PROPOSALS.with(|proposals| {
+                let mut proposals = proposals.borrow_mut();
+                if let Some(mut proposal) = proposals.get(&proposal_id) {
+                    proposal.analysis = Some(analysis.clone());
+                    proposal.status = ProposalStatus::Analyzed;
+                    proposals.insert(proposal_id.clone(), proposal);
+                }
+            });
+            Ok(analysis)
+        }
+        Err(e) => {
+            // Update proposal status to Failed
+            PROPOSALS.with(|proposals| {
+                let mut proposals = proposals.borrow_mut();
+                if let Some(mut proposal) = proposals.get(&proposal_id) {
+                    proposal.status = ProposalStatus::Failed;
+                    proposals.insert(proposal_id.clone(), proposal);
+                }
+            });
+            Err(format!("AI analysis failed: {}", e))
+        }
+    }
+}
+
+// HTTP outcall to AI API through idempotent proxy
+async fn call_ai_api(title: &str, description: &str) -> Result<ProposalAnalysis, String> {
+    const MAX_RETRIES: u32 = 3;
+    let mut last_error = String::new();
+    
+    for attempt in 0..MAX_RETRIES {
+        match call_ai_api_single_attempt(title, description).await {
+            Ok(analysis) => return Ok(analysis),
+            Err(error) => {
+                last_error = error.clone();
+                
+                // Check if error is retryable (connection timeout or DNS failure)
+                let is_retryable = error.contains("TimedOut") || 
+                                 error.contains("dns error") || 
+                                 error.contains("failed to lookup address information") ||
+                                 error.contains("Connecting to") ||
+                                 error.contains("tcp connect error");
+                
+                if !is_retryable || attempt == MAX_RETRIES - 1 {
+                    break;
+                }
+                
+                // Log retry attempt (in a real implementation, you might want proper logging)
+                // For now, we'll just continue to the next attempt
+            }
+        }
+    }
+    
+    Err(format!("Failed after {} attempts: {}", MAX_RETRIES, last_error))
+}
+
+async fn call_ai_api_single_attempt(title: &str, description: &str) -> Result<ProposalAnalysis, String> {
+    let mut request_body = HashMap::new();
+    request_body.insert("title".to_string(), title.to_string());
+    request_body.insert("description".to_string(), description.to_string());
+    
+    let request_body_json = serde_json::to_string(&request_body)
+        .map_err(|e| format!("Failed to serialize request: {}", e))?;
+    
+    // Generate idempotent key from title and description hash
+    let idempotency_key = generate_idempotency_key(title, description);
+    
+    let request_headers = vec![
+        HttpHeader {
+            name: "Content-Type".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "Accept".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "idempotency-key".to_string(),
+            value: idempotency_key,
+        },
+    ];
+    
+    let request = HttpRequestArgs {
+        url: "https://ai-api.govmind.info/URL_AI_PROPOSAL_ANALYSIS".to_string(),
+        method: HttpMethod::POST,
+        body: Some(request_body_json.into_bytes()),
+        max_response_bytes: Some(10_000),
+        transform: Some(TransformContext {
+            function: TransformFunc(candid::Func {
+                principal: canister_self(),
+                method: "transform_response".to_string(),
+            }),
+            context: vec![],
+        }),
+        headers: request_headers,
+    };
+    
+    match http_request(&request).await {
+        Ok(response) => {
+            let response_body = String::from_utf8(response.body)
+                .map_err(|e| format!("Invalid UTF-8 response: {}", e))?;
+            
+            // Parse the direct JSON response from proxy server
+            let json_analysis: JsonProposalAnalysis = serde_json::from_str(&response_body)
+                .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
+            
+            Ok(ProposalAnalysis::from(json_analysis))
+        }
+        Err(error) => {
+            Err(format!("HTTP request failed: {:?}", error))
+        }
+    }
+}
+
+// Generate idempotent key from title and description hash
+fn generate_idempotency_key(title: &str, description: &str) -> String {
+    let mut hasher = DefaultHasher::new();
+    title.hash(&mut hasher);
+    description.hash(&mut hasher);
+    let hash = hasher.finish();
+    format!("govmind-{:x}", hash)
+}
+
+// Transform function for HTTP outcalls
+#[query]
+fn transform_response(raw: TransformArgs) -> HttpRequestResult {
+    let headers = vec![];
+    
+    let mut sanitized_body = raw.response.body.clone();
+    if sanitized_body.len() > 10_000 {
+        sanitized_body.truncate(10_000);
+    }
+    
+    HttpRequestResult {
+        status: raw.response.status.clone(),
+        body: sanitized_body,
+        headers,
+    }
+}
+

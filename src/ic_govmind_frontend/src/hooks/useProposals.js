@@ -1,6 +1,6 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
-import { getAIAnalysis, getMockAnalysis } from '../services/aiService';
+import { getAIAnalysis, submitProposalAndAnalyze } from '../services/aiService';
 
 // Query Keys
 export const QUERY_KEYS = {
@@ -47,52 +47,22 @@ export const useSubmitProposal = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ proposalId, title, description, useAI = true, aiProvider = 'deepseek' }) => {
-      let analysis = null;
-      let status = { Pending: null }; // Default status
-      
-      if (useAI) {
-        try {
-          // First, set status to Analyzing
-          const analyzingResult = await ic_govmind_proposal_analyzer.update_analysis(
-            proposalId,
-            [], // No analysis yet
-            { Analyzing: null },
-            [] // No signature yet - will be added when implementing backend signing
-          );
-          
-          if (analyzingResult.Err) {
-            throw new Error(analyzingResult.Err);
-          }
-
-          // Try to get AI analysis
-          analysis = await getAIAnalysis(title, description);
-          console.log('AI analysis completed:', analysis);
-          status = { Analyzed: null };
-        } catch (error) {
-          console.warn('AI analysis failed:', error.message);
-          // Submit with failed status - no analysis
-          status = { Failed: null };
-          analysis = null;
-        }
+    mutationFn: async ({ proposalId, title, description }) => {
+      console.log('🔍 DEBUG: useSubmitProposal mutationFn called with:', { proposalId, title, description });
+      // Use the new combined submit and analyze function
+      const result = await submitProposalAndAnalyze(title, description, proposalId);
+      console.log('🔍 DEBUG: submitProposalAndAnalyze result:', result);
+      if (result.success) {
+        return result.proposalId;
       } else {
-        // If useAI is false, submit with pending status and no analysis
-        analysis = null;
-        status = { Pending: null };
+        throw new Error(result.error);
       }
-      
-      // Submit proposal with optional analysis and status
-      // TODO: Add signature from API proxy when implementing backend signing
-      return ic_govmind_proposal_analyzer.submit_proposal_with_analysis(
-        proposalId ? [proposalId] : [],
-        title,
-        description,
-        analysis ? [analysis] : [], // Convert to Option type for Candid
-        status,
-        [] // No signature yet - will be added when implementing backend signing
-      );
+    },
+    onMutate: (variables) => {
+      console.log('🔍 DEBUG: useSubmitProposal onMutate called with:', variables);
     },
     onSuccess: (proposalId) => {
+      console.log('🔍 DEBUG: useSubmitProposal onSuccess called with proposalId:', proposalId);
       // Invalidate and refetch proposals list
       queryClient.invalidateQueries({ queryKey: QUERY_KEYS.proposals });
       
@@ -108,8 +78,11 @@ export const useSubmitProposal = () => {
       return proposalId;
     },
     onError: (error) => {
-      console.error('Error submitting proposal:', error);
+      console.error('🔍 DEBUG: useSubmitProposal onError called with:', error);
     },
+    onSettled: (data, error, variables, context) => {
+      console.log('🔍 DEBUG: useSubmitProposal onSettled called with:', { data, error, variables, context });
+    }
   });
 };
 
@@ -185,53 +158,19 @@ export const useProposalAnalysis = () => {
   const queryClient = useQueryClient();
   
   return useMutation({
-    mutationFn: async ({ proposalId, title, description, isRetry = false }) => {
+    mutationFn: async ({ proposalId, isRetry = false }) => {
       try {
-        // First, set status to Analyzing
-        const analyzingResult = await ic_govmind_proposal_analyzer.update_analysis(
-          proposalId,
-          [], // No analysis yet
-          { Analyzing: null },
-          [] // No signature yet - will be added when implementing backend signing
-        );
+        // Use the simplified analyze_proposal function that only needs proposal_id
+        const result = await getAIAnalysis(proposalId);
         
-        if (analyzingResult.Err) {
-          throw new Error(analyzingResult.Err);
+        if (result.success) {
+          console.log(`${isRetry ? 'Retry' : 'Initial'} AI analysis completed:`, result.data);
+          return result.data;
+        } else {
+          throw new Error(result.error);
         }
-        
-        // Try to get AI analysis
-        const analysis = await getAIAnalysis(title, description);
-        console.log(`${isRetry ? 'Retry' : 'Initial'} AI analysis completed:`, analysis);
-        
-        // Update the proposal with new analysis
-        // TODO: Add signature from API proxy when implementing backend signing
-        const result = await ic_govmind_proposal_analyzer.update_analysis(
-          proposalId,
-          analysis ? [analysis] : [], // Convert to Option type for Candid
-          { Analyzed: null },
-          [] // No signature yet - will be added when implementing backend signing
-        );
-        
-        if (result.Err) {
-          throw new Error(result.Err);
-        }
-        
-        return result.Ok;
       } catch (error) {
         console.error(`${isRetry ? 'Retry' : 'Initial'} analysis failed:`, error.message);
-        
-        // Update status to failed with no analysis
-        const failResult = await ic_govmind_proposal_analyzer.update_analysis(
-          proposalId,
-          [], // No analysis - empty Option
-          { Failed: null },
-          [] // No signature yet - will be added when implementing backend signing
-        );
-        
-        if (failResult.Err) {
-          throw new Error(failResult.Err);
-        }
-        
         throw error; // Re-throw original error
       }
     },
@@ -245,4 +184,4 @@ export const useProposalAnalysis = () => {
       console.error('Error in proposal analysis:', error);
     },
   });
-}; 
+};

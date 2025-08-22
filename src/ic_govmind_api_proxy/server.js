@@ -82,13 +82,13 @@ app.get('/', (req, res) => {
     status: 'running',
     endpoints: [
       'GET /api/health',
-      'POST /api/analyze/deepseek'
+      'POST /api/proposals/analyze'
     ]
   });
 });
 
 // DeepSeek API proxy
-app.post('/api/analyze/deepseek', async (req, res) => {
+app.post('/api/proposals/analyze', async (req, res) => {
   try {
     const { title, description } = req.body;
     

@@ -69,6 +69,7 @@ setup_nginx() {
     sudo tee /etc/nginx/sites-available/ic-govmind-api > /dev/null << EOF
 server {
     listen 80;
+    listen [::]:80; # IPv6
     server_name $SERVER_NAME;
     $SSL_CONFIG
 
@@ -85,9 +86,9 @@ server {
         root /var/www/html;
     }
 
-    # Proxy to Node.js app
+    # Proxy to idempotent-proxy-server (port 8080)
     location / {
-        proxy_pass http://localhost:3001;
+        proxy_pass http://localhost:8080;
         proxy_http_version 1.1;
         proxy_set_header Upgrade \$http_upgrade;
         proxy_set_header Connection 'upgrade';
@@ -105,7 +106,7 @@ server {
 
     # Health check endpoint
     location /api/health {
-        proxy_pass http://localhost:3001/api/health;
+        proxy_pass http://localhost:8080/api/health;
         access_log off;
     }
 }
@@ -260,6 +261,7 @@ EOF
     pm2 startup
     
     echo "✅ Application deployed and running"
+    echo "📝 Note: This PM2 service runs behind the idempotent-proxy-server on port 8080"
 }
 
 # Global variables
@@ -309,10 +311,12 @@ main() {
     fi
     echo ""
     echo "🔧 Useful commands:"
-    echo "   pm2 status                    # Check app status"
-    echo "   pm2 logs ic-govmind-api-proxy # View logs"
-    echo "   pm2 restart ic-govmind-api-proxy # Restart app"
-    echo "   pm2 stop ic-govmind-api-proxy    # Stop app"
+    echo "   pm2 status                    # Check PM2 app status"
+    echo "   pm2 logs ic-govmind-api-proxy # View PM2 logs"
+    echo "   pm2 restart ic-govmind-api-proxy # Restart PM2 app"
+    echo "   pm2 stop ic-govmind-api-proxy    # Stop PM2 app"
+    echo "   systemctl status idempotent-proxy-server  # Check proxy server status"
+    echo "   systemctl restart idempotent-proxy-server # Restart proxy server"
     if [ ! -z "$DOMAIN_NAME" ]; then
         echo "   sudo certbot certificates     # Check SSL status"
         echo "   sudo certbot renew --dry-run # Test SSL renewal"
@@ -324,13 +328,15 @@ main() {
     echo "   Logs: /var/log/ic-govmind-api-proxy*.log"
     echo ""
     echo "🔐 Don't forget to:"
-    echo "   1. Edit /opt/ic_govmind_api_proxy/.env with your API keys"
+    echo "   1. Edit /opt/ic_govmind_api_proxy/.env with your API keys (PM2 service)"
+    echo "   2. Edit /mnt/idempotent-server/.env for proxy server configuration"
+    echo "   3. Restart proxy server after env changes: systemctl restart idempotent-proxy-server"
     if [ ! -z "$DOMAIN_NAME" ]; then
-        echo "   2. Update your frontend VITE_BACKEND_PROXY_URL=https://$DOMAIN_NAME"
-        echo "   3. SSL certificate will auto-renew (check with: sudo certbot certificates)"
+        echo "   4. Update your frontend VITE_BACKEND_PROXY_URL=https://$DOMAIN_NAME"
+        echo "   5. SSL certificate will auto-renew (check with: sudo certbot certificates)"
     else
-        echo "   2. Update your frontend VITE_BACKEND_PROXY_URL=http://$(curl -s http://checkip.amazonaws.com)"
-        echo "   3. Consider setting up SSL later with: sudo certbot --nginx -d your-domain.com"
+        echo "   4. Update your frontend VITE_BACKEND_PROXY_URL=http://$(curl -s http://checkip.amazonaws.com)"
+        echo "   5. Consider setting up SSL later with: sudo certbot --nginx -d your-domain.com"
     fi
 }
 

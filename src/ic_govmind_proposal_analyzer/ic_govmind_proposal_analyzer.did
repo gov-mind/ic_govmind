@@ -1,8 +1,24 @@
 type ProposalStatus = variant {
-    Pending;
-    Analyzing;
-    Analyzed;
-    Failed;
+  Pending;
+  Analyzing;
+  Analyzed;
+  Failed;
+};
+
+type HttpHeader = record {
+  name : text;
+  value : text;
+};
+
+type HttpResponse = record {
+  status : nat;
+  body : vec nat8;
+  headers : vec HttpHeader;
+};
+
+type TransformArgs = record {
+  response : HttpResponse;
+  context : vec nat8;
 };
 
 type ComplexityBreakdown = record {
@@ -34,8 +50,9 @@ type Proposal = record {
 };
 
 service : {
-    "submit_proposal_with_analysis": (opt text, text, text, opt ProposalAnalysis, ProposalStatus, opt text) -> (text);
-    "update_analysis": (text, opt ProposalAnalysis, ProposalStatus, opt text) -> (variant { Ok: text; Err: text });
+    "analyze_proposal": (text) -> (variant { Ok: ProposalAnalysis; Err: text });
+    "submit_proposal_and_analyze": (opt text, text, text) -> (variant { Ok: text; Err: text });
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
-} 
+    "transform_response": (TransformArgs) -> (HttpResponse) query;
+}

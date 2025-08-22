@@ -13,3 +13,4 @@ ic-cdk-timers = { workspace = true }
 serde = { workspace = true }
 serde_json = { workspace = true }
 ic-stable-structures = { workspace = true }
+ic-management-canister-types = { workspace = true }

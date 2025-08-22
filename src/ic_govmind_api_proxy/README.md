@@ -52,16 +52,19 @@ The script will:
 - ✅ Install Node.js 18.x
 - ✅ Install PM2 process manager
 - ✅ Setup UFW firewall
-- ✅ Configure Nginx reverse proxy
+- ✅ Configure Nginx reverse proxy (delegates to idempotent-proxy-server on port 8080)
 - ✅ Setup SSL certificate with Let's Encrypt (if domain provided)
-- ✅ Deploy and start the API service
+- ✅ Deploy and start the API service with PM2
 - ✅ Auto-start on server reboot
 - ✅ Configure automatic SSL certificate renewal
 
-### 3. Configure API Keys
+**Architecture**: Nginx → idempotent-proxy-server (port 8080) → PM2 service (port 3001)
 
-After deployment, edit the environment file:
+### 3. Configure Environment Variables
 
+After deployment, you need to configure two environment files:
+
+**A. PM2 Service Configuration:**
 ```bash
 nano /opt/ic_govmind_api_proxy/.env
 ```
@@ -72,9 +75,20 @@ DEEPSEEK_API_KEY=your_actual_deepseek_key_here
 CORS_ORIGIN=https://your-frontend-domain.com
 ```
 
-Then restart the service:
+**B. Idempotent Proxy Server Configuration:**
 ```bash
+nano /mnt/idempotent-server/.env
+```
+
+Configure proxy server settings as needed.
+
+**Restart Services After Changes:**
+```bash
+# Restart PM2 service
 pm2 restart ic-govmind-api-proxy
+
+# Restart idempotent proxy server
+sudo systemctl restart idempotent-proxy-server
 ```
 
 ### 4. Test Your Deployment
@@ -98,19 +112,38 @@ sudo certbot certificates
 
 ## Management Commands
 
+### PM2 Service (Backend API)
 ```bash
-# Check status
+# Check PM2 status
 pm2 status
 
 # View real-time logs
 pm2 logs ic-govmind-api-proxy
 
-# Restart service
+# Restart PM2 service
 pm2 restart ic-govmind-api-proxy
 
-# Stop service
+# Stop PM2 service
 pm2 stop ic-govmind-api-proxy
+```
 
+### Idempotent Proxy Server (Port 8080)
+```bash
+# Check proxy server status
+sudo systemctl status idempotent-proxy-server
+
+# Restart proxy server
+sudo systemctl restart idempotent-proxy-server
+
+# Stop proxy server
+sudo systemctl stop idempotent-proxy-server
+
+# View proxy server logs
+sudo journalctl -u idempotent-proxy-server -f
+```
+
+### System Services
+```bash
 # Check nginx status
 sudo systemctl status nginx
 
@@ -157,20 +190,26 @@ sudo certbot --nginx -d your-domain.com
 
 ## File Locations
 
-- **Application**: `/opt/ic_govmind_api_proxy/`
-- **Environment**: `/opt/ic_govmind_api_proxy/.env`
+- **PM2 Application**: `/opt/ic_govmind_api_proxy/`
+- **PM2 Environment**: `/opt/ic_govmind_api_proxy/.env`
+- **Proxy Server Environment**: `/mnt/idempotent-server/.env`
 - **Nginx Config**: `/etc/nginx/sites-available/ic-govmind-api`
-- **Logs**: `/var/log/ic-govmind-api-proxy*.log`
+- **PM2 Logs**: `/var/log/ic-govmind-api-proxy*.log`
+- **Proxy Server Logs**: `sudo journalctl -u idempotent-proxy-server`
 
 ## Troubleshooting
 
 ### Service won't start
 ```bash
-# Check logs
+# Check PM2 logs
 pm2 logs ic-govmind-api-proxy
 
-# Check if port is available
-sudo netstat -tlnp | grep :3001
+# Check proxy server logs
+sudo journalctl -u idempotent-proxy-server -f
+
+# Check if ports are available
+sudo netstat -tlnp | grep :3001  # PM2 service
+sudo netstat -tlnp | grep :8080  # Proxy server
 ```
 
 ### Upload/deployment issues
@@ -187,11 +226,15 @@ cd /tmp/ic_govmind_api_proxy && ls -la
 
 ### API keys not working
 ```bash
-# Verify environment file
+# Verify PM2 environment file
 cat /opt/ic_govmind_api_proxy/.env
 
-# Restart after changes
+# Verify proxy server environment file
+cat /mnt/idempotent-server/.env
+
+# Restart services after changes
 pm2 restart ic-govmind-api-proxy
+sudo systemctl restart idempotent-proxy-server
 ```
 
 ### Nginx issues

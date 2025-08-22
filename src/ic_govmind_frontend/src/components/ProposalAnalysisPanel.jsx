@@ -112,8 +112,6 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
       // Now perform AI analysis and update the proposal
       await proposalAnalysisMutation.mutateAsync({
         proposalId: proposalId,
-        title: selectedProposal.title,
-        description: selectedProposal.summary || selectedProposal.title,
         isRetry: false
       });
       
@@ -129,8 +127,6 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
     try {
       await proposalAnalysisMutation.mutateAsync({
         proposalId: Array.isArray(analyzedProposal) ? analyzedProposal[0].id : analyzedProposal.id,
-        title: selectedProposal.title,
-        description: selectedProposal.summary || selectedProposal.title,
         isRetry: true
       });
     } catch (error) {
@@ -414,4 +410,4 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
   );
 }
 
-export default ProposalAnalysisPanel; 
+export default ProposalAnalysisPanel;

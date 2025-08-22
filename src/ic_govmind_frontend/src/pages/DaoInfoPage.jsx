@@ -43,10 +43,12 @@ import {
   Check,
   RefreshCw,
   Clock,
-  Calendar
+  Calendar,
+  Brain
 } from 'lucide-react';
 import { Principal } from '@dfinity/principal';
 import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
+import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
 import ProposalAnalysisPanel from '../components/ProposalAnalysisPanel';
 
 function formatDate(bigintOrNumber) {
@@ -649,6 +651,13 @@ function DaoInfoPage() {
   const [isRetryingToken, setIsRetryingToken] = useState(false);
   const [tokenRetryStatus, setTokenRetryStatus] = useState(null); // 'success', 'error', or null
 
+  // Proposal Co-pilot state
+  const [showProposalCopilot, setShowProposalCopilot] = useState(false);
+  const [copilotIdea, setCopilotIdea] = useState('');
+  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
+  const [generatedDraft, setGeneratedDraft] = useState(null);
+  const [draftError, setDraftError] = useState(null);
+
   // Handle copy to clipboard with feedback
   const handleCopy = async (text) => {
     try {
@@ -808,6 +817,52 @@ function DaoInfoPage() {
       setIsRetryingToken(false);
       // Reset status after 5 seconds
       setTimeout(() => setTokenRetryStatus(null), 5000);
+    }
+  };
+
+  // Handle AI draft generation
+  const handleGenerateAIDraft = async () => {
+    if (!copilotIdea.trim()) {
+      setDraftError('Please enter a proposal idea');
+      return;
+    }
+
+    setIsGeneratingDraft(true);
+    setDraftError(null);
+    setGeneratedDraft(null);
+
+    try {
+      const result = await ic_govmind_proposal_analyzer.draft_proposal(copilotIdea.trim());
+      
+      if (result && result.Ok) {
+        setGeneratedDraft(result.Ok);
+      } else {
+        setDraftError(result?.Err || 'Failed to generate proposal draft');
+      }
+    } catch (err) {
+      console.error('Error generating AI draft:', err);
+      setDraftError('Failed to generate proposal draft. Please try again.');
+    } finally {
+      setIsGeneratingDraft(false);
+    }
+  };
+
+  // Handle using the generated draft
+  const handleUseDraft = () => {
+    if (generatedDraft) {
+      setProposalTitle(generatedDraft.title);
+      // Combine summary, rationale, and specifications into description
+      const description = `${generatedDraft.summary}\n\n**Rationale:**\n${generatedDraft.rationale}\n\n**Specifications:**\n${generatedDraft.specifications}`;
+      setProposalContent(description);
+      
+      // Close co-pilot and show proposal form
+      setShowProposalCopilot(false);
+      setShowCreateProposal(true);
+      
+      // Reset co-pilot state
+      setCopilotIdea('');
+      setGeneratedDraft(null);
+      setDraftError(null);
     }
   };
 
@@ -1219,13 +1274,22 @@ function DaoInfoPage() {
                       <p className="text-sm text-red-500 mt-1">Error loading proposals</p>
                     )}
                   </div>
-                  <button
-                    onClick={() => setShowCreateProposal(true)}
-                    className="ml-auto bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2"
-                  >
-                    <Plus className="w-4 h-4" />
-                    <span>New Proposal</span>
-                  </button>
+                  <div className="flex items-center space-x-3">
+                    <button
+                      onClick={() => setShowProposalCopilot(true)}
+                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium flex items-center space-x-2 shadow-sm"
+                    >
+                      <Brain className="w-4 h-4" />
+                      <span>Proposal Co-pilot</span>
+                    </button>
+                    <button
+                      onClick={() => setShowCreateProposal(true)}
+                      className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2"
+                    >
+                      <Plus className="w-4 h-4" />
+                      <span>New Proposal</span>
+                    </button>
+                  </div>
                 </div>
 
 
@@ -2023,6 +2087,143 @@ function DaoInfoPage() {
           <div className="flex items-center space-x-2">
             <Check className="w-5 h-5" />
             <span className="font-medium">Proposal created successfully!</span>
+          </div>
+        </div>
+      )}
+
+      {/* Proposal Co-pilot Modal */}
+      {showProposalCopilot && (
+        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
+          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
+            <div className="flex items-center justify-between p-6 border-b border-slate-200">
+              <div className="flex items-center space-x-3">
+                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
+                  <Brain className="w-5 h-5 text-white" />
+                </div>
+                <div>
+                  <h2 className="text-xl font-semibold text-slate-900">Proposal Co-pilot</h2>
+                  <p className="text-sm text-slate-600">AI-powered proposal drafting assistant</p>
+                </div>
+              </div>
+              <button
+                onClick={() => {
+                  setShowProposalCopilot(false);
+                  setCopilotIdea('');
+                  setGeneratedDraft(null);
+                  setDraftError(null);
+                }}
+                disabled={isGeneratingDraft}
+                className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
+              >
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
+              <div className="space-y-6">
+                {/* Idea Input */}
+                <div>
+                  <label htmlFor="copilot-idea" className="block text-sm font-medium text-slate-700 mb-2">
+                    Describe your proposal idea
+                  </label>
+                  <textarea
+                    id="copilot-idea"
+                    value={copilotIdea}
+                    onChange={(e) => setCopilotIdea(e.target.value)}
+                    placeholder="Describe your proposal idea in one sentence. For example: 'Implement a bug bounty program to incentivize security researchers' or 'Create a community fund for supporting open source projects'"
+                    disabled={isGeneratingDraft}
+                    maxLength={500}
+                    rows={3}
+                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed resize-none"
+                  />
+                  <p className="text-xs text-slate-500 mt-1">{copilotIdea.length}/500 characters</p>
+                </div>
+
+                {/* Generate Button */}
+                <div className="flex justify-center">
+                  <button
+                    onClick={handleGenerateAIDraft}
+                    disabled={isGeneratingDraft || !copilotIdea.trim()}
+                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm flex items-center space-x-2"
+                  >
+                    {isGeneratingDraft ? (
+                      <>
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                        <span>Generating AI Draft...</span>
+                      </>
+                    ) : (
+                      <>
+                        <Brain className="w-4 h-4" />
+                        <span>Generate AI Draft</span>
+                      </>
+                    )}
+                  </button>
+                </div>
+
+                {/* Error Display */}
+                {draftError && (
+                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
+                    <div className="flex items-center space-x-2">
+                      <AlertTriangle className="w-4 h-4 text-red-600" />
+                      <span className="text-sm text-red-700 font-medium">Error</span>
+                    </div>
+                    <p className="text-sm text-red-600 mt-1">{draftError}</p>
+                  </div>
+                )}
+
+                {/* Generated Draft Display */}
+                {generatedDraft && (
+                  <div className="space-y-4">
+                    <div className="flex items-center justify-between">
+                      <h3 className="text-lg font-semibold text-slate-900">Generated Proposal Draft</h3>
+                      <button
+                        onClick={handleUseDraft}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-medium flex items-center space-x-2"
+                      >
+                        <Check className="w-4 h-4" />
+                        <span>Use This Draft</span>
+                      </button>
+                    </div>
+
+                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
+                      {/* Title */}
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Title</h4>
+                        <p className="text-slate-900 font-medium">{generatedDraft.title}</p>
+                      </div>
+
+                      {/* Summary */}
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Summary</h4>
+                        <p className="text-slate-700 text-sm leading-relaxed">{generatedDraft.summary}</p>
+                      </div>
+
+                      {/* Rationale */}
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Rationale</h4>
+                        <p className="text-slate-700 text-sm leading-relaxed">{generatedDraft.rationale}</p>
+                      </div>
+
+                      {/* Specifications */}
+                      <div>
+                        <h4 className="text-sm font-medium text-slate-700 mb-2">Specifications</h4>
+                        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">{generatedDraft.specifications}</p>
+                      </div>
+                    </div>
+
+                    <div className="flex justify-center pt-4">
+                      <button
+                        onClick={handleUseDraft}
+                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-sm flex items-center space-x-2"
+                      >
+                        <Check className="w-5 h-5" />
+                        <span>Use This Draft</span>
+                      </button>
+                    </div>
+                  </div>
+                )}
+              </div>
+            </div>
           </div>
         </div>
       )}

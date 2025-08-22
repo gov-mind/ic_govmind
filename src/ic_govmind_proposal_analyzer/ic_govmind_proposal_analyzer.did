@@ -49,9 +49,17 @@ type Proposal = record {
     status: ProposalStatus;
 };
 
+type ProposalDraft = record {
+    title: text;
+    summary: text;
+    rationale: text;
+    specifications: text;
+};
+
 service : {
     "analyze_proposal": (text) -> (variant { Ok: ProposalAnalysis; Err: text });
     "submit_proposal_and_analyze": (opt text, text, text) -> (variant { Ok: text; Err: text });
+    "draft_proposal": (text) -> (variant { Ok: ProposalDraft; Err: text });
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
     "transform_response": (TransformArgs) -> (HttpResponse) query;

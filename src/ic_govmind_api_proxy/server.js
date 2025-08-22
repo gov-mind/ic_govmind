@@ -82,7 +82,8 @@ app.get('/', (req, res) => {
     status: 'running',
     endpoints: [
       'GET /api/health',
-      'POST /api/proposals/analyze'
+      'POST /api/proposals/analyze',
+      'POST /api/proposals/draft'
     ]
   });
 });
@@ -167,6 +168,91 @@ app.post('/api/proposals/analyze', async (req, res) => {
       error: 'Analysis failed',
       details: error.message,
       code: 'ANALYSIS_FAILED',
+      provider: 'deepseek'
+    });
+  }
+});
+
+// Proposal draft generation endpoint
+app.post('/api/proposals/draft', async (req, res) => {
+  try {
+    const { idea } = req.body;
+    
+    // Validation
+    if (!idea) {
+      return res.status(400).json({
+        error: 'Idea parameter is required',
+        code: 'MISSING_PARAMETERS'
+      });
+    }
+    
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(500).json({
+        error: 'DeepSeek API key not configured',
+        code: 'API_KEY_MISSING'
+      });
+    }
+
+    const prompt = createDraftPrompt(idea);
+    
+    console.log(`[DeepSeek] Generating proposal draft for idea: "${idea.substring(0, 50)}..."`);
+    
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'User-Agent': 'IC-GovMind-Proxy/1.0'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert assistant for a Decentralized Autonomous Organization (DAO). You help transform raw ideas into formal, well-structured proposal drafts. Always respond with valid JSON format without markdown wrappers.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2000,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[DeepSeek] API error ${response.status}:`, errorText);
+      throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error('No response from DeepSeek API');
+    }
+
+    const aiResponse = data.choices[0].message.content;
+    const draft = parseDraftResponse(aiResponse);
+    
+    console.log(`[DeepSeek] Proposal draft generated successfully`);
+    res.json({
+      ...draft,
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('[DeepSeek] Draft generation error:', error);
+    res.status(500).json({
+      error: 'Draft generation failed',
+      details: error.message,
+      code: 'DRAFT_GENERATION_FAILED',
       provider: 'deepseek'
     });
   }
@@ -261,6 +347,58 @@ function parseAIResponse(content) {
   }
 }
 
+function createDraftPrompt(idea) {
+  return `You are an expert assistant for a Decentralized Autonomous Organization (DAO). Your task is to take a user's raw idea and transform it into a formal, well-structured proposal draft.
+
+The DAO uses a standard proposal format with four sections:
+1. **Title:** A concise and clear title.
+2. **Summary:** A one-paragraph executive summary explaining the proposal.
+3. **Rationale:** A detailed explanation of why this proposal is necessary and beneficial for the DAO.
+4. **Specifications:** The concrete actions to be taken if the proposal passes (e.g., specific amounts, wallet addresses, canister calls).
+
+Here is the user's raw idea:
+"${idea}"
+
+Based on this idea, please generate the proposal. If some details are missing (like a specific wallet address), use a clear placeholder like "[INSERT WALLET ADDRESS HERE]" and mention in the rationale that this needs to be provided.
+
+Your response MUST be a single, valid JSON object and nothing else. Do not include any introductory text, explanations, or markdown formatting. The JSON object must have the following keys: "title", "summary", "rationale", "specifications".`;
+}
+
+function parseDraftResponse(content) {
+  // Extract JSON from markdown if wrapped
+  let cleanContent = content.trim();
+  
+  // Remove markdown code blocks
+  if (cleanContent.startsWith('```json')) {
+    cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleanContent.startsWith('```')) {
+    cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  
+  // Find JSON boundaries
+  const jsonStart = cleanContent.indexOf('{');
+  const jsonEnd = cleanContent.lastIndexOf('}');
+  
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
+  }
+  
+  try {
+    const draft = JSON.parse(cleanContent);
+    
+    // Validate and normalize the response
+    return {
+      title: draft.title || 'Untitled Proposal',
+      summary: draft.summary || 'No summary provided',
+      rationale: draft.rationale || 'No rationale provided',
+      specifications: draft.specifications || 'No specifications provided'
+    };
+  } catch (error) {
+    console.error('Failed to parse draft response:', cleanContent);
+    throw new Error(`Failed to parse draft response as JSON: ${error.message}`);
+  }
+}
+
 // Error handling middleware
 app.use((error, req, res, next) => {
   console.error('Unhandled error:', error);
@@ -303,4 +441,4 @@ process.on('SIGINT', () => {
   });
 });
 
-export default app; 
+export default app;

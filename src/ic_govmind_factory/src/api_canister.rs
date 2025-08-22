@@ -57,7 +57,7 @@ async fn create_canister_with_settings(caller: Principal) -> Result<Principal, S
                 wasm_memory_threshold: None,
             }),
         },
-        1_500_000_000_000,
+        4_000_000_000_000,
     )
     .await
     .map_err(|err| format!("Failed to create canister. Err: {:?}", err.to_string()))?;

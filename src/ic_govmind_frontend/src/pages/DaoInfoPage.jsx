@@ -1,7 +1,30 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
 import { useQuery, useQueryClient } from '@tanstack/react-query';
 import { useAuthClient } from '../hooks/useAuthClient';
+import {
+  Chart as ChartJS,
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement,
+} from 'chart.js';
+import { Line, Pie } from 'react-chartjs-2';
+
+ChartJS.register(
+  CategoryScale,
+  LinearScale,
+  PointElement,
+  LineElement,
+  Title,
+  Tooltip,
+  Legend,
+  ArcElement
+);
 import {
   Building2,
   Users,
@@ -39,10 +62,392 @@ function formatMemberDate(joined_at) {
   return new Date(Number(joined_at)).toLocaleDateString();
 }
 
+// Centralized Treasury Data Object (simulating backend response)
+const getTreasuryData = () => {
+  return {
+    totalBalance: {
+      usd: 1247893.45,
+      change: {
+        percentage: 15.3,
+        period: 'quarter',
+        direction: 'up'
+      },
+      lastUpdated: '2:34:12 PM'
+    },
+    assets: [
+      {
+        chain: 'Bitcoin',
+        symbol: 'BTC',
+        amount: 18.5432,
+        usdValue: 349876.23,
+        percentage: 28.0,
+        color: '#f7931a',
+        price: 18900.45
+      },
+      {
+        chain: 'Ethereum',
+        symbol: 'ETH',
+        amount: 142.789,
+        usdValue: 274536.78,
+        percentage: 22.0,
+        color: '#627eea',
+        price: 1923.45
+      },
+      {
+        chain: 'Internet Computer',
+        symbol: 'ICP',
+        amount: 4567.234,
+        usdValue: 237089.12,
+        percentage: 19.0,
+        color: '#29abe2',
+        price: 51.89
+      },
+      {
+        chain: 'Solana',
+        symbol: 'SOL',
+        amount: 1876.543,
+        usdValue: 187184.32,
+        percentage: 15.0,
+        color: '#9945ff',
+        price: 99.78
+      },
+      {
+        chain: 'Others',
+        symbol: 'MISC',
+        amount: 1,
+        usdValue: 199207.00,
+        percentage: 16.0,
+        color: '#64748b',
+        price: 199207.00
+      }
+    ],
+    performanceHistory: [
+      { date: '2024-01-01', value: 785432.12 },
+      { date: '2024-01-02', value: 792156.34 },
+      { date: '2024-01-03', value: 788934.56 },
+      { date: '2024-01-04', value: 801245.78 },
+      { date: '2024-01-05', value: 795678.90 },
+      { date: '2024-01-06', value: 812456.12 },
+      { date: '2024-01-07', value: 808123.34 },
+      { date: '2024-01-08', value: 825789.56 },
+      { date: '2024-01-09', value: 819456.78 },
+      { date: '2024-01-10', value: 834567.90 },
+      { date: '2024-01-11', value: 828234.12 },
+      { date: '2024-01-12', value: 845123.34 },
+      { date: '2024-01-13', value: 839789.56 },
+      { date: '2024-01-14', value: 856456.78 },
+      { date: '2024-01-15', value: 851123.90 },
+      { date: '2024-01-16', value: 867890.12 },
+      { date: '2024-01-17', value: 862567.34 },
+      { date: '2024-01-18', value: 879234.56 },
+      { date: '2024-01-19', value: 873901.78 },
+      { date: '2024-01-20', value: 890568.90 },
+      { date: '2024-01-21', value: 885235.12 },
+      { date: '2024-01-22', value: 901902.34 },
+      { date: '2024-01-23', value: 896569.56 },
+      { date: '2024-01-24', value: 913236.78 },
+      { date: '2024-01-25', value: 907903.90 },
+      { date: '2024-01-26', value: 924570.12 },
+      { date: '2024-01-27', value: 919237.34 },
+      { date: '2024-01-28', value: 935904.56 },
+      { date: '2024-01-29', value: 930571.78 },
+      { date: '2024-01-30', value: 1247893.45 }
+    ],
+    transactions: [
+      {
+        type: 'Received',
+        asset: 'ICP',
+        amount: 245.67,
+        usdValue: 12734.56,
+        time: '12 minutes ago',
+        hash: '0x1a2b3c4d5e6f7890abcdef1234567890'
+      },
+      {
+        type: 'Sent',
+        asset: 'ckBTC',
+        amount: 0.15,
+        usdValue: 2835.12,
+        time: '28 minutes ago',
+        hash: '0x9876543210fedcba0987654321abcdef'
+      },
+      {
+        type: 'Swapped',
+        asset: 'ckETH',
+        amount: 3.42,
+        usdValue: 6578.90,
+        time: '45 minutes ago',
+        hash: '0xabcdef1234567890fedcba0987654321'
+      },
+      {
+        type: 'Staked',
+        asset: 'USDC',
+        amount: 1500.00,
+        usdValue: 1500.00,
+        time: '1 hour ago',
+        hash: '0x1234567890abcdef1234567890abcdef'
+      },
+      {
+        type: 'Received',
+        asset: 'SOL',
+        amount: 89.23,
+        usdValue: 8901.23,
+        time: '2 hours ago',
+        hash: '0xfedcba0987654321fedcba0987654321'
+      }
+    ],
+    stats: {
+      totalAssets: 23,
+      activeChains: 5,
+      monthlyGrowth: 12.7,
+      riskScore: 'Medium'
+    }
+  };
+};
+
+// Treasury Performance Chart Component
+function TreasuryPerformanceChart({ data }) {
+  const chartData = {
+    labels: data.performanceHistory.map(item => {
+      const date = new Date(item.date);
+      return date.toLocaleDateString('en-US', { month: 'short', day: 'numeric' });
+    }),
+    datasets: [
+      {
+        label: 'Treasury Value',
+        data: data.performanceHistory.map(item => item.value),
+        borderColor: '#3b82f6',
+        backgroundColor: 'rgba(59, 130, 246, 0.1)',
+        borderWidth: 2,
+        fill: true,
+        tension: 0.4,
+        pointRadius: 0,
+        pointHoverRadius: 6,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        mode: 'index',
+        intersect: false,
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#3b82f6',
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            return `$${context.parsed.y.toLocaleString()}`;
+          }
+        }
+      },
+    },
+    scales: {
+      x: {
+        display: true,
+        grid: {
+          color: '#f1f5f9',
+        },
+        ticks: {
+          color: '#64748b',
+          maxTicksLimit: 8,
+        },
+      },
+      y: {
+        display: true,
+        grid: {
+          color: '#f1f5f9',
+        },
+        ticks: {
+          color: '#64748b',
+          callback: function(value) {
+            return '$' + (value / 1000).toFixed(0) + 'K';
+          }
+        },
+      },
+    },
+    interaction: {
+      mode: 'nearest',
+      axis: 'x',
+      intersect: false,
+    },
+  };
+
+  return (
+    <div style={{ width: '100%', height: '250px' }}>
+      <Line data={chartData} options={options} />
+    </div>
+  );
+}
+
+// Treasury Asset Allocation Pie Chart Component
+function TreasuryAllocationChart({ data }) {
+  const chartData = {
+    labels: data.assets.map(asset => asset.chain),
+    datasets: [
+      {
+        data: data.assets.map(asset => asset.percentage),
+        backgroundColor: data.assets.map(asset => asset.color),
+        borderColor: '#ffffff',
+        borderWidth: 2,
+        hoverBorderWidth: 3,
+      },
+    ],
+  };
+
+  const options = {
+    responsive: true,
+    maintainAspectRatio: false,
+    plugins: {
+      legend: {
+        display: false,
+      },
+      tooltip: {
+        backgroundColor: 'rgba(0, 0, 0, 0.8)',
+        titleColor: '#fff',
+        bodyColor: '#fff',
+        borderColor: '#64748b',
+        borderWidth: 1,
+        callbacks: {
+          label: function(context) {
+            const asset = data.assets[context.dataIndex];
+            return `${asset.chain}: ${asset.percentage}% ($${asset.usdValue.toLocaleString()})`;
+          }
+        }
+      },
+    },
+  };
+
+  return (
+    <div style={{ width: '100%', height: '200px' }}>
+      <Pie data={chartData} options={options} />
+    </div>
+  );
+}
+
+// AI Treasury Analysis Component
+function AITreasuryAnalysis({ data }) {
+  // Calculate health score based on diversification, growth, and risk factors
+  const calculateHealthScore = () => {
+    let score = 10;
+    
+    // Diversification factor (penalize if too concentrated)
+    const maxAllocation = Math.max(...data.assets.map(asset => asset.percentage));
+    if (maxAllocation > 70) score -= 2;
+    else if (maxAllocation > 50) score -= 1;
+    
+    // Growth factor (reward positive growth)
+    if (data.totalBalance.change.percentage > 10) score += 0.5;
+    else if (data.totalBalance.change.percentage < 0) score -= 1;
+    
+    return Math.max(1, Math.min(10, score)).toFixed(1);
+  };
+
+  const healthScore = calculateHealthScore();
+  const maxAsset = data.assets.reduce((max, asset) => asset.percentage > max.percentage ? asset : max);
+  const growthPercentage = data.totalBalance.change.percentage;
+  
+  const getHealthColor = (score) => {
+    if (score >= 8) return { bg: 'bg-emerald-50', border: 'border-emerald-200', text: 'text-emerald-700', badge: 'bg-emerald-100 text-emerald-700' };
+    if (score >= 6) return { bg: 'bg-amber-50', border: 'border-amber-200', text: 'text-amber-700', badge: 'bg-amber-100 text-amber-700' };
+    return { bg: 'bg-red-50', border: 'border-red-200', text: 'text-red-700', badge: 'bg-red-100 text-red-700' };
+  };
+  
+  const healthColors = getHealthColor(healthScore);
+  
+  return (
+    <div className={`${healthColors.bg} ${healthColors.border} border rounded-xl overflow-hidden mb-6`}>
+      {/* Header with Health Score */}
+      <div className="bg-white/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center space-x-3">
+            <div className="w-10 h-10 bg-gradient-to-br from-indigo-500 to-purple-600 rounded-lg flex items-center justify-center shadow-sm">
+              <BarChart3 className="text-white w-5 h-5" />
+            </div>
+            <div>
+              <h4 className="text-lg font-semibold text-slate-900">AI Treasury Analysis</h4>
+              <p className="text-sm text-slate-500">Real-time insights powered by AI</p>
+            </div>
+          </div>
+          <div className="text-right">
+            <div className="flex items-center space-x-2 mb-1">
+              <span className="text-sm text-slate-600 font-medium">Health Score</span>
+              <span className={`text-2xl font-bold ${healthColors.text}`}>{healthScore}</span>
+              <span className="text-lg text-slate-400 font-medium">/10</span>
+            </div>
+            <span className={`text-xs px-3 py-1 ${healthColors.badge} rounded-full font-medium`}>
+              {healthScore >= 8 ? 'Excellent' : healthScore >= 6 ? 'Good' : 'Needs Attention'}
+            </span>
+          </div>
+        </div>
+      </div>
+      
+      {/* Content Grid */}
+      <div className="p-6">
+        <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+          {/* Key Insight */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-4 border border-white/50">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-blue-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-blue-600 text-sm">📈</span>
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-sm font-semibold text-slate-900 mb-1">Key Insight</h5>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Treasury grew by <span className="font-medium text-green-600">+{growthPercentage}%</span> this month, driven by strong {maxAsset.chain} performance.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Potential Risk */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-4 border border-white/50">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-amber-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-amber-600 text-sm">⚠️</span>
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-sm font-semibold text-slate-900 mb-1">Risk Alert</h5>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  <span className="font-medium text-amber-600">{maxAsset.percentage}%</span> concentrated in {maxAsset.chain}. Consider diversification.
+                </p>
+              </div>
+            </div>
+          </div>
+          
+          {/* Opportunity */}
+          <div className="bg-white/70 backdrop-blur-sm rounded-lg p-4 border border-white/50">
+            <div className="flex items-start space-x-3">
+              <div className="w-8 h-8 bg-purple-100 rounded-lg flex items-center justify-center flex-shrink-0 mt-0.5">
+                <span className="text-purple-600 text-sm">💡</span>
+              </div>
+              <div className="min-w-0">
+                <h5 className="text-sm font-semibold text-slate-900 mb-1">Opportunity</h5>
+                <p className="text-xs text-slate-600 leading-relaxed">
+                  Staking idle assets could yield <span className="font-medium text-purple-600">~${(data.totalBalance.usd * 0.06).toLocaleString()}</span> annually.
+                </p>
+              </div>
+            </div>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
+
 function DaoInfoPage() {
   const { principal, factoryActor, authClient, agent } = useAuthClient();
   const { daoId } = useParams();
   const queryClient = useQueryClient();
+  
+  // Initialize treasury data
+  const treasuryData = getTreasuryData();
 
   // Debug: Log the principal from the frontend
   //   console.log("Frontend principal:", principal);
@@ -705,6 +1110,8 @@ function DaoInfoPage() {
                   </button>
                 </div>
 
+
+
                 {proposalsLoading ? (
                   <div className="flex-1 flex items-center justify-center">
                     <div className="text-center">
@@ -855,49 +1262,254 @@ function DaoInfoPage() {
             {/* Treasury Tab */}
             {activeTab === 'treasury' && (
               <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-slate-900">Treasury Assets</h3>
+                {/* Treasury Dashboard Header */}
+                <div className="flex items-center justify-between">
+                  <h3 className="text-2xl font-bold text-slate-900">Treasury Dashboard</h3>
+                  <div className="flex items-center space-x-2 text-sm text-slate-500">
+                    <RefreshCw className="w-4 h-4" />
+                    <span>Last updated: {treasuryData.totalBalance.lastUpdated}</span>
+                  </div>
+                </div>
 
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dao.treasury.map((asset, index) => (
-                    <div key={index} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
+                {/* Optimized Layout */}
+                <div className="space-y-6">
+                  {/* AI Treasury Analysis - Full Width */}
+                  <AITreasuryAnalysis data={treasuryData} />
+                  
+                  {/* Main Dashboard Grid */}
+                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
+                    {/* Left Sidebar - Stats & Navigation */}
+                    <div className="lg:col-span-1 space-y-6">
+                    {/* Total Treasury Value */}
+                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
+                      <div className="flex items-center justify-between mb-2">
+                        <h4 className="text-lg font-semibold">Total Treasury Value</h4>
+                        <Wallet className="w-6 h-6" />
+                      </div>
+                      <div className="text-3xl font-bold mb-1">
+                        ${treasuryData.totalBalance.usd.toLocaleString()}
+                      </div>
+                      <div className="text-blue-100 text-sm">
+                        +{treasuryData.totalBalance.change.percentage}% this {treasuryData.totalBalance.change.period}
+                      </div>
+                    </div>
+
+                    {/* Navigation Links */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3">Quick Actions</h5>
+                      <div className="space-y-2">
+                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                          📊 Portfolio Overview
+                        </button>
+                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                          💰 Asset Management
+                        </button>
+                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                          📈 Performance Analytics
+                        </button>
+                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
+                          🔄 Transaction History
+                        </button>
+                      </div>
+                    </div>
+
+                    {/* Detailed Asset List by Chain */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3">Assets by Chain</h5>
+                      <div className="space-y-3">
+                        {treasuryData.assets.map((asset, index) => {
+                          const chainIcon = (() => {
+                            switch(asset.chain) {
+                              case 'Bitcoin': return '₿';
+                              case 'Ethereum': return '🔷';
+                              case 'Internet Computer': return '🌐';
+                              case 'Solana': return '☀️';
+                              case 'Others': return '🔗';
+                              default: return '🔗';
+                            }
+                          })();
+
+                          return (
+                            <div key={index} className="border border-slate-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-lg">{chainIcon}</span>
+                                  <span className="font-medium text-slate-900">{asset.chain}</span>
+                                </div>
+                                <span className="text-xs text-slate-500">
+                                  ${asset.usdValue.toLocaleString()}
+                                </span>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">{asset.symbol}</span>
+                                  <span className="font-medium">{asset.amount.toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          );
+                        })}
+                      </div>
+                    </div>
+                  </div>
+
+                    {/* Center Column - Charts & Analytics */}
+                    <div className="lg:col-span-2 space-y-6">
+                    {/* Treasury Performance Chart */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
                       <div className="flex items-center justify-between mb-4">
-                        <div className="flex items-center space-x-3">
-                          <div className="w-10 h-10 bg-gradient-to-r from-blue-500 to-cyan-600 rounded-lg flex items-center justify-center">
-                            <Coins className="text-white w-5 h-5" />
-                          </div>
-                          <div>
-                            <h4 className="font-semibold text-slate-900">{asset.symbol}</h4>
-                            <p className="text-sm text-slate-500">{asset.chain}</p>
-                          </div>
+                        <h4 className="text-lg font-semibold text-slate-900">Treasury Performance</h4>
+                        <div className="flex items-center space-x-2 text-sm text-green-600">
+                          <span className="text-green-600">+{treasuryData.totalBalance.change.percentage}% this {treasuryData.totalBalance.change.period}</span>
                         </div>
                       </div>
+                      <TreasuryPerformanceChart data={treasuryData} />
+                    </div>
 
-                      <div className="space-y-2">
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Amount:</span>
-                          <span className="font-medium">{parseInt(asset.amount).toLocaleString()}</span>
+                    {/* Asset Allocation Pie Chart */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-4">Asset Allocation</h4>
+                      <div className="grid grid-cols-2 gap-4">
+                        <div className="h-48">
+                          <TreasuryAllocationChart data={treasuryData} />
                         </div>
-                        <div className="flex justify-between">
-                          <span className="text-slate-600">Type:</span>
-                          <span className="font-medium">{asset.asset_type}</span>
+                        <div className="space-y-3">
+                           {treasuryData.assets.map((asset, index) => {
+                             return (
+                               <div key={index} className="flex items-center space-x-3">
+                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: asset.color }}></div>
+                                 <span className="text-sm text-slate-700 flex-1">{asset.chain}</span>
+                                 <span className="text-sm font-medium">{asset.percentage}%</span>
+                               </div>
+                             );
+                           })}
                         </div>
-                        {asset.canister_id && (
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Canister:</span>
-                            <span className="font-mono text-xs truncate max-w-24">{asset.canister_id.slice(0, 8)}...</span>
+                      </div>
+                    </div>
+
+                    {/* Recent Transactions Feed */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-6">
+                      <h4 className="text-lg font-semibold text-slate-900 mb-4">Recent Transactions</h4>
+                      <div className="space-y-3">
+                        {[
+                           { type: 'Received', asset: 'ICP', amount: '245.67', usdValue: '1,234.56', time: '12 minutes ago' },
+                           { type: 'Sent', asset: 'ckBTC', amount: '0.15', usdValue: '6,789.12', time: '28 minutes ago' },
+                           { type: 'Swapped', asset: 'ckETH', amount: '3.42', usdValue: '8,456.78', time: '45 minutes ago' },
+                           { type: 'Staked', asset: 'USDC', amount: '1,500.00', usdValue: '1,500.00', time: '1 hour ago' },
+                           { type: 'Received', asset: 'SOL', amount: '89.23', usdValue: '2,345.67', time: '2 hours ago' }
+                         ].map((tx, index) => {
+                           return (
+                             <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
+                               <div className="flex items-center space-x-3">
+                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
+                                   tx.type === 'Received' ? 'bg-green-100 text-green-600' :
+                                   tx.type === 'Sent' ? 'bg-red-100 text-red-600' :
+                                   tx.type === 'Swapped' ? 'bg-blue-100 text-blue-600' :
+                                   'bg-purple-100 text-purple-600'
+                                 }`}>
+                                   {tx.type === 'Received' ? '↓' : tx.type === 'Sent' ? '↑' : tx.type === 'Swapped' ? '⇄' : '◉'}
+                                 </div>
+                                 <div>
+                                   <p className="font-medium text-slate-900">{tx.type} {tx.asset}</p>
+                                   <p className="text-sm text-slate-500">{tx.time}</p>
+                                 </div>
+                               </div>
+                               <div className="text-right">
+                                 <p className="font-medium">{tx.amount} {tx.asset}</p>
+                                 <p className="text-sm text-slate-500">${tx.usdValue}</p>
+                               </div>
+                             </div>
+                           );
+                         })}
+                      </div>
+                    </div>
+                  </div>
+
+                    {/* Right Column - Actions & Governance */}
+                    <div className="lg:col-span-1 space-y-6">
+                      {/* Create Proposal Button */}
+                    <button 
+                      onClick={() => setShowCreateProposal(true)}
+                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
+                    >
+                      <Plus className="w-5 h-5" />
+                      <span>Create Proposal</span>
+                    </button>
+
+                    {/* Active Proposals List */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3">Active Proposals</h5>
+                      <div className="space-y-3">
+                        {proposals.slice(0, 3).map((proposal, index) => (
+                          <div key={index} className="border border-slate-100 rounded-lg p-3">
+                            <h6 className="font-medium text-slate-900 text-sm mb-1 truncate">
+                              {proposal.title || `Proposal #${proposal.id}`}
+                            </h6>
+                            <div className="flex items-center justify-between text-xs text-slate-500">
+                              <span>Status: {Object.keys(proposal.status)[0]}</span>
+                              <span>{Math.floor(Math.random() * 7 + 1)}d left</span>
+                            </div>
+                            <div className="mt-2 bg-slate-100 rounded-full h-2">
+                              <div 
+                                className="bg-blue-500 h-2 rounded-full" 
+                                style={{ width: `${Math.floor(Math.random() * 80 + 10)}%` }}
+                              ></div>
+                            </div>
                           </div>
-                        )}
-                        {asset.external_address && (
-                          <div className="flex justify-between">
-                            <span className="text-slate-600">Address:</span>
-                            <span className="font-mono text-xs truncate max-w-24">{asset.external_address.slice(0, 8)}...</span>
+                        ))}
+                        {proposals.length === 0 && (
+                          <div className="text-center py-4">
+                            <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
+                            <p className="text-sm text-slate-500">No active proposals</p>
                           </div>
                         )}
                       </div>
                     </div>
-                  ))}
+
+                    {/* NFT Gallery */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3">NFT Gallery</h5>
+                      <div className="grid grid-cols-2 gap-2">
+                        {[...Array(4)].map((_, index) => (
+                          <div key={index} className="aspect-square bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
+                            <div className="text-center">
+                              <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg mx-auto mb-1"></div>
+                              <p className="text-xs text-slate-600">NFT #{index + 1}</p>
+                            </div>
+                          </div>
+                        ))}
+                      </div>
+                      <button className="w-full mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
+                        View All NFTs →
+                      </button>
+                    </div>
+
+                    {/* Treasury Stats */}
+                    <div className="bg-white border border-slate-200 rounded-xl p-4">
+                      <h5 className="font-semibold text-slate-900 mb-3">Treasury Stats</h5>
+                      <div className="space-y-3">
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Total Assets</span>
+                          <span className="text-sm font-medium">{dao.chains.length * 2 + Math.floor(Math.random() * 5)}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Active Chains</span>
+                          <span className="text-sm font-medium">{dao.chains.length}</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Monthly Growth</span>
+                          <span className="text-sm font-medium text-green-600">+{(Math.random() * 20 + 5).toFixed(1)}%</span>
+                        </div>
+                        <div className="flex justify-between">
+                          <span className="text-sm text-slate-600">Risk Score</span>
+                          <span className="text-sm font-medium text-yellow-600">Medium</span>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
                 </div>
               </div>
+            </div>
             )}
 
             {/* Governance Tab */}

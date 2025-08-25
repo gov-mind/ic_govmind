@@ -7,85 +7,91 @@ This document contains the comprehensive architecture diagram for the GovMind de
 ```mermaid
 graph TB
     %% External Users and Systems
-    subgraph "External Layer"
-        U[Users/DAO Members]
-        AI[AI Services<br/>DeepSeek/OpenAI]
-        BC["Blockchain Networks<br/>Ethereum, Solana, Bitcoin, TON"]
-        SNS["SNS Governance<br/>Canisters"]
-        II[Internet Identity]
+    subgraph EXT ["🌐 External Layer"]
+        U["👥 Users & DAO Members<br/>🗳️ Governance Participants"]
+        AI["🤖 AI Services<br/>💡 DeepSeek & OpenAI<br/>📊 Analysis & Insights"]
+        BC["⛓️ Blockchain Networks<br/>🔗 Ethereum • Solana<br/>₿ Bitcoin • TON"]
+        SNS["🏛️ SNS Governance<br/>📋 Canister Registry<br/>⚖️ Proposal System"]
+        II["🔐 Internet Identity<br/>🛡️ Secure Authentication"]
     end
 
     %% Frontend Layer
-    subgraph "Frontend Layer"
-        WEB["React Frontend<br/>Vite + TypeScript<br/>TailwindCSS"]
-        AUTH["Authentication<br/>Internet Identity"]
-        QUERY["React Query<br/>State Management"]
+    subgraph FE ["💻 Frontend Layer"]
+        WEB["⚛️ React Application<br/>⚡ Vite Build Tool<br/>🎨 TypeScript + TailwindCSS"]
+        AUTH["🔑 Authentication<br/>🆔 Internet Identity<br/>🔒 Session Management"]
+        QUERY["📡 React Query<br/>💾 State Management<br/>🔄 Data Caching"]
     end
 
     %% API Proxy Layer
-    subgraph "API Proxy Layer"
-        PROXY["Node.js API Proxy<br/>Express Server<br/>Rate Limiting & Security"]
+    subgraph API ["🛡️ API Proxy Layer"]
+        PROXY["🚀 Node.js Proxy Server<br/>🌐 Express Framework<br/>⚡ Rate Limiting & Security<br/>🔐 CORS & Helmet Protection"]
     end
 
     %% Internet Computer Protocol Layer
-    subgraph "Internet Computer Protocol"
+    subgraph ICP ["🏗️ Internet Computer Protocol"]
         %% Core Canisters
-        subgraph "Core Canisters"
-            FACTORY["Factory Canister<br/>DAO Creation & Management<br/>Cross-chain Asset Support"]
-            BACKEND["Backend Canister<br/>Core DAO Logic<br/>Member Management<br/>Treasury Operations"]
-            ANALYZER["Proposal Analyzer<br/>AI-Powered Analysis<br/>Risk Assessment<br/>Complexity Scoring"]
-            SNS_INT["SNS Integration<br/>Governance Sync<br/>Proposal Aggregation"]
+        subgraph CORE ["🎯 Core Canisters"]
+            FACTORY["🏭 Factory Canister<br/>🆕 DAO Creation & Setup<br/>🌉 Cross-chain Assets<br/>⚙️ Configuration Management"]
+            BACKEND["🧠 Backend Canister<br/>💼 Core DAO Logic<br/>👥 Member Management<br/>💰 Treasury Operations"]
+            ANALYZER["🔍 Proposal Analyzer<br/>🤖 AI-Powered Analysis<br/>⚠️ Risk Assessment<br/>📊 Complexity Scoring"]
+            SNS_INT["🔗 SNS Integration<br/>🔄 Governance Sync<br/>📋 Proposal Aggregation<br/>📊 Data Harmonization"]
         end
 
         %% Shared Components
-        subgraph "Shared Components"
-            TYPES["Shared Types<br/>Common Data Structures"]
-            LEDGER["ICRC-1 Ledger<br/>Token Management"]
-            EVM_RPC["EVM RPC<br/>Cross-chain Communication"]
+        subgraph SHARED ["🔧 Shared Components"]
+            TYPES["📝 Shared Types<br/>🏗️ Data Structures<br/>🔗 Common Interfaces"]
+            LEDGER["💳 ICRC-1 Ledger<br/>🪙 Token Management<br/>💸 Transaction Processing"]
+            EVM_RPC["🌉 EVM RPC Bridge<br/>🔗 Cross-chain Calls<br/>⚡ Multi-network Support"]
         end
     end
 
-    %% Data Flow Connections
-    U --> WEB
-    WEB --> AUTH
-    WEB --> QUERY
-    AUTH --> II
+    %% Data Flow Connections - Primary
+    U ==> WEB
+    WEB ==> AUTH
+    WEB ==> QUERY
+    AUTH ==> II
     
-    WEB --> FACTORY
-    WEB --> BACKEND
-    WEB --> ANALYZER
-    WEB --> SNS_INT
+    %% Frontend to Canisters
+    WEB ==> FACTORY
+    WEB ==> BACKEND
+    WEB ==> ANALYZER
+    WEB ==> SNS_INT
     
-    ANALYZER --> PROXY
-    PROXY --> AI
+    %% AI Integration
+    ANALYZER ==> PROXY
+    PROXY ==> AI
     
-    FACTORY --> BACKEND
-    BACKEND --> ANALYZER
-    BACKEND --> SNS_INT
-    BACKEND --> LEDGER
+    %% Inter-canister Communication
+    FACTORY ==> BACKEND
+    BACKEND ==> ANALYZER
+    BACKEND ==> SNS_INT
+    BACKEND ==> LEDGER
     
-    SNS_INT --> SNS
-    BACKEND --> BC
-    EVM_RPC --> BC
+    %% External Integrations
+    SNS_INT ==> SNS
+    BACKEND ==> BC
+    EVM_RPC ==> BC
     
-    %% Shared dependencies
+    %% Shared Dependencies (dotted lines)
     FACTORY -.-> TYPES
     BACKEND -.-> TYPES
     ANALYZER -.-> TYPES
     SNS_INT -.-> TYPES
     
-    %% Styling
-    classDef frontend fill:#e1f5fe,stroke:#01579b,stroke-width:2px
-    classDef canister fill:#f3e5f5,stroke:#4a148c,stroke-width:2px
-    classDef external fill:#fff3e0,stroke:#e65100,stroke-width:2px
-    classDef proxy fill:#e8f5e8,stroke:#1b5e20,stroke-width:2px
-    classDef shared fill:#fce4ec,stroke:#880e4f,stroke-width:2px
+    %% Enhanced Styling
+    classDef frontend fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#000
+    classDef canister fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
+    classDef external fill:#fff8e1,stroke:#f57c00,stroke-width:3px,color:#000
+    classDef proxy fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#000
+    classDef shared fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#000
+    classDef layer fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#000
     
     class WEB,AUTH,QUERY frontend
     class FACTORY,BACKEND,ANALYZER,SNS_INT canister
     class U,AI,BC,SNS,II external
     class PROXY proxy
     class TYPES,LEDGER,EVM_RPC shared
+    class EXT,FE,API,ICP,CORE,SHARED layer
 ```
 
 ## Component Details
@@ -152,27 +158,31 @@ graph TB
 
 ```mermaid
 graph LR
-    subgraph "Development"
-        DEV["Local dfx replica<br/>localhost:4943"]
-        PROXY_DEV["API Proxy<br/>localhost:3001"]
-        FRONTEND_DEV["Frontend Dev Server<br/>localhost:3000"]
+    subgraph DEV_ENV ["🛠️ Development Environment"]
+        DEV["🏠 Local dfx Replica<br/>🌐 localhost:4943<br/>⚡ Hot Reload & Testing"]
+        PROXY_DEV["🔧 Development Proxy<br/>🌐 localhost:3001<br/>🔍 Debug Mode"]
+        FRONTEND_DEV["💻 Vite Dev Server<br/>🌐 localhost:3000<br/>🔥 HMR & Live Reload"]
     end
     
-    subgraph "Production"
-        IC["Internet Computer<br/>Mainnet"]
-        PROXY_PROD["API Proxy<br/>Production Server"]
-        CDN["Frontend<br/>IC Asset Canister"]
+    subgraph PROD_ENV ["🚀 Production Environment"]
+        IC["🌍 Internet Computer<br/>⛓️ Mainnet Deployment<br/>🔒 Secure & Decentralized"]
+        PROXY_PROD["☁️ Production Proxy<br/>🛡️ Load Balanced<br/>📊 Monitoring & Logs"]
+        CDN["📦 Frontend Assets<br/>🏗️ IC Asset Canister<br/>⚡ Global Distribution"]
     end
     
-    DEV --> IC
-    PROXY_DEV --> PROXY_PROD
-    FRONTEND_DEV --> CDN
+    %% Deployment Flow
+    DEV ==Deploy==> IC
+    PROXY_DEV ==Deploy==> PROXY_PROD
+    FRONTEND_DEV ==Build & Deploy==> CDN
     
-    classDef dev fill:#e3f2fd,stroke:#0277bd,stroke-width:2px
-    classDef prod fill:#e8f5e8,stroke:#2e7d32,stroke-width:2px
+    %% Enhanced Styling
+    classDef dev fill:#e8f4fd,stroke:#1976d2,stroke-width:3px,color:#000
+    classDef prod fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#000
+    classDef env fill:#f9f9f9,stroke:#616161,stroke-width:2px,color:#000
     
     class DEV,PROXY_DEV,FRONTEND_DEV dev
     class IC,PROXY_PROD,CDN prod
+    class DEV_ENV,PROD_ENV env
 ```
 
 This architecture provides a scalable, secure, and decentralized platform for DAO governance with AI-powered analysis and cross-chain capabilities.

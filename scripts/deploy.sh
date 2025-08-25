@@ -113,6 +113,12 @@ case $CANISTER in
         # Deploy other canisters
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
         dfx deploy ic_govmind_frontend $network_flag
+        dfx deploy ic_govmind_factory $network_flag
+        
+        # Deposit cycles to ic_govmind_factory
+        echo -e "${YELLOW}💰 Depositing 5T cycles to ic_govmind_factory...${NC}"
+        dfx canister deposit-cycles 5000000000000 ic_govmind_factory $network_flag
+        echo -e "${GREEN}✅ 5T cycles deposited to ic_govmind_factory successfully!${NC}"
         
         echo -e "${GREEN}🎉 All canisters deployed successfully!${NC}"
         ;;

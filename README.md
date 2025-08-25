@@ -118,29 +118,7 @@ Our roadmap is an ambitious, phased strategy aimed at evolving GovMind from an i
 
 ## Project Architecture
 
-```mermaid
-graph TD
-  FE["Frontend
-  (Next.js / React)"]
-  Auth["Auth Canister
-  (Identity Login)"]
-  Main["Main Logic Canister
-  (Member / Vote / Token)"]
-  Store["Storage Canister
-  (File Storage OSS)"]
-  Indexer["Indexer / Analytics Module"]
-  Oracle["Oracle Service"]
-  Chain["BTC / ETH / BSC / Solana 
-  Outcall"]
-
-  FE --> Auth
-  FE --> Main
-  Auth <--> Main
-  Main --> Store
-  Main --> Indexer
-  Indexer --> Oracle
-  Oracle --> Chain
-```
+See [Architecture Diagram](architecture-diagram.md)
 
 ### 🚀 Getting Started
 
@@ -159,7 +137,7 @@ cd ic_govmind
 dfx start --clean --background
 ```
 
-3. Deploy the canisters, if you are prompted to input arguments for `icrc1_ledger`, just input anything valid:
+3. Deploy the canisters
 
 ```
 scripts/deploy.sh

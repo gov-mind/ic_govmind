@@ -5,43 +5,51 @@ This document contains the comprehensive architecture diagram for the GovMind de
 ## System Architecture
 
 ```mermaid
-graph TB
+%%{init: {"flowchart": {"defaultRenderer": "elk", "htmlLabels": true}} }%%
+flowchart TB
     %% External Users and Systems
     subgraph EXT ["🌐 External Layer"]
-        U["👥 Users & DAO Members<br/>🗳️ Governance Participants"]
-        AI["🤖 AI Services<br/>💡 DeepSeek & OpenAI<br/>📊 Analysis & Insights"]
-        BC["⛓️ Blockchain Networks<br/>🔗 Ethereum • Solana<br/>₿ Bitcoin • TON"]
-        SNS["🏛️ SNS Governance<br/>📋 Canister Registry<br/>⚖️ Proposal System"]
-        II["🔐 Internet Identity<br/>🛡️ Secure Authentication"]
+        direction TB
+        U("👥 Users & DAO Members<br/>🗳️ Governance Participants")
+        AI("🤖 AI Services<br/>💡 DeepSeek & OpenAI<br/>📊 Analysis & Insights")
+        BC("⛓️ Blockchain Networks<br/>🔗 Ethereum • Solana<br/>₿ Bitcoin • TON")
+        SNS("🏛️ SNS Governance<br/>📋 Canister Registry<br/>⚖️ Proposal System")
+        II("🔐 Internet Identity<br/>🛡️ Secure Authentication")
     end
 
     %% Frontend Layer
     subgraph FE ["💻 Frontend Layer"]
-        WEB["⚛️ React Application<br/>⚡ Vite Build Tool<br/>🎨 TypeScript + TailwindCSS"]
-        AUTH["🔑 Authentication<br/>🆔 Internet Identity<br/>🔒 Session Management"]
-        QUERY["📡 React Query<br/>💾 State Management<br/>🔄 Data Caching"]
+        direction LR
+        WEB("⚛️ React Application<br/>⚡ Vite Build Tool<br/>🎨 TypeScript + TailwindCSS")
+        AUTH("🔑 Authentication<br/>🆔 Internet Identity<br/>🔒 Session Management")
+        QUERY("📡 React Query<br/>💾 State Management<br/>🔄 Data Caching")
     end
 
     %% API Proxy Layer
     subgraph API ["🛡️ API Proxy Layer"]
-        PROXY["🚀 Node.js Proxy Server<br/>🌐 Express Framework<br/>⚡ Rate Limiting & Security<br/>🔐 CORS & Helmet Protection"]
+        direction TB
+        PROXY("🚀 Node.js Proxy Server<br/>🌐 Express Framework<br/>⚡ Rate Limiting & Security<br/>🔐 CORS & Helmet Protection")
     end
 
     %% Internet Computer Protocol Layer
     subgraph ICP ["🏗️ Internet Computer Protocol"]
+        direction TB
+
         %% Core Canisters
         subgraph CORE ["🎯 Core Canisters"]
-            FACTORY["🏭 Factory Canister<br/>🆕 DAO Creation & Setup<br/>🌉 Cross-chain Assets<br/>⚙️ Configuration Management"]
-            BACKEND["🧠 Backend Canister<br/>💼 Core DAO Logic<br/>👥 Member Management<br/>💰 Treasury Operations"]
-            ANALYZER["🔍 Proposal Analyzer<br/>🤖 AI-Powered Analysis<br/>⚠️ Risk Assessment<br/>📊 Complexity Scoring"]
-            SNS_INT["🔗 SNS Integration<br/>🔄 Governance Sync<br/>📋 Proposal Aggregation<br/>📊 Data Harmonization"]
+            direction TB
+            FACTORY("🏭 Factory Canister<br/>🆕 DAO Creation & Setup<br/>🌉 Cross-chain Assets<br/>⚙️ Configuration Management")
+            BACKEND("🧠 Backend Canister<br/>💼 Core DAO Logic<br/>👥 Member Management<br/>💰 Treasury Operations")
+            ANALYZER("🔍 Proposal Analyzer<br/>🤖 AI-Powered Analysis<br/>⚠️ Risk Assessment<br/>📊 Complexity Scoring")
+            SNS_INT("🔗 SNS Integration<br/>🔄 Governance Sync<br/>📋 Proposal Aggregation<br/>📊 Data Harmonization")
         end
 
         %% Shared Components
         subgraph SHARED ["🔧 Shared Components"]
-            TYPES["📝 Shared Types<br/>🏗️ Data Structures<br/>🔗 Common Interfaces"]
-            LEDGER["💳 ICRC-1 Ledger<br/>🪙 Token Management<br/>💸 Transaction Processing"]
-            EVM_RPC["🌉 EVM RPC Bridge<br/>🔗 Cross-chain Calls<br/>⚡ Multi-network Support"]
+            direction LR
+            TYPES("📝 Shared Types<br/>🏗️ Data Structures<br/>🔗 Common Interfaces")
+            LEDGER("💳 ICRC-1 Ledger<br/>🪙 Token Management<br/>💸 Transaction Processing")
+            EVM_RPC("🌉 EVM RPC Bridge<br/>🔗 Cross-chain Calls<br/>⚡ Multi-network Support")
         end
     end
 
@@ -50,34 +58,39 @@ graph TB
     WEB ==> AUTH
     WEB ==> QUERY
     AUTH ==> II
-    
+
     %% Frontend to Canisters
     WEB ==> FACTORY
     WEB ==> BACKEND
     WEB ==> ANALYZER
     WEB ==> SNS_INT
-    
+
     %% AI Integration
     ANALYZER ==> PROXY
     PROXY ==> AI
-    
+
     %% Inter-canister Communication
     FACTORY ==> BACKEND
     BACKEND ==> ANALYZER
     BACKEND ==> SNS_INT
     BACKEND ==> LEDGER
-    
+
     %% External Integrations
     SNS_INT ==> SNS
     BACKEND ==> BC
     EVM_RPC ==> BC
-    
+
     %% Shared Dependencies (dotted lines)
     FACTORY -.-> TYPES
     BACKEND -.-> TYPES
     ANALYZER -.-> TYPES
     SNS_INT -.-> TYPES
-    
+
+    %% Layout nudges for a cleaner look (invisible weak links)
+    EXT ~~~ FE
+    FE ~~~ API
+    API ~~~ ICP
+
     %% Enhanced Styling
     classDef frontend fill:#e3f2fd,stroke:#1565c0,stroke-width:3px,color:#000
     classDef canister fill:#f3e5f5,stroke:#7b1fa2,stroke-width:3px,color:#000
@@ -85,13 +98,14 @@ graph TB
     classDef proxy fill:#e8f5e8,stroke:#388e3c,stroke-width:3px,color:#000
     classDef shared fill:#fce4ec,stroke:#c2185b,stroke-width:3px,color:#000
     classDef layer fill:#f5f5f5,stroke:#424242,stroke-width:2px,color:#000
-    
+
     class WEB,AUTH,QUERY frontend
     class FACTORY,BACKEND,ANALYZER,SNS_INT canister
     class U,AI,BC,SNS,II external
     class PROXY proxy
     class TYPES,LEDGER,EVM_RPC shared
     class EXT,FE,API,ICP,CORE,SHARED layer
+
 ```
 
 ## Component Details

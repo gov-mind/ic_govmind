@@ -19,5 +19,6 @@ pub const BITCOIN_NETWORK: ic_cdk::bitcoin_canister::Network =
 
 const ETH_DEFAULT_GAS_PRICE: u64 = 10_000_000_000;
 const ETH_CREATE_TOKEN_GAS: u64 = 65000;
+const ETH_CREATE_TOKEN_CONTRACT: &str = "0xEc7C877BB038Ac9014c20bf4363217e253094E89";
 
 ic_cdk::export_candid!();

@@ -3,7 +3,7 @@ use crate::{
     signer::signing,
     store::state,
     utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid},
-    ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE,
+    ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE,
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
@@ -319,18 +319,13 @@ impl WalletBlockchainConfig {
         chain_id: u64,
         key_info: KeyInfo,
     ) -> Result<String, String> {
-        let contract_address = token
-            .contract_address
-            .as_ref()
-            .ok_or("ERC20 contract address is missing")?;
-
         // Encode the function call with ethers ABI encode for `createToken` method
         let data = generate_create_token(name, symbol, supply, owner.clone())?;
 
         // Set up transaction parameters
         let tx = TransactionParameters {
             to: Some(
-                Address::from_str(contract_address)
+                Address::from_str(ETH_CREATE_TOKEN_CONTRACT)
                     .map_err(|e| format!("Invalid contract address: {:?}", e))?,
             ),
             nonce: Some(U256::from(wallet_nonce)),

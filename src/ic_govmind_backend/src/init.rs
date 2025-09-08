@@ -48,6 +48,7 @@ fn init(args: Option<CanisterArgs>) {
                 state_ref.org_info = init_args.org_info;
                 state_ref.ecdsa_key = Some(ecdsa_key);
                 state_ref.schnorr_key = Some(schnorr_key);
+                state_ref.key_env = init_args.env;
                 // init data
                 state_ref.chain_config = init_chain_config();
                 state_ref.next_ids = HashMap::new();

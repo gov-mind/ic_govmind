@@ -41,6 +41,13 @@
       "type": "custom",
       "candid": "wasm/evm_rpc/evm_rpc.did",
       "wasm": "wasm/evm_rpc/evm_rpc.wasm.gz"
+    },
+    "ic_govmind_backend": {
+      "candid": "src/ic_govmind_backend/ic_govmind_backend.did",
+      "init_arg": "opt variant { Init = record { env = variant { Production }; root = principal \"lpeju-wvbhd-g2fqh-av4yi-fjgiz-hfcm2-5pja4-t6ubj-kr2qd-jwpih-jqe\"; admins = vec { principal \"lpeju-wvbhd-g2fqh-av4yi-fjgiz-hfcm2-5pja4-t6ubj-kr2qd-jwpih-jqe\" }; org_info = null; }}",
+      "package": "ic_govmind_backend",
+      "type": "custom",
+      "wasm": "wasm/ic_govmind_backend.wasm.gz"
     }
   },
   "defaults": {

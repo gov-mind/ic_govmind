@@ -43,6 +43,44 @@ pub const CKETH_DEPOSIT_ABI_JSON: &str = r#"
     }]
 "#;
 
+#[allow(dead_code)]
+pub const CREATE_TOKEN_ABI_JSON: &str = r#"
+    [{
+        "inputs": [
+            {
+                "internalType": "string",
+                "name": "name",
+                "type": "string"
+            },
+            {
+                "internalType": "string",
+                "name": "symbol",
+                "type": "string"
+            },
+            {
+                "internalType": "uint256",
+                "name": "supply",
+                "type": "uint256"
+            },
+            {
+                "internalType": "address",
+                "name": "owner",
+                "type": "address"
+            }
+        ],
+        "name": "createToken",
+        "outputs": [
+            {
+                "internalType": "address",
+                "name": "",
+                "type": "address"
+            }
+        ],
+        "stateMutability": "nonpayable",
+        "type": "function"
+    }]
+"#;
+
 pub fn parse_abi(abi_json: &str) -> Abi {
     from_str(abi_json).expect("Failed to parse ABI")
 }
@@ -161,6 +199,31 @@ pub fn generate_cketh_deposit_erc20(
 
     // ABI encode the tokens and concatenate with function selector
     let data = [function_signature, encode(&tokens)].concat();
+
+    Ok(data)
+}
+
+/// Constructs the calldata for calling `createToken(string,string,uint256,address)`
+pub fn generate_create_token(
+    name: String,
+    symbol: String,
+    supply: u64,
+    owner: EthersAddress,
+) -> Result<Vec<u8>, String> {
+    // Function signature for `createToken(string,string,uint256,address)`
+    let function_signature = keccak256(b"createToken(string,string,uint256,address)")[..4].to_vec();
+
+    let name_token = Token::String(name);
+    let symbol_token = Token::String(symbol);
+    let supply_token = Token::Uint(U256::from(supply));
+    let owner_token = Token::Address(owner);
+
+    // ABI encode the tokens and concatenate with function selector
+    let data = [
+        function_signature,
+        encode(&[name_token, symbol_token, supply_token, owner_token]),
+    ]
+    .concat();
 
     Ok(data)
 }

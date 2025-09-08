@@ -47,7 +47,8 @@ impl KeyEnvironment {
                 url: "http://127.0.0.1:8545".to_string(),
                 headers: None,
             }),
-            KeyEnvironment::Production => RpcService::EthMainnet(EthMainnetService::PublicNode),
+            // KeyEnvironment::Production => RpcService::EthMainnet(EthMainnetService::PublicNode),
+            KeyEnvironment::Production => RpcService::EthSepolia(EthSepoliaService::PublicNode),
         }
     }
 }

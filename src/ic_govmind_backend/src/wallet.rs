@@ -1,19 +1,28 @@
 use crate::{
-    services::{evm_service::EvmService, token_icrc1::TokenICRC1},
+    services::{evm_abi::generate_create_token, evm_service::EvmService, token_icrc1::TokenICRC1},
     signer::signing,
     store::state,
     utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid},
+    ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE,
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
 use candid::{CandidType, Deserialize, Principal};
 use ethers_core::types::H160;
+use evm_rpc_types::{MultiRpcResult, SendRawTransactionStatus};
 use ic_govmind_types::{
     chain::{BlockchainConfig, TokenConfig, TokenStandard},
     constants::{EVM_RPC_CANISTER_ID, LEDGER_CANISTER_ID},
     dao::ChainType,
 };
 use ic_ledger_types::{account_balance, AccountBalanceArgs, Subaccount};
+use ic_web3_rs::{
+    ethabi::ethereum_types::Address,
+    ic::KeyInfo,
+    transports::ICHttp,
+    types::{TransactionParameters, U256},
+    Web3,
+};
 use icrc_ledger_types::icrc1::account::Account;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
 use serde::{de::Error as DeError, Serialize};
@@ -295,6 +304,87 @@ impl WalletBlockchainConfig {
                 }
             }
             _ => Err("Token standard not supported on Ethereum".to_string()),
+        }
+    }
+
+    pub async fn create_token_ethereum(
+        &self,
+        w3: Web3<ICHttp>,
+        token: &TokenConfig,
+        name: String,
+        symbol: String,
+        supply: u64,
+        owner: String,
+        wallet_nonce: u128,
+        chain_id: u64,
+        key_info: KeyInfo,
+    ) -> Result<String, String> {
+        let contract_address = token
+            .contract_address
+            .as_ref()
+            .ok_or("ERC20 contract address is missing")?;
+
+        // Encode the function call with ethers ABI encode for `createToken` method
+        let data = generate_create_token(name, symbol, supply, owner.clone())?;
+
+        // Set up transaction parameters
+        let tx = TransactionParameters {
+            to: Some(
+                Address::from_str(contract_address)
+                    .map_err(|e| format!("Invalid contract address: {:?}", e))?,
+            ),
+            nonce: Some(U256::from(wallet_nonce)),
+            value: U256::zero(),
+            gas_price: Some(U256::from(ETH_DEFAULT_GAS_PRICE)),
+            gas: U256::from(ETH_CREATE_TOKEN_GAS),
+            data: data.into(),
+            ..Default::default()
+        };
+
+        // Sign the transaction
+        let signed_tx = w3
+            .accounts()
+            .sign_transaction(tx, owner.to_string(), key_info, chain_id)
+            .await
+            .map_err(|e| format!("sign tx error: {}", e))?;
+
+        let signed_tx_hash = hex::encode(signed_tx.raw_transaction.0);
+
+        let evm_service = EvmService::new(EVM_RPC_CANISTER_ID)?;
+        let env = state::get_env();
+        let rpc_service = env.get_rpc_service();
+        let rpc_services = rpc_service.to_rpc_services();
+
+        match evm_service
+            .eth_send_raw_transaction(&rpc_services, None, signed_tx_hash.clone())
+            .await
+        {
+            Ok((multi_rpc_result,)) => match multi_rpc_result {
+                MultiRpcResult::Consistent(Ok(status)) => match status {
+                    SendRawTransactionStatus::Ok(Some(tx_hash)) => Ok(tx_hash.to_string()),
+                    SendRawTransactionStatus::Ok(None) => {
+                        Ok("Transaction sent, but hash is unavailable.".to_string())
+                    }
+                    _ => Err("Transaction failed".to_string()),
+                },
+                MultiRpcResult::Consistent(Err(rpc_error)) => {
+                    ic_cdk::println!("Transaction failed with error: {:?}", rpc_error);
+                    Err(format!("Transaction failed with error: {:?}", rpc_error))
+                }
+                MultiRpcResult::Inconsistent(_) => {
+                    ic_cdk::println!(
+                        "Transaction failed due to inconsistent results across services."
+                    );
+                    Err(
+                        "Transaction failed due to inconsistent results across services."
+                            .to_string(),
+                    )
+                }
+            },
+            Err(e) => {
+                ic_cdk::println!("Error sending Ethereum transaction: {:?}", e);
+                Err(format!("Transaction failed: {:?}", e))
+            }
         }
     }
 }

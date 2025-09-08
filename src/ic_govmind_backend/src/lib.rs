@@ -17,4 +17,7 @@ pub const ICRC1_WASM: &[u8] = std::include_bytes!("../../icrc1_ledger/icrc1-ledg
 pub const BITCOIN_NETWORK: ic_cdk::bitcoin_canister::Network =
     ic_cdk::bitcoin_canister::Network::Testnet;
 
+const ETH_DEFAULT_GAS_PRICE: u64 = 10_000_000_000;
+const ETH_CREATE_TOKEN_GAS: u64 = 65000;
+
 ic_cdk::export_candid!();

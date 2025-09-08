@@ -3,6 +3,7 @@ use ethers_core::abi::{encode, Abi, Token};
 use ethers_core::types::{Address as EthersAddress, U256};
 use hex::decode;
 use serde_json::from_str;
+use std::str::FromStr;
 
 use crate::chain::ethereum::keccak256;
 use crate::utils::principal_to_eth_hex;
@@ -208,7 +209,7 @@ pub fn generate_create_token(
     name: String,
     symbol: String,
     supply: u64,
-    owner: EthersAddress,
+    owner: String,
 ) -> Result<Vec<u8>, String> {
     // Function signature for `createToken(string,string,uint256,address)`
     let function_signature = keccak256(b"createToken(string,string,uint256,address)")[..4].to_vec();
@@ -216,7 +217,12 @@ pub fn generate_create_token(
     let name_token = Token::String(name);
     let symbol_token = Token::String(symbol);
     let supply_token = Token::Uint(U256::from(supply));
-    let owner_token = Token::Address(owner);
+    let owner_address = match EthersAddress::from_str(&owner) {
+        Ok(addr) => addr,
+        Err(_) => return Err("Invalid owner address".to_string()),
+    };
+
+    let owner_token = Token::Address(owner_address);
 
     // ABI encode the tokens and concatenate with function selector
     let data = [

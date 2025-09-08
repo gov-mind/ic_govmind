@@ -209,6 +209,28 @@ impl Debug for RpcService {
     }
 }
 
+impl RpcService {
+    pub fn to_rpc_services(&self) -> RpcServices {
+        match self {
+            RpcService::Provider(_) => RpcServices::Custom {
+                chain_id: 1,
+                services: vec![],
+            },
+            RpcService::Custom(api) => RpcServices::Custom {
+                chain_id: 1,
+                services: vec![api.clone()],
+            },
+            RpcService::EthMainnet(service) => RpcServices::EthMainnet(Some(vec![service.clone()])),
+            RpcService::EthSepolia(service) => RpcServices::EthSepolia(Some(vec![service.clone()])),
+            RpcService::ArbitrumOne(service)
+            | RpcService::BaseMainnet(service)
+            | RpcService::OptimismMainnet(service) => {
+                RpcServices::ArbitrumOne(Some(vec![service.clone()]))
+            }
+        }
+    }
+}
+
 #[derive(Debug, Clone, PartialEq, Eq, CandidType, Deserialize, Serialize)]
 pub struct Provider {
     #[serde(rename = "providerId")]

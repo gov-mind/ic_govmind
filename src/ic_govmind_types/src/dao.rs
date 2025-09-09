@@ -22,6 +22,7 @@ pub struct Dao {
     pub governance: GovernanceConfig,
     pub proposals: Vec<Proposal>,
     pub treasury: Vec<DaoAsset>,
+    pub committees: Vec<Committee>, // Committees within the DAO
     pub created_at: u64,
 }
 
@@ -240,4 +241,77 @@ pub enum JobStatus {
     Scheduled,
     Running,
     Finished,
+}
+
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+pub enum CommitteeType {
+    /// Technical Committee
+    Technical,
+    /// Democracy Committee
+    Democracy,
+    // Future committees can be added here
+}
+
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
+pub struct Committee {
+    pub id: u16,
+    pub committee_type: CommitteeType, // Type of the committee
+    pub members: Vec<Principal>,       // DAO member IDs
+    pub term_duration_secs: u64,       // Term duration in seconds
+    pub elected_at: Option<u64>,       // Timestamp of last election
+    pub next_election_at: Option<u64>, // Timestamp of next scheduled election
+}
+
+impl Dao {
+    pub fn add_committee(
+        &mut self,
+        id: u16,
+        committee_type: CommitteeType,
+        term_duration_secs: u64,
+    ) {
+        let committee = Committee {
+            id,
+            committee_type,
+            members: vec![],
+            term_duration_secs,
+            elected_at: None,
+            next_election_at: None,
+        };
+        self.committees.push(committee);
+    }
+
+    pub fn elect_committee_members(
+        &mut self,
+        committee_id: u16,
+        new_members: Vec<Principal>,
+        now_ts: u64,
+    ) -> Result<(), String> {
+        let committee = self
+            .committees
+            .iter_mut()
+            .find(|c| c.id == committee_id)
+            .ok_or_else(|| format!("Committee {} not found", committee_id))?;
+
+        committee.members = new_members;
+        committee.elected_at = Some(now_ts);
+        committee.next_election_at = Some(now_ts + committee.term_duration_secs);
+        Ok(())
+    }
+
+    pub fn is_committee_election_due(
+        &self,
+        committee_id: u16,
+        now_ts: u64,
+    ) -> Result<bool, String> {
+        let committee = self
+            .committees
+            .iter()
+            .find(|c| c.id == committee_id)
+            .ok_or_else(|| format!("Committee {} not found", committee_id))?;
+
+        Ok(match committee.next_election_at {
+            Some(ts) => now_ts >= ts,
+            None => true,
+        })
+    }
 }

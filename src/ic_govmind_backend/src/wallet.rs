@@ -156,7 +156,7 @@ impl WalletBlockchainConfig {
         Ok(balance)
     }
 
-    pub async fn withdraw_transfer(
+    pub async fn token_transfer(
         &self,
         token_name: &str,
         wallet_address: &String,
@@ -171,7 +171,7 @@ impl WalletBlockchainConfig {
         // Match the blockchain type
         match self.0.chain_type {
             ChainType::Ethereum => {
-                self.withdraw_ethereum(token_config, wallet_address, recipient, amount)
+                self.transfer_ethereum(token_config, wallet_address, recipient, amount)
                     .await
             }
             _ => Err("Not supported".to_string()),
@@ -334,7 +334,7 @@ impl WalletBlockchainConfig {
         }
     }
 
-    async fn withdraw_ethereum(
+    async fn transfer_ethereum(
         &self,
         token: &TokenConfig,
         wallet_address: &str,
@@ -355,7 +355,7 @@ impl WalletBlockchainConfig {
         // Match based on token standard
         match token.standard {
             TokenStandard::Native => {
-                self.handle_eth_native_withdraw(
+                self.handle_eth_native_transfer(
                     w3,
                     token,
                     wallet_address,
@@ -368,7 +368,7 @@ impl WalletBlockchainConfig {
                 .await
             }
             TokenStandard::ERC20 => {
-                self.handle_eth_erc20_withdraw(
+                self.handle_eth_erc20_transfer(
                     w3,
                     token,
                     wallet_address,
@@ -384,7 +384,7 @@ impl WalletBlockchainConfig {
         }
     }
 
-    async fn handle_eth_native_withdraw(
+    async fn handle_eth_native_transfer(
         &self,
         w3: Web3<ICHttp>,
         token: &TokenConfig,
@@ -417,7 +417,7 @@ impl WalletBlockchainConfig {
         self.send_raw_tx_ethereum(signed_tx_hash).await
     }
 
-    async fn handle_eth_erc20_withdraw(
+    async fn handle_eth_erc20_transfer(
         &self,
         w3: Web3<ICHttp>,
         token: &TokenConfig,

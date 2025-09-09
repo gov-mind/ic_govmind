@@ -171,8 +171,14 @@ impl WalletBlockchainConfig {
         // Match the blockchain type
         match self.0.chain_type {
             ChainType::Ethereum | ChainType::EthSepolia => {
-                self.transfer_ethereum(token_config, wallet_address, recipient, amount)
-                    .await
+                self.transfer_ethereum(
+                    &self.0.chain_type,
+                    token_config,
+                    wallet_address,
+                    recipient,
+                    amount,
+                )
+                .await
             }
             _ => Err("Not supported".to_string()),
         }
@@ -336,15 +342,14 @@ impl WalletBlockchainConfig {
 
     async fn transfer_ethereum(
         &self,
+        chain_type: &ChainType,
         token: &TokenConfig,
         wallet_address: &str,
         recipient: &str,
         amount: u64,
     ) -> Result<String, String> {
-        // let wallet_nonce = store::state::get_nonce(&ChainType::Ethereum).unwrap_or(0) as u128;
-        // let chain_id = store::state::get_chain_id(&ChainType::Ethereum).unwrap_or(1);
-        let wallet_nonce = store::state::get_nonce(&ChainType::EthSepolia).unwrap_or(0) as u128;
-        let chain_id = store::state::get_chain_id(&ChainType::EthSepolia).unwrap_or(11155111);
+        let wallet_nonce = store::state::get_nonce(chain_type).unwrap_or(0) as u128;
+        let chain_id = store::state::get_chain_id(chain_type).unwrap_or(1);
 
         let key_info = store::state::get_key_info()?;
         ic_cdk::println!("key_info: {:?}", &key_info);
@@ -356,7 +361,7 @@ impl WalletBlockchainConfig {
         };
 
         // Match based on token standard
-        match token.standard {
+        let result = match token.standard {
             TokenStandard::Native => {
                 self.handle_eth_native_transfer(
                     w3,
@@ -383,7 +388,14 @@ impl WalletBlockchainConfig {
                 .await
             }
             _ => Err("Token standard not supported on Ethereum".to_string()),
+        };
+
+        if result.is_ok() {
+            store::state::increment_nonce(chain_type.clone())
+                .map_err(|e| format!("Failed to increment nonce: {}", e))?;
         }
+
+        result
     }
 
     async fn handle_eth_native_transfer(

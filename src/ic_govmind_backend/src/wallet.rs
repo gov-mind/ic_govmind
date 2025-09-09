@@ -341,9 +341,12 @@ impl WalletBlockchainConfig {
         recipient: &str,
         amount: u64,
     ) -> Result<String, String> {
-        let wallet_nonce = store::state::get_nonce(&ChainType::Ethereum).unwrap_or(0) as u128;
+        // let wallet_nonce = store::state::get_nonce(&ChainType::Ethereum).unwrap_or(0) as u128;
+        // let chain_id = store::state::get_chain_id(&ChainType::Ethereum).unwrap_or(1);
+        let wallet_nonce = store::state::get_nonce(&ChainType::EthSepolia).unwrap_or(0) as u128;
+        let chain_id = store::state::get_chain_id(&ChainType::EthSepolia).unwrap_or(11155111);
+
         let key_info = store::state::get_key_info()?;
-        let chain_id = store::state::get_chain_id(&ChainType::Ethereum).unwrap_or(1);
         ic_cdk::println!("key_info: {:?}", &key_info);
 
         // Initialize the web3 connection
@@ -357,7 +360,6 @@ impl WalletBlockchainConfig {
             TokenStandard::Native => {
                 self.handle_eth_native_transfer(
                     w3,
-                    token,
                     wallet_address,
                     recipient,
                     amount,
@@ -387,7 +389,6 @@ impl WalletBlockchainConfig {
     async fn handle_eth_native_transfer(
         &self,
         w3: Web3<ICHttp>,
-        token: &TokenConfig,
         wallet_address: &str,
         recipient: &str,
         amount: u64,

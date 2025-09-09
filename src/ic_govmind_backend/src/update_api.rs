@@ -12,7 +12,7 @@ use crate::{
     guards::not_anonymous,
     store,
     timer::setup_token_distribution_timer,
-    types::{BalanceResult, QueryBalanceArg},
+    types::{BalanceResult, QueryBalanceArg, TokenTransferArg},
     utils::create_icrc1_canister,
     wallet::WalletBlockchainConfig,
     ICRC1_WASM,
@@ -168,4 +168,30 @@ pub async fn query_wallet_balance(arg: QueryBalanceArg) -> Result<BalanceResult,
         token_name: arg.token_name,
         balance,
     })
+}
+
+#[update]
+pub async fn wallet_token_transfer(arg: TokenTransferArg) -> Result<String, String> {
+    let chain_config = store::state::get_chain_config(&arg.chain_type)
+        .ok_or_else(|| format!("Chain config not found for {:?}", arg.chain_type))?;
+
+    let wallet_chain = WalletBlockchainConfig(chain_config);
+
+    // Call the token_transfer method for the chain and token
+    let transfer_result = wallet_chain
+        .token_transfer(
+            &arg.token_name,
+            &arg.wallet_address,
+            &arg.wallet_subaccount,
+            &arg.recipient_address,
+            &arg.recipient_subaccount,
+            arg.amount,
+        )
+        .await;
+
+    // Return the result of the transfer
+    match transfer_result {
+        Ok(transfer_info) => Ok(transfer_info),
+        Err(error) => Err(format!("Transfer failed: {}", error)),
+    }
 }

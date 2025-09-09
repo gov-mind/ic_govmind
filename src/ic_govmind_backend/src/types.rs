@@ -200,3 +200,14 @@ pub struct BalanceResult {
     pub token_name: String,
     pub balance: u128,
 }
+
+#[derive(Debug, Clone, CandidType, Deserialize)]
+pub struct TokenTransferArg {
+    pub chain_type: ChainType,
+    pub token_name: String,
+    pub wallet_address: String,
+    pub wallet_subaccount: Option<Subaccount>,
+    pub recipient_address: String,
+    pub recipient_subaccount: Option<Subaccount>,
+    pub amount: u64,
+}

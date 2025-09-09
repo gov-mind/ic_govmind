@@ -1,7 +1,9 @@
 use crate::{
     api_cycles::WalletReceiveResult,
     init::CanisterArgs,
-    types::{Addresses, BalanceResult, QueryBalanceArg, StatusRequest, StatusResponse},
+    types::{
+        Addresses, BalanceResult, QueryBalanceArg, StatusRequest, StatusResponse, TokenTransferArg,
+    },
 };
 use candid::{export_service, Principal};
 use ic_cdk::query;

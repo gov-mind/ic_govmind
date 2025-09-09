@@ -249,14 +249,13 @@ service : (opt CanisterArgs) -> {
   get_chain_configs : () -> (vec BlockchainConfig) query;
   get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
-  greet : (text) -> (text) query;
   list_distribution_records : (nat64, nat64) -> (
       vec record { nat64; DistributionRecord },
     ) query;
-  query_wallet_balance : (QueryBalanceArg) -> (Result_3);
   remove_admin : (principal) -> (Result);
   update_proposal_status : (nat64, ProposalStatus) -> (Result);
   wallet_balance : () -> (nat) query;
+  wallet_query_balance : (QueryBalanceArg) -> (Result_3);
   wallet_receive : () -> (WalletReceiveResult);
   wallet_token_transfer : (TokenTransferArg) -> (Result_4);
 }

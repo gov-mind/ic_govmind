@@ -277,6 +277,19 @@ pub mod state {
         chain.nonce.clone()
     }
 
+    pub fn increment_nonce(chain_type: ChainType) -> Result<(), String> {
+        update_chain_config(chain_type, |chain_config| {
+            let next = chain_config.nonce.unwrap_or(0).saturating_add(1);
+            chain_config.nonce = Some(next);
+        })
+    }
+
+    pub fn set_nonce(chain_type: ChainType, nonce: Option<u64>) -> Result<(), String> {
+        update_chain_config(chain_type, |chain_config| {
+            chain_config.nonce = nonce;
+        })
+    }
+
     pub fn get_chain_id(chain_type: &ChainType) -> Option<u64> {
         let chain = get_chain_config(chain_type)?;
         chain.rpc_config.as_ref()?.chain_id

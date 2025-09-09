@@ -146,7 +146,7 @@ impl WalletBlockchainConfig {
                 self.query_balance_internet_computer(&token_config, wallet_address, subaccount)
                     .await
             }
-            ChainType::Ethereum => {
+            ChainType::Ethereum | ChainType::EthSepolia => {
                 self.query_balance_ethereum(&token_config, wallet_address)
                     .await
             }
@@ -170,7 +170,7 @@ impl WalletBlockchainConfig {
 
         // Match the blockchain type
         match self.0.chain_type {
-            ChainType::Ethereum => {
+            ChainType::Ethereum | ChainType::EthSepolia => {
                 self.transfer_ethereum(token_config, wallet_address, recipient, amount)
                     .await
             }

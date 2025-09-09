@@ -10,11 +10,6 @@ use ic_govmind_types::{
 };
 
 #[query]
-fn greet(name: String) -> String {
-    format!("Hello, {}!", name)
-}
-
-#[query]
 fn dao_info() -> Option<Dao> {
     state::get_dao_info()
 }

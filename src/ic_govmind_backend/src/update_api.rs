@@ -154,7 +154,7 @@ pub async fn update_proposal_status(
 }
 
 #[update]
-pub async fn query_wallet_balance(arg: QueryBalanceArg) -> Result<BalanceResult, String> {
+pub async fn wallet_query_balance(arg: QueryBalanceArg) -> Result<BalanceResult, String> {
     let chain_config = store::state::get_chain_config(&arg.chain_type)
         .ok_or_else(|| format!("Chain config not found for {:?}", arg.chain_type))?;
 

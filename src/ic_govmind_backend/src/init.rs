@@ -1,5 +1,5 @@
 use candid::{CandidType, Deserialize, Principal};
-use evm_rpc_types::{EthMainnetService, RpcServices};
+use evm_rpc_types::{EthMainnetService, EthSepoliaService, RpcServices};
 use std::{collections::HashMap, time::Duration};
 
 use crate::{
@@ -10,7 +10,9 @@ use crate::{
 use ic_cdk::{init, post_upgrade, pre_upgrade};
 use ic_govmind_types::{
     chain::{BlockchainConfig, RpcConfig, SignatureType, TokenConfig, TokenStandard},
-    constants::{ETH_DEFAULT_GAS_PRICE, ETH_USDT_ADDRESS, ETH_WRAPPED_ETHER},
+    constants::{
+        ETH_DEFAULT_GAS_PRICE, ETH_TEST_USDT_ADDRESS, ETH_USDT_ADDRESS, ETH_WRAPPED_ETHER,
+    },
     dao::{ChainType, Dao},
 };
 
@@ -217,6 +219,36 @@ pub fn init_chain_config() -> Vec<BlockchainConfig> {
         ],
     );
 
+    let eth_sepolia_chain = BlockchainConfig::new_eth_sepolia_config(
+        "https://mainnet.infura.io/v3/862ac423417a4a4a728e181a0e4206f3c7".to_string(),
+        Some(11155111),
+        Some(RpcServices::EthSepolia(Some(vec![
+            EthSepoliaService::Sepolia,
+        ]))),
+        Some(ETH_DEFAULT_GAS_PRICE),
+        vec![
+            TokenConfig {
+                token_name: "ETH".to_string(),
+                symbol: "ETH".to_string(),
+                contract_address: None,
+                wrapped_address: Some(ETH_WRAPPED_ETHER.to_string()),
+                decimal: 18,
+                chain_name: "Ethereum".to_string(),
+                standard: TokenStandard::Native,
+                ..Default::default()
+            },
+            TokenConfig {
+                token_name: "USDT".to_string(),
+                symbol: "USDT".to_string(),
+                contract_address: Some(ETH_TEST_USDT_ADDRESS.to_string()),
+                decimal: 6,
+                chain_name: "Ethereum".to_string(),
+                standard: TokenStandard::ERC20,
+                ..Default::default()
+            },
+        ],
+    );
+
     // 3. Initialize Bitcoin Chain
     let btc_chain = BlockchainConfig {
         chain_type: ChainType::Bitcoin,
@@ -242,6 +274,7 @@ pub fn init_chain_config() -> Vec<BlockchainConfig> {
 
     chains.push(icp_chain);
     chains.push(eth_chain);
+    chains.push(eth_sepolia_chain);
     chains.push(btc_chain);
 
     chains

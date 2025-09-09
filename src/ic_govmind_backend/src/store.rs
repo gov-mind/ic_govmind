@@ -15,10 +15,14 @@ use ic_stable_structures::{
     storable::Bound,
     DefaultMemoryImpl, StableBTreeMap, StableCell, Storable,
 };
+use ic_web3_rs::ic::KeyInfo;
 use serde::Serialize;
 use std::borrow::Cow;
 
-use crate::types::{KeyEnvironment, NextIdType};
+use crate::{
+    types::{KeyEnvironment, NextIdType},
+    ECDSA_SIGN_CYCLES,
+};
 
 #[derive(Default, Debug, Serialize, Deserialize, Clone)]
 pub struct State {
@@ -266,6 +270,29 @@ pub mod state {
                 Err(format!("Chain {:?} not found", chain_type))
             }
         })
+    }
+
+    pub fn get_nonce(chain_type: &ChainType) -> Option<u64> {
+        let chain = get_chain_config(chain_type)?;
+        chain.nonce.clone()
+    }
+
+    pub fn get_chain_id(chain_type: &ChainType) -> Option<u64> {
+        let chain = get_chain_config(chain_type)?;
+        chain.rpc_config.as_ref()?.chain_id
+    }
+
+    pub fn get_key_info() -> Result<KeyInfo, String> {
+        let ecdsa_key = get_ecdsa_key_id();
+        let derivation_path = state::with(|r| r.derivation_path.clone());
+
+        let key_info = KeyInfo {
+            derivation_path,
+            key_name: ecdsa_key.name.clone(),
+            ecdsa_sign_cycles: Some(ECDSA_SIGN_CYCLES),
+        };
+
+        Ok(key_info)
     }
 }
 

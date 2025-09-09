@@ -1,9 +1,14 @@
 use crate::{
-    services::{evm_abi::generate_create_token, evm_service::EvmService, token_icrc1::TokenICRC1},
+    services::{
+        evm_abi::{generate_create_token, generate_erc20_transfer_data},
+        evm_service::EvmService,
+        token_icrc1::TokenICRC1,
+    },
     signer::signing,
-    store::state,
+    store::{self, state},
     utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid},
-    ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE,
+    ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE, ETH_ERC20_TRANSFER_GAS,
+    ETH_TRANSFER_GAS, WEB3_URL,
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
@@ -11,7 +16,7 @@ use candid::{CandidType, Deserialize, Principal};
 use ethers_core::types::H160;
 use evm_rpc_types::{MultiRpcResult, SendRawTransactionStatus};
 use ic_govmind_types::{
-    chain::{BlockchainConfig, TokenConfig, TokenStandard},
+    chain::{self, BlockchainConfig, TokenConfig, TokenStandard},
     constants::{EVM_RPC_CANISTER_ID, LEDGER_CANISTER_ID},
     dao::ChainType,
 };
@@ -58,7 +63,7 @@ impl WalletConfig {
                 // For ICP, use the provided canister_id or return an error if not available
                 Ok(account_id(owner_wallet_pid(), subaccount.clone()).to_hex())
             }
-            ChainType::BNBChain | ChainType::Ethereum => {
+            ChainType::BNBChain | ChainType::Ethereum | ChainType::EthSepolia => {
                 // For Ethereum, derive the Ethereum address
                 Self::derive_eth_address(public_key)
             }
@@ -149,6 +154,28 @@ impl WalletBlockchainConfig {
         }?;
 
         Ok(balance)
+    }
+
+    pub async fn withdraw_transfer(
+        &self,
+        token_name: &str,
+        wallet_address: &String,
+        subaccount: &Option<Subaccount>,
+        recipient: &str,
+        recipient_subaccount: &Option<Subaccount>,
+        amount: u64,
+    ) -> Result<String, String> {
+        // Find the token by name
+        let token_config = self.0.get_token_config(token_name)?;
+
+        // Match the blockchain type
+        match self.0.chain_type {
+            ChainType::Ethereum => {
+                self.withdraw_ethereum(token_config, wallet_address, recipient, amount)
+                    .await
+            }
+            _ => Err("Not supported".to_string()),
+        }
     }
 
     async fn query_balance_internet_computer(
@@ -307,6 +334,130 @@ impl WalletBlockchainConfig {
         }
     }
 
+    async fn withdraw_ethereum(
+        &self,
+        token: &TokenConfig,
+        wallet_address: &str,
+        recipient: &str,
+        amount: u64,
+    ) -> Result<String, String> {
+        let wallet_nonce = store::state::get_nonce(&ChainType::Ethereum).unwrap_or(0) as u128;
+        let key_info = store::state::get_key_info()?;
+        let chain_id = store::state::get_chain_id(&ChainType::Ethereum).unwrap_or(1);
+        ic_cdk::println!("key_info: {:?}", &key_info);
+
+        // Initialize the web3 connection
+        let w3: Web3<ICHttp> = match ICHttp::new(WEB3_URL, None) {
+            Ok(v) => Web3::new(v),
+            Err(e) => return Err(e.to_string()),
+        };
+
+        // Match based on token standard
+        match token.standard {
+            TokenStandard::Native => {
+                self.handle_eth_native_withdraw(
+                    w3,
+                    token,
+                    wallet_address,
+                    recipient,
+                    amount,
+                    wallet_nonce,
+                    chain_id,
+                    key_info,
+                )
+                .await
+            }
+            TokenStandard::ERC20 => {
+                self.handle_eth_erc20_withdraw(
+                    w3,
+                    token,
+                    wallet_address,
+                    recipient,
+                    amount,
+                    wallet_nonce,
+                    chain_id,
+                    key_info,
+                )
+                .await
+            }
+            _ => Err("Token standard not supported on Ethereum".to_string()),
+        }
+    }
+
+    async fn handle_eth_native_withdraw(
+        &self,
+        w3: Web3<ICHttp>,
+        token: &TokenConfig,
+        wallet_address: &str,
+        recipient: &str,
+        amount: u64,
+        wallet_nonce: u128,
+        chain_id: u64,
+        key_info: KeyInfo,
+    ) -> Result<String, String> {
+        let to = Address::from_str(recipient)
+            .map_err(|e| format!("Invalid recipient address: {:?}", e))?;
+
+        let tx = TransactionParameters {
+            to: Some(to),
+            nonce: Some(U256::from(wallet_nonce)),
+            value: U256::from(amount),
+            gas_price: Some(U256::from(ETH_DEFAULT_GAS_PRICE)),
+            gas: U256::from(ETH_TRANSFER_GAS),
+            ..Default::default()
+        };
+
+        let signed_tx = w3
+            .accounts()
+            .sign_transaction(tx, wallet_address.to_string(), key_info, chain_id)
+            .await
+            .map_err(|e| format!("sign tx error: {}", e))?;
+
+        let signed_tx_hash = hex::encode(signed_tx.raw_transaction.0);
+        self.send_raw_tx_ethereum(signed_tx_hash).await
+    }
+
+    async fn handle_eth_erc20_withdraw(
+        &self,
+        w3: Web3<ICHttp>,
+        token: &TokenConfig,
+        wallet_address: &str,
+        recipient: &str,
+        amount: u64,
+        wallet_nonce: u128,
+        chain_id: u64,
+        key_info: KeyInfo,
+    ) -> Result<String, String> {
+        let contract_address = token
+            .contract_address
+            .as_ref()
+            .ok_or("ERC20 contract address is missing")?;
+
+        let data = generate_erc20_transfer_data(recipient, amount)?;
+
+        let tx = TransactionParameters {
+            to: Some(
+                Address::from_str(contract_address)
+                    .map_err(|e| format!("Invalid contract address: {:?}", e))?,
+            ),
+            nonce: Some(U256::from(wallet_nonce)),
+            value: U256::zero(),
+            gas_price: Some(U256::from(ETH_DEFAULT_GAS_PRICE)),
+            gas: U256::from(ETH_ERC20_TRANSFER_GAS),
+            data: data.into(),
+            ..Default::default()
+        };
+
+        let signed_tx = w3
+            .accounts()
+            .sign_transaction(tx, wallet_address.to_string(), key_info, chain_id)
+            .await
+            .map_err(|e| format!("sign tx error: {}", e))?;
+
+        let signed_tx_hash = hex::encode(signed_tx.raw_transaction.0);
+        self.send_raw_tx_ethereum(signed_tx_hash).await
+    }
+
     pub async fn create_token_ethereum(
         &self,
         w3: Web3<ICHttp>,
@@ -319,10 +470,8 @@ impl WalletBlockchainConfig {
         chain_id: u64,
         key_info: KeyInfo,
     ) -> Result<String, String> {
-        // Encode the function call with ethers ABI encode for `createToken` method
         let data = generate_create_token(name, symbol, supply, owner.clone())?;
 
-        // Set up transaction parameters
         let tx = TransactionParameters {
             to: Some(
                 Address::from_str(ETH_CREATE_TOKEN_CONTRACT)
@@ -336,7 +485,6 @@ impl WalletBlockchainConfig {
             ..Default::default()
         };
 
-        // Sign the transaction
         let signed_tx = w3
             .accounts()
             .sign_transaction(tx, owner.to_string(), key_info, chain_id)
@@ -344,14 +492,17 @@ impl WalletBlockchainConfig {
             .map_err(|e| format!("sign tx error: {}", e))?;
 
         let signed_tx_hash = hex::encode(signed_tx.raw_transaction.0);
+        self.send_raw_tx_ethereum(signed_tx_hash).await
+    }
 
+    async fn send_raw_tx_ethereum(&self, signed_tx_hash: String) -> Result<String, String> {
         let evm_service = EvmService::new(EVM_RPC_CANISTER_ID)?;
         let env = state::get_env();
         let rpc_service = env.get_rpc_service();
         let rpc_services = rpc_service.to_rpc_services();
 
         match evm_service
-            .eth_send_raw_transaction(&rpc_services, None, signed_tx_hash.clone())
+            .eth_send_raw_transaction(&rpc_services, None, signed_tx_hash)
             .await
         {
             Ok((multi_rpc_result,)) => match multi_rpc_result {

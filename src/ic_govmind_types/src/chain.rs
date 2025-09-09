@@ -81,6 +81,27 @@ impl BlockchainConfig {
         }
     }
 
+    pub fn new_eth_sepolia_config(
+        rpc_url: String,
+        chain_id: Option<u64>,
+        rpc_services: Option<RpcServices>,
+        gas_price: Option<u64>,
+        supported_tokens: Vec<TokenConfig>,
+    ) -> Self {
+        BlockchainConfig {
+            chain_type: ChainType::EthSepolia,
+            signature_type: SignatureType::Secp256k1,
+            nonce: None,
+            gas_price,
+            rpc_config: Some(RpcConfig {
+                rpc_url,
+                chain_id,
+                rpc_services,
+            }),
+            supported_tokens,
+        }
+    }
+
     pub fn new_official_config(
         chain_type: ChainType,
         signature_type: SignatureType,

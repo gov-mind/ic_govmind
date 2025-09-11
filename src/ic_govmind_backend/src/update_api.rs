@@ -3,7 +3,9 @@ use candid::Principal;
 use ic_cdk::update;
 use ic_govmind_types::{
     chain::{TokenConfig, TokenStandard},
-    dao::{BaseToken, ChainType, CreateBaseTokenArg, Dao, ProposalStatus, TokenLocation},
+    dao::{
+        BaseToken, ChainType, CommitteeArg, CreateBaseTokenArg, Dao, ProposalStatus, TokenLocation,
+    },
     icrc::CreateCanisterArg,
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
@@ -194,4 +196,27 @@ pub async fn wallet_token_transfer(arg: TokenTransferArg) -> Result<String, Stri
         Ok(transfer_info) => Ok(transfer_info),
         Err(error) => Err(format!("Transfer failed: {}", error)),
     }
+}
+
+#[update]
+pub async fn add_committee(arg: CommitteeArg) -> Result<String, String> {
+    let id = store::state::get_next_committee_id();
+    let committee = arg.to_committee(id as u16);
+    store::state::add_committee(committee)?;
+    Ok(format!("Committee {} added successfully", id))
+}
+
+#[update]
+pub async fn update_committee_update(
+    committee_id: u16,
+    arg: CommitteeArg,
+) -> Result<String, String> {
+    store::state::update_committee(committee_id, |committee| {
+        committee.members = arg.members;
+        committee.term_duration_secs = arg.term_duration_secs;
+        committee.elected_at = arg.elected_at;
+        committee.next_election_at = arg.next_election_at;
+    })?;
+
+    Ok(format!("Committee {} updated successfully", committee_id))
 }

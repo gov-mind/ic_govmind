@@ -56,6 +56,7 @@ fn init(args: Option<CanisterArgs>) {
                 state_ref.next_ids = HashMap::new();
                 state_ref.next_ids.insert("distribution".to_string(), 1);
                 state_ref.next_ids.insert("proposal".to_string(), 1);
+                state_ref.next_ids.insert("committee".to_string(), 1);
             });
             store::state::save();
 

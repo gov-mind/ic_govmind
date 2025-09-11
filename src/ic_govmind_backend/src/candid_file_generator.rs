@@ -9,7 +9,10 @@ use candid::{export_service, Principal};
 use ic_cdk::query;
 use ic_govmind_types::{
     chain::BlockchainConfig,
-    dao::{ChainType, CreateBaseTokenArg, Dao, DistributionRecord, Proposal, ProposalStatus},
+    dao::{
+        ChainType, CommitteeArg, CreateBaseTokenArg, Dao, DistributionRecord, Proposal,
+        ProposalStatus,
+    },
     icrc::CreateCanisterArg,
 };
 use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;

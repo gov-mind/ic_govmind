@@ -40,6 +40,22 @@ type ChainType = variant {
   Bitcoin;
   Other : text;
 };
+type Committee = record {
+  id : nat16;
+  members : vec principal;
+  elected_at : opt nat64;
+  committee_type : CommitteeType;
+  next_election_at : opt nat64;
+  term_duration_secs : nat64;
+};
+type CommitteeArg = record {
+  members : vec principal;
+  elected_at : opt nat64;
+  committee_type : CommitteeType;
+  next_election_at : opt nat64;
+  term_duration_secs : nat64;
+};
+type CommitteeType = variant { Technical; Democracy };
 type CreateBaseTokenArg = record {
   decimals : nat8;
   name : text;
@@ -66,6 +82,7 @@ type Dao = record {
   chains : vec ChainType;
   governance : GovernanceConfig;
   proposals : vec Proposal;
+  committees : vec Committee;
   treasury : vec DaoAsset;
 };
 type DaoAsset = record {
@@ -153,10 +170,10 @@ type QueryBalanceArg = record {
   token_name : text;
 };
 type Result = variant { Ok; Err : text };
-type Result_1 = variant { Ok : principal; Err : text };
-type Result_2 = variant { Ok : nat64; Err : text };
-type Result_3 = variant { Ok : BalanceResult; Err : text };
-type Result_4 = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : text; Err : text };
+type Result_2 = variant { Ok : principal; Err : text };
+type Result_3 = variant { Ok : nat64; Err : text };
+type Result_4 = variant { Ok : BalanceResult; Err : text };
 type RpcApi = record { url : text; headers : opt vec HttpHeader };
 type RpcConfig = record {
   rpc_services : opt RpcServices;
@@ -239,10 +256,11 @@ type WalletReceiveResult = record { accepted : nat64 };
 service : (opt CanisterArgs) -> {
   __get_candid_interface_tmp_hack : () -> (text) query;
   add_admin : (principal) -> (Result);
+  add_committee : (CommitteeArg) -> (Result_1);
   canister_get_status : (StatusRequest) -> (StatusResponse) query;
-  create_dao_base_token : (CreateBaseTokenArg, MetadataValue) -> (Result_1);
-  create_dao_token : (CreateCanisterArg) -> (Result_1);
-  create_proposal : (text, text) -> (Result_2);
+  create_dao_base_token : (CreateBaseTokenArg, MetadataValue) -> (Result_2);
+  create_dao_token : (CreateCanisterArg) -> (Result_2);
+  create_proposal : (text, text) -> (Result_3);
   dao_info : () -> (opt Dao) query;
   get_all_proposals : () -> (vec Proposal) query;
   get_chain_config_by_type : (ChainType) -> (opt BlockchainConfig) query;
@@ -253,9 +271,10 @@ service : (opt CanisterArgs) -> {
       vec record { nat64; DistributionRecord },
     ) query;
   remove_admin : (principal) -> (Result);
+  update_committee_update : (nat16, CommitteeArg) -> (Result_1);
   update_proposal_status : (nat64, ProposalStatus) -> (Result);
   wallet_balance : () -> (nat) query;
-  wallet_query_balance : (QueryBalanceArg) -> (Result_3);
+  wallet_query_balance : (QueryBalanceArg) -> (Result_4);
   wallet_receive : () -> (WalletReceiveResult);
-  wallet_token_transfer : (TokenTransferArg) -> (Result_4);
+  wallet_token_transfer : (TokenTransferArg) -> (Result_1);
 }

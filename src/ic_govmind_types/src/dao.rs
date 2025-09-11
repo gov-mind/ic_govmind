@@ -315,3 +315,25 @@ impl Dao {
         })
     }
 }
+
+#[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
+pub struct CommitteeArg {
+    pub committee_type: CommitteeType, // Type of the committee
+    pub members: Vec<Principal>,       // DAO member IDs
+    pub term_duration_secs: u64,       // Term duration in seconds
+    pub elected_at: Option<u64>,       // Timestamp of last election
+    pub next_election_at: Option<u64>, // Timestamp of next scheduled election
+}
+
+impl CommitteeArg {
+    pub fn to_committee(self, id: u16) -> Committee {
+        Committee {
+            id,
+            committee_type: self.committee_type,
+            members: self.members,
+            term_duration_secs: self.term_duration_secs,
+            elected_at: self.elected_at,
+            next_election_at: self.next_election_at,
+        }
+    }
+}

@@ -159,6 +159,7 @@ pub enum NextIdType {
     Proposal,
     Order,
     Payment,
+    Committee,
 }
 
 impl ToString for NextIdType {
@@ -168,6 +169,7 @@ impl ToString for NextIdType {
             NextIdType::Proposal => "proposal",
             NextIdType::Order => "order",
             NextIdType::Payment => "payment",
+            NextIdType::Committee => "committee",
         }
         .to_string()
     }

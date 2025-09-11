@@ -8,7 +8,7 @@ use std::{cell::RefCell, collections::HashMap};
 use ciborium::{from_reader, into_writer};
 use ic_govmind_types::{
     chain::BlockchainConfig,
-    dao::{ChainType, Dao, DaoAsset, DaoMember, DistributionRecord, Proposal},
+    dao::{ChainType, Committee, Dao, DaoAsset, DaoMember, DistributionRecord, Proposal},
 };
 use ic_stable_structures::{
     memory_manager::{MemoryId, MemoryManager, VirtualMemory},
@@ -246,6 +246,10 @@ pub mod state {
         state::with_mut(|s| s.get_next_id(NextIdType::Proposal))
     }
 
+    pub fn get_next_committee_id() -> u64 {
+        state::with_mut(|s| s.get_next_id(NextIdType::Committee))
+    }
+
     pub fn get_env() -> KeyEnvironment {
         state::with(|r| r.key_env.clone())
     }
@@ -306,6 +310,50 @@ pub mod state {
         };
 
         Ok(key_info)
+    }
+
+    /// Add a new committee to the DAO
+    pub fn add_committee(new_committee: Committee) -> Result<(), String> {
+        let mut dao = get_dao_info().ok_or_else(|| "DAO not initialized".to_string())?;
+
+        if dao
+            .committees
+            .iter()
+            .any(|c| c.committee_type == new_committee.committee_type)
+        {
+            return Err(format!(
+                "Committee of type {:?} already exists",
+                new_committee.committee_type
+            ));
+        }
+
+        dao.committees.push(new_committee);
+
+        // update org_info
+        update_org_info(dao);
+
+        Ok(())
+    }
+
+    /// Update an existing committee (e.g. members, term, election timestamps)
+    pub fn update_committee(
+        committee_id: u16,
+        updater: impl FnOnce(&mut Committee),
+    ) -> Result<(), String> {
+        let mut dao = get_dao_info().ok_or_else(|| "DAO not initialized".to_string())?;
+
+        let committee = dao
+            .committees
+            .iter_mut()
+            .find(|c| c.id == committee_id)
+            .ok_or_else(|| format!("Committee {} not found", committee_id))?;
+
+        updater(committee);
+
+        // 更新 org_info
+        update_org_info(dao);
+
+        Ok(())
     }
 }
 

@@ -18,6 +18,8 @@ icrc-ledger-types = { workspace = true }
 ic-ledger-types = { workspace = true }
 ic-secp256k1 = { workspace = true }
 ic-web3-rs = { workspace = true }
+ic-canister-log = { workspace = true }
+ic-http-types = { workspace = true }
 ciborium = { workspace = true }
 ciborium-io = { workspace = true }
 ethers-core = { workspace = true }
@@ -34,6 +36,7 @@ bitcoin_hashes = { workspace = true }
 base58 = { workspace = true }
 bs58 = { workspace = true }
 ripemd = { workspace = true }
+time = { workspace = true }
 
 ic-govmind-types = { path = "../ic_govmind_types", version = "0.1" }
 evm_rpc_types = { path = "../evm_rpc_types" }

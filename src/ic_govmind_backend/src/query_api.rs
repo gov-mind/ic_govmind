@@ -44,3 +44,15 @@ pub fn get_chain_config_by_type(chain_type: ChainType) -> Option<BlockchainConfi
 pub fn list_distribution_records(start: u64, limit: u64) -> Vec<(u64, DistributionRecord)> {
     store::distribution::list_distribution_records(start, limit as usize)
 }
+
+#[query(hidden = true)]
+fn http_request(req: ic_http_types::HttpRequest) -> ic_http_types::HttpResponse {
+    if ic_cdk::api::data_certificate().is_none() {
+        ic_cdk::trap("update call rejected");
+    }
+    if req.path() == "/logs" {
+        crate::ic_log::do_reply(req)
+    } else {
+        ic_http_types::HttpResponseBuilder::not_found().build()
+    }
+}

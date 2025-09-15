@@ -1,4 +1,5 @@
 pub mod api_cycles;
+pub mod ic_log;
 pub mod chain;
 pub mod guards;
 pub mod init;

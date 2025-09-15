@@ -1,14 +1,9 @@
 use crate::{
-    services::{
+    ic_log::INFO, services::{
         evm_abi::{generate_create_token, generate_erc20_transfer_data},
         evm_service::EvmService,
         token_icrc1::TokenICRC1,
-    },
-    signer::signing,
-    store::{self, state},
-    utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid},
-    ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE, ETH_ERC20_TRANSFER_GAS,
-    ETH_TRANSFER_GAS, WEB3_URL,
+    }, signer::signing, store::{self, state}, utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid}, ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE, ETH_ERC20_TRANSFER_GAS, ETH_TRANSFER_GAS, WEB3_URL
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
@@ -28,6 +23,7 @@ use ic_web3_rs::{
     types::{TransactionParameters, U256},
     Web3,
 };
+use ic_canister_log::log;
 use icrc_ledger_types::icrc1::account::Account;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
 use serde::{de::Error as DeError, Serialize};
@@ -352,7 +348,7 @@ impl WalletBlockchainConfig {
         let chain_id = store::state::get_chain_id(chain_type).unwrap_or(1);
 
         let key_info = store::state::get_key_info()?;
-        ic_cdk::println!("key_info: {:?}", &key_info);
+        log!(INFO, "key_info: {:?}", &key_info);
 
         // Initialize the web3 connection
         let w3: Web3<ICHttp> = match ICHttp::new(WEB3_URL, None) {

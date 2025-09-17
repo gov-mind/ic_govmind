@@ -544,6 +544,72 @@ function DaoInfoPage() {
     staleTime: 30000,
   });
 
+  // Fetch DAO wallet addresses from backend canister
+  const { data: daoWalletAddresses, isLoading: addressesLoading, error: addressesError } = useQuery({
+    queryKey: ['dao-wallet-addresses', dao?.id],
+    queryFn: async () => {
+      if (!dao?.id || !agent) return null;
+      const daoActor = createBackendActor(dao.id, { agent });
+      const addr = await daoActor.get_dao_wallet_addresses();
+      return addr;
+    },
+    enabled: !!dao?.id && !!agent,
+    staleTime: 30000,
+  });
+
+  // Helper to scale nat balances to decimal numbers for display
+  const scaleByDecimals = (balanceNat, decimals) => {
+    try {
+      if (balanceNat === null || balanceNat === undefined) return 0;
+      const bn = BigInt(balanceNat);
+      const denom = 10n ** BigInt(decimals);
+      const integer = bn / denom;
+      const fraction = bn % denom;
+      const fracStr = fraction.toString().padStart(Number(decimals), '0').slice(0, 6);
+      return Number(`${integer}.${fracStr}`);
+    } catch (e) {
+      return 0;
+    }
+  };
+
+  // Fetch token balances for required assets across chains
+  const { data: tokenBalances, isLoading: daoTreasuryBalancesLoading, error: balancesError, refetch: refetchDaoTreasuryBalances } = useQuery({
+    queryKey: ['dao-token-balances', dao?.id, daoWalletAddresses?.account_identifier_string, daoWalletAddresses?.icrc1_string, daoWalletAddresses?.bitcoin, daoWalletAddresses?.ethereum],
+    queryFn: async () => {
+      if (!dao?.id || !agent || !daoWalletAddresses) return null;
+      const daoActor = createBackendActor(dao.id, { agent });
+      const addr = daoWalletAddresses;
+      console.log('daoWalletAddresses:', addr);
+
+      const call = (wallet_address, chain_type, token_name, subaccount=[]) => {
+        console.log("wallet address:", wallet_address);
+        console.log("token name:", token_name);
+        return daoActor.wallet_query_balance({ wallet_address, chain_type, token_name, subaccount });
+      }
+
+      const [icpRes, daoRes, btcRes, ethRes, usdtRes] = await Promise.all([
+        call(addr.account_identifier_string, { InternetComputer: null }, 'ICP'),
+        call(addr.icrc1.owner.toText(), { InternetComputer: null }, dao?.base_token?.name || 'DAO'),
+        call(addr.bitcoin, { Bitcoin: null }, 'BTC'),
+        call(addr.ethereum, { Ethereum: null }, 'ETH'),
+        call(addr.ethereum, { Ethereum: null }, 'USDT'),
+      ]);
+
+      const unwrap = (res) => (res && res.Ok ? res.Ok.balance : 0n);
+
+      return {
+        icp: unwrap(icpRes),
+        dao: unwrap(daoRes),
+        btc: unwrap(btcRes),
+        eth: unwrap(ethRes),
+        usdt: unwrap(usdtRes),
+      };
+    },
+    enabled: !!dao?.id && !!agent && !!daoWalletAddresses,
+    staleTime: 10000,
+    refetchInterval: 30000,
+  });
+
   // Fetch real-time proposals from the DAO canister
   const { data: proposals = [], isLoading: proposalsLoading, error: proposalsError, refetch: refetchProposals } = useQuery({
     queryKey: ['dao-proposals', dao?.id],
@@ -604,7 +670,7 @@ function DaoInfoPage() {
                  : String(member.icp_principal[0]))
               : member.user_id;
             
-            console.log('Querying wallet balance for:', walletAddress);
+            console.log('Querying wallet balance for:', walletAddress, dao.base_token);
             const balanceResult = await daoActor.wallet_query_balance({
               chain_type: { InternetComputer: null },
               token_name: dao.base_token.name,
@@ -1499,38 +1565,73 @@ function DaoInfoPage() {
                     <div className="bg-white border border-slate-200 rounded-xl p-4">
                       <h5 className="font-semibold text-slate-900 mb-3">Assets by Chain</h5>
                       <div className="space-y-3">
-                        {treasuryData.assets.map((asset, index) => {
-                          const chainIcon = (() => {
-                            switch(asset.chain) {
-                              case 'Bitcoin': return '₿';
-                              case 'Ethereum': return '🔷';
-                              case 'Internet Computer': return '🌐';
-                              case 'Solana': return '☀️';
-                              case 'Others': return '🔗';
-                              default: return '🔗';
-                            }
-                          })();
+                        {/* Loading & Error States */}
+                        {(addressesLoading || daoTreasuryBalancesLoading) && (
+                          <div className="text-sm text-slate-500">Loading balances...</div>
+                        )}
+                        {(addressesError && console.log('addressesError:', addressesError) || balancesError && console.log('balancesError:', balancesError)) && (
+                          <div className="text-sm text-red-600">Failed to load treasury balances</div>
+                        )}
 
-                          return (
-                            <div key={index} className="border border-slate-100 rounded-lg p-3">
+                        {daoWalletAddresses && tokenBalances && (
+                          <>
+                            {/* Internet Computer Chain */}
+                            <div className="border border-slate-100 rounded-lg p-3">
                               <div className="flex items-center justify-between mb-2">
                                 <div className="flex items-center space-x-2">
-                                  <span className="text-lg">{chainIcon}</span>
-                                  <span className="font-medium text-slate-900">{asset.chain}</span>
+                                  <span className="text-lg">🌐</span>
+                                  <span className="font-medium text-slate-900">Internet Computer</span>
                                 </div>
-                                <span className="text-xs text-slate-500">
-                                  ${asset.usdValue.toLocaleString()}
-                                </span>
                               </div>
                               <div className="space-y-1">
                                 <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">{asset.symbol}</span>
-                                  <span className="font-medium">{asset.amount.toLocaleString()}</span>
+                                  <span className="text-slate-600">ICP</span>
+                                  <span className="font-medium">{scaleByDecimals(tokenBalances.icp, 8).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">{dao?.base_token?.symbol || 'DAO'}</span>
+                                  <span className="font-medium">{Number(tokenBalances.dao)}</span>
                                 </div>
                               </div>
                             </div>
-                          );
-                        })}
+
+                            {/* Bitcoin Chain */}
+                            <div className="border border-slate-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-lg">₿</span>
+                                  <span className="font-medium text-slate-900">Bitcoin</span>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">BTC</span>
+                                  <span className="font-medium">{scaleByDecimals(tokenBalances.btc, 8).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+
+                            {/* Ethereum Chain */}
+                            <div className="border border-slate-100 rounded-lg p-3">
+                              <div className="flex items-center justify-between mb-2">
+                                <div className="flex items-center space-x-2">
+                                  <span className="text-lg">🔷</span>
+                                  <span className="font-medium text-slate-900">Ethereum</span>
+                                </div>
+                              </div>
+                              <div className="space-y-1">
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">ETH</span>
+                                  <span className="font-medium">{scaleByDecimals(tokenBalances.eth, 18).toLocaleString()}</span>
+                                </div>
+                                <div className="flex justify-between text-sm">
+                                  <span className="text-slate-600">USDT</span>
+                                  <span className="font-medium">{scaleByDecimals(tokenBalances.usdt, 6).toLocaleString()}</span>
+                                </div>
+                              </div>
+                            </div>
+                          </>
+                        )}
                       </div>
                     </div>
                   </div>

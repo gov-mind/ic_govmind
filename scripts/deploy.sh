@@ -114,9 +114,9 @@ deploy_factory() {
 enforce_local_env() {
     local network_flag=$(get_network_flag)
     if [[ "$NETWORK" == "local" ]]; then
-        echo -e "${YELLOW}🛠  Setting ic_govmind_factory default env to Staging (local network)...${NC}"
-        if dfx canister call ic_govmind_factory set_default_env '(variant { Staging })' $network_flag; then
-            echo -e "${GREEN}✅ Default env set to Staging for local.${NC}"
+        echo -e "${YELLOW}🛠  Setting ic_govmind_factory default env to Local (local network)...${NC}"
+        if dfx canister call ic_govmind_factory set_default_env '(variant { Local })' $network_flag; then
+            echo -e "${GREEN}✅ Default env set to Local for local.${NC}"
         else
             echo -e "${YELLOW}⚠️  Could not set default env automatically. This likely means your current dfx identity is not the canister owner.${NC}"
             echo -e "${YELLOW}   Try: 'dfx identity whoami' and ensure it matches the identity that deployed the factory, or reinstall the factory.${NC}"

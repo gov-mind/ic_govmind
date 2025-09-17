@@ -1,6 +1,6 @@
 use crate::{
     api_canister::{create_dao_canister, upgrade_dao_canister},
-    guards::anonymous_guard,
+    guards::{anonymous_guard, owner_guard},
     types::{CanisterArgs, KeyEnvironment, StateInitArgs, StateUpgradeArgs},
 };
 use candid::Principal;
@@ -15,8 +15,10 @@ use crate::store::{self};
 async fn create_gov_dao_core(mut dao: Dao) -> Result<Principal, String> {
     let caller = ic_cdk::api::msg_caller();
 
+    let env = store::state::get_default_env();
+
     let init_args = CanisterArgs::Init(StateInitArgs {
-        env: KeyEnvironment::Production,
+        env,
         root: caller,
         admins: vec![caller],
         org_info: Some(dao.clone()),
@@ -64,4 +66,9 @@ async fn upgrade_gov_dao() -> Result<(), String> {
     });
 
     upgrade_dao_canister(canister_id, Some(upgrade_arg)).await
+}
+
+#[update(guard = "owner_guard")]
+fn set_default_env(env: KeyEnvironment) {
+    store::state::set_default_env(env);
 }

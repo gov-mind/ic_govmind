@@ -1,4 +1,4 @@
-use crate::types::CanisterArgs;
+use crate::types::{CanisterArgs, KeyEnvironment};
 use candid::{export_service, Principal};
 use ic_cdk::query;
 use ic_govmind_types::dao::Dao;

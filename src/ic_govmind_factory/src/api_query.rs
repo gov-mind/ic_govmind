@@ -2,7 +2,7 @@ use candid::Principal;
 use ic_cdk::query;
 use ic_govmind_types::dao::Dao;
 
-use crate::store::{self};
+use crate::{store::{self}, types::KeyEnvironment};
 
 #[query]
 fn get_dao_info(user_pid: Principal) -> Option<Dao> {
@@ -22,4 +22,9 @@ fn get_gov_dao_list(page: usize, page_size: usize) -> (Vec<(Principal, Dao)>, u6
         .collect();
 
     (dao_list, total_count)
+}
+
+#[query]
+fn get_default_env() -> KeyEnvironment {
+    store::state::get_default_env()
 }

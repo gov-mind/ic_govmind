@@ -1,17 +1,24 @@
 use crate::{
-    ic_log::INFO, services::{
+    ic_log::INFO,
+    services::{
         evm_abi::{generate_create_token, generate_erc20_transfer_data},
         evm_service::EvmService,
         token_icrc1::TokenICRC1,
-    }, signer::signing, store::{self, state}, utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid}, ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE, ETH_ERC20_TRANSFER_GAS, ETH_TRANSFER_GAS, WEB3_URL
+    },
+    signer::signing,
+    store::{self, state},
+    utils::{account_id, convert_subaccount, nat_to_u128, owner_wallet_pid},
+    ETH_CREATE_TOKEN_CONTRACT, ETH_CREATE_TOKEN_GAS, ETH_DEFAULT_GAS_PRICE, ETH_ERC20_TRANSFER_GAS,
+    ETH_TRANSFER_GAS, WEB3_URL,
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
 use candid::{CandidType, Deserialize, Principal};
 use ethers_core::types::H160;
 use evm_rpc_types::{MultiRpcResult, SendRawTransactionStatus};
+use ic_canister_log::log;
 use ic_govmind_types::{
-    chain::{self, BlockchainConfig, TokenConfig, TokenStandard},
+    chain::{BlockchainConfig, TokenConfig, TokenStandard},
     constants::{EVM_RPC_CANISTER_ID, LEDGER_CANISTER_ID},
     dao::ChainType,
 };
@@ -23,7 +30,6 @@ use ic_web3_rs::{
     types::{TransactionParameters, U256},
     Web3,
 };
-use ic_canister_log::log;
 use icrc_ledger_types::icrc1::account::Account;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
 use serde::{de::Error as DeError, Serialize};

@@ -3,7 +3,7 @@ use evm_rpc_types::{EthMainnetService, EthSepoliaService, RpcApi, RpcService};
 use ic_cdk::management_canister::{
     EcdsaCurve, EcdsaKeyId, SchnorrAlgorithm::Bip340secp256k1, SchnorrKeyId,
 };
-use ic_govmind_types::dao::ChainType;
+use ic_govmind_types::dao::{ChainType, HOLDER_SUBACCOUNT};
 use ic_ledger_types::{AccountIdentifier, Subaccount};
 use icrc_ledger_types::icrc1::account::Account;
 use serde::Serialize;
@@ -145,7 +145,7 @@ impl From<[u8; 32]> for Addresses {
 
 impl From<&Principal> for Addresses {
     fn from(value: &Principal) -> Self {
-        let mut hash = [0u8; 32];
+        let mut hash = HOLDER_SUBACCOUNT;
         let mut hasher = Sha3::v256();
         hasher.update(value.as_slice());
         hasher.finalize(&mut hash);

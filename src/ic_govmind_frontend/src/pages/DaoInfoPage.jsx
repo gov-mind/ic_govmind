@@ -605,7 +605,7 @@ function DaoInfoPage() {
               : member.user_id;
             
             console.log('Querying wallet balance for:', walletAddress);
-            const balanceResult = await daoActor.query_wallet_balance({
+            const balanceResult = await daoActor.wallet_query_balance({
               chain_type: { InternetComputer: null },
               token_name: dao.base_token.name,
               wallet_address: walletAddress,

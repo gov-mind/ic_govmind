@@ -127,7 +127,7 @@ impl From<[u8; 32]> for Addresses {
             AccountIdentifier::new(&id, &ic_ledger_types::Subaccount(subaccount));
         let account = Account {
             owner: id,
-            subaccount: Some(subaccount),
+            subaccount: Some(HOLDER_SUBACCOUNT),
         };
         let bitcoin = account_to_p2pkh_address(&account, BITCOIN_NETWORK);
         let ethereum = account_to_eth_address().unwrap();

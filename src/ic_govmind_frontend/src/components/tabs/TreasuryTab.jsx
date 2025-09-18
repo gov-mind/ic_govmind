@@ -681,7 +681,7 @@ const orderedChains = [
        {/* Transfer Modal */}
        {isTransferOpen && selectedAsset && (
          <div className="fixed inset-0 bg-black/30 backdrop-blur-sm flex items-center justify-center z-50">
-           <div className="bg-white rounded-xl shadow-xl w-full max-w-md border border-slate-200">
+           <div className="bg-white rounded-xl shadow-xl w-full max-w-2xl sm:max-w-3xl border border-slate-200">
              <div className="px-5 py-4 border-b border-slate-200 flex items-center justify-between">
                <h4 className="text-lg font-semibold text-slate-900">Send {selectedAsset.symbol}</h4>
                <button onClick={closeTransfer} className="text-slate-500 hover:text-slate-700">✕</button>
@@ -714,7 +714,7 @@ const orderedChains = [
                  <div className="text-sm text-red-600 bg-red-50 border border-red-200 rounded-md px-3 py-2">{transferError}</div>
                )}
                {transferSuccess && (
-                 <div className="text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2">{transferSuccess}</div>
+                 <div className="text-xs sm:text-sm text-emerald-700 bg-emerald-50 border border-emerald-200 rounded-md px-3 py-2 break-all">{transferSuccess}</div>
                )}
  
                <div className="flex items-center justify-end space-x-3 pt-2">

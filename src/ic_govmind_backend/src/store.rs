@@ -381,6 +381,7 @@ pub mod proposals {
         content: String,
         proposer: String,
         voting_period_secs: u64,
+        committee_id: Option<u16>,
     ) -> Result<u64, String> {
         let proposal_id = state::get_next_proposal_id();
         let now = current_time_secs();
@@ -395,6 +396,7 @@ pub mod proposals {
             status: ProposalStatus::Active,
             votes: Vec::new(),
             metadata: None,
+            committee_id: committee_id
         };
 
         PROPOSALS_STORE.with(|store| {

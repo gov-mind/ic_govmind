@@ -1,5 +1,5 @@
 import React from 'react';
-import { Users, FileText, Coins, Wallet, Settings, Hash, BarChart3 } from 'lucide-react';
+import { Users, FileText, Coins, Wallet, Settings, Hash, BarChart3, Shield } from 'lucide-react';
 
 export default function DaoTabs({ activeTab, onChange }) {
   const tabs = [
@@ -9,6 +9,7 @@ export default function DaoTabs({ activeTab, onChange }) {
     { id: 'distribution', label: 'Distribution', icon: Coins },
     { id: 'treasury', label: 'Treasury', icon: Wallet },
     { id: 'governance', label: 'Governance', icon: Settings },
+    { id: 'committees', label: 'Committees', icon: Shield },
     { id: 'canister', label: 'Canister', icon: Hash },
   ];
 

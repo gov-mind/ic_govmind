@@ -117,6 +117,7 @@ pub struct Proposal {
     pub title: String,
     pub content: String,
     pub proposer: String,
+    pub committee_id: Option<u16>,
     pub created_at: u64,
     pub expires_at: u64,
     pub status: ProposalStatus,
@@ -250,6 +251,26 @@ pub enum CommitteeType {
     Technical,
     /// Democracy Committee
     Democracy,
+    /// Treasury Committee
+    Treasury,
+    /// Grants Committee
+    Grants,
+    /// Community Committee
+    Community,
+    /// Marketing Committee
+    Marketing,
+    /// Legal Committee
+    Legal,
+    /// Strategy Committee
+    Strategy,
+    /// Dispute Resolution Committee
+    Dispute,
+    /// Research Committee
+    Research,
+    /// Security Committee
+    Security,
+    /// Operations Committee
+    Operations,
     // Future committees can be added here
 }
 
@@ -261,26 +282,12 @@ pub struct Committee {
     pub term_duration_secs: u64,       // Term duration in seconds
     pub elected_at: Option<u64>,       // Timestamp of last election
     pub next_election_at: Option<u64>, // Timestamp of next scheduled election
+    // New fields
+    pub active: Option<bool>,                  // enable/disable committee
+    pub responsibilities: Option<String>,
 }
 
 impl Dao {
-    pub fn add_committee(
-        &mut self,
-        id: u16,
-        committee_type: CommitteeType,
-        term_duration_secs: u64,
-    ) {
-        let committee = Committee {
-            id,
-            committee_type,
-            members: vec![],
-            term_duration_secs,
-            elected_at: None,
-            next_election_at: None,
-        };
-        self.committees.push(committee);
-    }
-
     pub fn elect_committee_members(
         &mut self,
         committee_id: u16,
@@ -324,6 +331,9 @@ pub struct CommitteeArg {
     pub term_duration_secs: u64,       // Term duration in seconds
     pub elected_at: Option<u64>,       // Timestamp of last election
     pub next_election_at: Option<u64>, // Timestamp of next scheduled election
+    // New optional fields for backward compatibility
+    pub active: Option<bool>,
+    pub responsibilities: Option<String>,
 }
 
 impl CommitteeArg {
@@ -335,6 +345,9 @@ impl CommitteeArg {
             term_duration_secs: self.term_duration_secs,
             elected_at: self.elected_at,
             next_election_at: self.next_election_at,
+            // Defaults if not provided
+            active: Some(self.active.unwrap_or(true)),
+            responsibilities: self.responsibilities,
         }
     }
 }

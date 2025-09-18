@@ -1,6 +1,8 @@
 import { useState, useEffect, useRef } from 'react';
 import { useParams, Link } from 'react-router-dom';
-import { useQuery, useQueryClient } from '@tanstack/react-query';
+import { useQueryClient } from '@tanstack/react-query';
+import DaoTabs from '../components/DaoTabs';
+import { useDaoInfo, useBackendDaoInfo, useDaoWalletAddresses, useDaoTokenBalances, useDaoProposals, useDistributionRecords, useMemberBalances } from '../hooks/daoHooks';
 import { useAuthClient } from '../hooks/useAuthClient';
 import {
   Chart as ChartJS,
@@ -46,10 +48,14 @@ import {
   Calendar,
   Brain
 } from 'lucide-react';
-import { Principal } from '@dfinity/principal';
 import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
 import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
-import ProposalAnalysisPanel from '../components/ProposalAnalysisPanel';
+import OverviewTab from '../components/tabs/OverviewTab';
+import MembersTab from '../components/tabs/MembersTab';
+import ProposalsTab from '../components/tabs/ProposalsTab';
+import DistributionTab from '../components/tabs/DistributionTab';
+import TreasuryTab from '../components/tabs/TreasuryTab';
+import GovernanceTab from '../components/tabs/GovernanceTab';
 
 function formatDate(bigintOrNumber) {
   let ms;
@@ -60,10 +66,6 @@ function formatDate(bigintOrNumber) {
     ms = Number(bigintOrNumber);
   }
   return new Date(ms).toLocaleDateString();
-}
-
-function formatMemberDate(joined_at) {
-  return new Date(Number(joined_at)).toLocaleDateString();
 }
 
 // Helper function to get unlock schedule for a specific member
@@ -95,31 +97,35 @@ function getMemberUnlockSchedule(dao, member) {
     .sort((a, b) => Number(a.timestamp) - Number(b.timestamp));
 }
 
-// Helper function to format unlock schedule timestamp
-function formatUnlockDate(timestamp) {
-  return new Date(Number(timestamp)/ 1000000).toLocaleDateString('en-US', {
-    year: 'numeric',
-    month: 'short',
-    day: 'numeric'
-  });
-}
-
 // Helper function to calculate total locked tokens for a member
 function getTotalLockedTokens(unlockSchedule) {
-  return unlockSchedule.reduce((total, item) => {
-    return total + Number(item.amount);
-  }, 0);
+  try {
+    return unlockSchedule.reduce((total, item) => {
+      return total + BigInt(item.amount);
+    }, 0n);
+  } catch {
+    return 0n;
+  }
 }
 
 // Helper function to calculate available (unlocked) tokens
 function getAvailableTokens(unlockSchedule) {
-  const now = Date.now() * 1000000; // Convert to nanoseconds
-  return unlockSchedule.reduce((total, item) => {
-    if (Number(item.timestamp) <= now) {
-      return total + Number(item.amount);
-    }
-    return total;
-  }, 0);
+  try {
+    const now = BigInt(Date.now()) * 1000000n; // Convert to nanoseconds
+    return unlockSchedule.reduce((total, item) => {
+      try {
+        const ts = BigInt(item.timestamp);
+        if (ts <= now) {
+          return total + BigInt(item.amount);
+        }
+        return total;
+      } catch {
+        return total;
+      }
+    }, 0n);
+  } catch {
+    return 0n;
+  }
 }
 
 // Centralized Treasury Data Object (simulating backend response)
@@ -512,56 +518,19 @@ function DaoInfoPage() {
   // Debug: Log the principal from the frontend
   //   console.log("Frontend principal:", principal);
 
-  const { data: dao, isLoading, error } = useQuery({
-    queryKey: ['dao-info', principal],
-    queryFn: async () => {
-      if (!factoryActor || !principal) return null;
-      const principalObj = Principal.fromText(principal);
-      const result = await factoryActor.get_dao_info(principalObj);
-
-      return result && result.length > 0 ? result[0] : null;
-    },
-    enabled: !!factoryActor && !!principal,
-    staleTime: 30000,
-  });
+  const { data: dao, isLoading, error } = useDaoInfo();
 
   // Fetch complete DAO info from backend canister for accurate distribution model
-  const { data: backendDao, isLoading: backendDaoLoading } = useQuery({
-    queryKey: ['backend-dao-info', dao?.id],
-    queryFn: async () => {
-      if (!dao?.id || !agent) return null;
-      
-      try {
-        const daoActor = createBackendActor(dao.id, { agent });
-        const result = await daoActor.dao_info();
-        return result && result.length > 0 ? result[0] : null;
-      } catch (err) {
-        console.error('Error fetching backend DAO info:', err);
-        return null;
-      }
-    },
-    enabled: !!dao?.id && !!agent,
-    staleTime: 30000,
-  });
+  const { data: backendDao, isLoading: backendDaoLoading } = useBackendDaoInfo(dao);
 
   // Fetch DAO wallet addresses from backend canister
-  const { data: daoWalletAddresses, isLoading: addressesLoading, error: addressesError } = useQuery({
-    queryKey: ['dao-wallet-addresses', dao?.id],
-    queryFn: async () => {
-      if (!dao?.id || !agent) return null;
-      const daoActor = createBackendActor(dao.id, { agent });
-      const addr = await daoActor.get_dao_wallet_addresses();
-      return addr;
-    },
-    enabled: !!dao?.id && !!agent,
-    staleTime: 30000,
-  });
+  const { data: daoWalletAddresses, isLoading: addressesLoading, error: addressesError } = useDaoWalletAddresses(dao);
 
   // Helper to scale nat balances to decimal numbers for display
   const scaleByDecimals = (balanceNat, decimals) => {
     try {
       if (balanceNat === null || balanceNat === undefined) return 0;
-      const bn = BigInt(balanceNat);
+      const bn = typeof balanceNat === 'bigint' ? balanceNat : BigInt(balanceNat);
       const denom = 10n ** BigInt(decimals);
       const integer = bn / denom;
       const fraction = bn % denom;
@@ -573,134 +542,16 @@ function DaoInfoPage() {
   };
 
   // Fetch token balances for required assets across chains
-  const { data: tokenBalances, isLoading: daoTreasuryBalancesLoading, error: balancesError, refetch: refetchDaoTreasuryBalances } = useQuery({
-    queryKey: ['dao-token-balances', dao?.id, daoWalletAddresses?.account_identifier_string, daoWalletAddresses?.icrc1_string, daoWalletAddresses?.bitcoin, daoWalletAddresses?.ethereum],
-    queryFn: async () => {
-      if (!dao?.id || !agent || !daoWalletAddresses) return null;
-      const daoActor = createBackendActor(dao.id, { agent });
-      const addr = daoWalletAddresses;
-      console.log('daoWalletAddresses:', addr);
-
-      const call = (wallet_address, chain_type, token_name, subaccount=[]) => {
-        console.log("wallet address:", wallet_address);
-        console.log("token name:", token_name);
-        return daoActor.wallet_query_balance({ wallet_address, chain_type, token_name, subaccount });
-      }
-
-      const [icpRes, daoRes, btcRes, ethRes, usdtRes] = await Promise.all([
-        call(addr.account_identifier_string, { InternetComputer: null }, 'ICP'),
-        call(addr.icrc1.owner.toText(), { InternetComputer: null }, dao?.base_token?.name || 'DAO'),
-        call(addr.bitcoin, { Bitcoin: null }, 'BTC'),
-        call(addr.ethereum, { Ethereum: null }, 'ETH'),
-        call(addr.ethereum, { Ethereum: null }, 'USDT'),
-      ]);
-
-      const unwrap = (res) => (res && res.Ok ? res.Ok.balance : 0n);
-
-      return {
-        icp: unwrap(icpRes),
-        dao: unwrap(daoRes),
-        btc: unwrap(btcRes),
-        eth: unwrap(ethRes),
-        usdt: unwrap(usdtRes),
-      };
-    },
-    enabled: !!dao?.id && !!agent && !!daoWalletAddresses,
-    staleTime: 10000,
-    refetchInterval: 30000,
-  });
+  const { data: tokenBalances, isLoading: daoTreasuryBalancesLoading, error: balancesError, refetch: refetchDaoTreasuryBalances } = useDaoTokenBalances(dao, daoWalletAddresses);
 
   // Fetch real-time proposals from the DAO canister
-  const { data: proposals = [], isLoading: proposalsLoading, error: proposalsError, refetch: refetchProposals } = useQuery({
-    queryKey: ['dao-proposals', dao?.id],
-    queryFn: async () => {
-      if (!dao?.id || !agent) return [];
-
-      try {
-        const daoActor = createBackendActor(dao.id, { agent });
-        const result = await daoActor.get_all_proposals();
-        return result || [];
-      } catch (err) {
-        console.error('Error fetching proposals:', err);
-        return [];
-      }
-    },
-    enabled: !!dao?.id && !!agent,
-    staleTime: 10000, // Refresh more frequently for proposals
-    refetchInterval: 30000, // Auto-refresh every 30 seconds
-  });
+  const { data: proposals = [], isLoading: proposalsLoading, error: proposalsError, refetch: refetchProposals } = useDaoProposals(dao);
 
   // Fetch distribution records
-  const { data: distributionRecords = [], isLoading: distributionRecordsLoading, error: distributionRecordsError } = useQuery({
-    queryKey: ['distribution-records', dao?.id],
-    queryFn: async () => {
-      if (!dao?.id || !agent) return [];
-
-      try {
-        const daoActor = createBackendActor(dao.id, { agent });
-        const result = await daoActor.list_distribution_records(0n, 100n); // offset, limit
-        return result || [];
-      } catch (err) {
-        console.error('Error fetching distribution records:', err);
-        return [];
-      }
-    },
-    enabled: !!dao?.id && !!agent,
-    staleTime: 60000, // Cache for 1 minute
-    refetchInterval: 60000, // Auto-refresh every 1 minute
-  });
+  const { data: distributionRecords = [], isLoading: distributionRecordsLoading, error: distributionRecordsError } = useDistributionRecords(dao);
 
   // Fetch member token balances
-  const { data: memberBalances = {}, isLoading: balancesLoading } = useQuery({
-    queryKey: ['member-balances', dao?.id, dao?.members?.length],
-    queryFn: async () => {
-      if (!dao?.id || !agent || !dao?.members) return {};
-
-      try {
-        const daoActor = createBackendActor(dao.id, { agent });
-        const balances = {};
-        
-        // Query balance for each member
-        for (const member of dao.members) {
-          try {
-            // Use ICP principal if available, otherwise use user_id
-            const walletAddress = member.icp_principal && member.icp_principal.length > 0 
-              ? (typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText 
-                 ? member.icp_principal[0].toText() 
-                 : String(member.icp_principal[0]))
-              : member.user_id;
-            
-            console.log('Querying wallet balance for:', walletAddress, dao.base_token);
-            const balanceResult = await daoActor.wallet_query_balance({
-              chain_type: { InternetComputer: null },
-              token_name: dao.base_token.name,
-              wallet_address: walletAddress,
-              subaccount: []
-            });
-            
-            if (balanceResult.Ok) {
-              console.log('Balance for', walletAddress, ':', balanceResult);
-              balances[member.user_id] = balanceResult.Ok.balance;
-            }
-            else {
-              console.log('Error fetching balance for', walletAddress, ':', balanceResult);
-            }
-          } catch (err) {
-            console.error(`Error fetching balance for ${member.user_id}:`, err);
-            balances[member.user_id] = 0n;
-          }
-        }
-        
-        return balances;
-      } catch (err) {
-        console.error('Error fetching member balances:', err);
-        return {};
-      }
-    },
-    enabled: !!dao?.id && !!agent && !!dao?.members,
-    staleTime: 30000, // Cache for 30 seconds
-    refetchInterval: 60000, // Auto-refresh every 1 minute
-  });
+  const { data: memberBalances = {}, isLoading: balancesLoading } = useMemberBalances(dao);
 
   const [activeTab, setActiveTab] = useState('overview');
   const [showCreateProposal, setShowCreateProposal] = useState(false);
@@ -1078,876 +929,86 @@ function DaoInfoPage() {
         {/* Tabs */}
         <div className="bg-white rounded-2xl shadow-sm border border-slate-200 mb-6 flex flex-col min-h-[600px]">
           <div className="border-b border-slate-200">
-            <nav className="flex space-x-8 px-6">
-              {[
-                { id: 'overview', label: 'Overview', icon: BarChart3 },
-                { id: 'members', label: 'Members', icon: Users },
-                { id: 'proposals', label: 'Proposals', icon: FileText },
-                { id: 'distribution', label: 'Distribution', icon: Coins },
-                { id: 'treasury', label: 'Treasury', icon: Wallet },
-                { id: 'governance', label: 'Governance', icon: Settings },
-                { id: 'canister', label: 'Canister', icon: Hash }
-              ].map(tab => {
-                const Icon = tab.icon;
-                return (
-                  <button
-                    key={tab.id}
-                    onClick={() => setActiveTab(tab.id)}
-                    className={`flex items-center space-x-2 py-4 px-1 border-b-2 font-medium text-sm transition-colors ${activeTab === tab.id
-                        ? 'border-blue-500 text-blue-600'
-                        : 'border-transparent text-slate-500 hover:text-slate-700 hover:border-slate-300'
-                      }`}
-                  >
-                    <Icon className="w-4 h-4" />
-                    <span>{tab.label}</span>
-                  </button>
-                );
-              })}
-            </nav>
+            <DaoTabs activeTab={activeTab} onChange={setActiveTab} />
           </div>
 
           {/* Tab Content */}
           <div className="p-6 flex-1 min-h-0 flex flex-col">
             {/* Overview Tab */}
             {activeTab === 'overview' && (
-              <div className="space-y-6">
-                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
-                  <div className="bg-gradient-to-br from-blue-50 to-cyan-50 border border-blue-200 rounded-xl p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-blue-100 rounded-lg flex items-center justify-center">
-                        <Users className="text-blue-600 w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-blue-600 font-medium">Total Members</p>
-                        <p className="text-2xl font-bold text-blue-900">{dao.members.length}</p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-green-50 to-emerald-50 border border-green-200 rounded-xl p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-green-100 rounded-lg flex items-center justify-center">
-                        <FileText className="text-green-600 w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-green-600 font-medium">Active Proposals</p>
-                        <p className="text-2xl font-bold text-green-900">
-                          {proposalsLoading ? (
-                            <span className="text-sm">Loading...</span>
-                          ) : (
-                            proposals.filter(p => {
-                              const status = typeof p.status === 'string' ? p.status : Object.keys(p.status)[0];
-                              return status === 'Active';
-                            }).length
-                          )}
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-gradient-to-br from-purple-50 to-indigo-50 border border-purple-200 rounded-xl p-6">
-                    <div className="flex items-center space-x-3 mb-4">
-                      <div className="w-10 h-10 bg-purple-100 rounded-lg flex items-center justify-center">
-                        <Coins className="text-purple-600 w-5 h-5" />
-                      </div>
-                      <div>
-                        <p className="text-sm text-purple-600 font-medium">Token Information</p>
-                        <p className="text-2xl font-bold text-purple-900">
-                          {parseInt(dao.base_token.total_supply).toLocaleString()}
-                        </p>
-                        <p className="text-xs text-purple-600 mt-1">Total Supply</p>
-                        {dao.base_token.distribution_model && dao.base_token.distribution_model.length > 0 && dao.base_token.distribution_model[0].emission_rate && dao.base_token.distribution_model[0].emission_rate.length > 0 && (
-                          <p className="text-sm text-purple-700 mt-2">
-                            Emission Rate: {parseInt(dao.base_token.distribution_model[0].emission_rate[0]).toLocaleString()} per period
-                          </p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <Globe className="w-5 h-5 mr-2" />
-                      Supported Chains
-                    </h3>
-                    <div className="flex flex-wrap gap-2">
-                      {dao.chains.map((chain, index) => (
-                        <span key={`${Object.keys(chain)[0]}-${index}`} className="px-3 py-1 bg-slate-100 text-slate-800 rounded-full text-sm">
-                          {Object.keys(chain)[0]}
-                        </span>
-                      ))}
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <Settings className="w-5 h-5 mr-2" />
-                      Governance Rules
-                    </h3>
-                    <div className="space-y-3">
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Vote Weight:</span>
-                        <span className="font-medium">{dao.governance.vote_weight_type ? Object.keys(dao.governance.vote_weight_type)[0].replace(/([A-Z])/g, ' $1').trim() : ''}</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Approval Threshold:</span>
-                        <span className="font-medium">{Number(dao.governance.approval_threshold)}%</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Voting Period:</span>
-                        <span className="font-medium">{Number(dao.governance.voting_period_secs) / 86400} days</span>
-                      </div>
-                      <div className="flex justify-between">
-                        <span className="text-slate-600">Quorum:</span>
-                        <span className="font-medium">{Number(dao.governance.quorum)}%</span>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {dao.description && (
-                  <div className="bg-white border border-slate-200 rounded-xl p-6">
-                    <h3 className="text-lg font-semibold text-slate-900 mb-4">About</h3>
-                    <p className="text-slate-700 leading-relaxed">{dao.description}</p>
-                  </div>
-                )}
-              </div>
+              <OverviewTab
+                dao={dao}
+                proposals={proposals}
+                proposalsLoading={proposalsLoading}
+                scaleByDecimals={scaleByDecimals}
+                formatDate={formatDate}
+              />
             )}
 
             {/* Members Tab */}
             {activeTab === 'members' && (
-              <div className="space-y-6">
-                <div className="flex items-center justify-between">
-                  <h3 className="text-lg font-semibold text-slate-900">DAO Members</h3>
-                  <span className="text-sm text-slate-500">{dao.members.length} members</span>
-                </div>
-
-                <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-                  {dao.members.map((member) => {
-                    const unlockSchedule = getMemberUnlockSchedule(dao, member);
-                    const totalLocked = getTotalLockedTokens(unlockSchedule);
-                    const availableTokens = getAvailableTokens(unlockSchedule);
-                    const pendingTokens = totalLocked - availableTokens;
-                    
-                    return (
-                      <div key={member.user_id} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
-                        <div className="flex flex-col gap-3">
-                          <div className="flex items-center justify-between">
-                            <div>
-                              <h4 className="font-semibold text-slate-900 mb-1">{member.user_id}</h4>
-                              <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(member.role)}`}>{Object.keys(member.role)[0]}</span>
-                            </div>
-                            <div className="text-right">
-                              <div className="flex items-center space-x-1">
-                                <Wallet className="w-4 h-4 text-green-600" />
-                                <span className="text-sm font-semibold text-green-700">
-                                  {balancesLoading ? (
-                                    <span className="text-xs text-slate-500">Loading...</span>
-                                  ) : (
-                                    `${memberBalances[member.user_id] ? parseInt(memberBalances[member.user_id]).toLocaleString() : '0'} ${dao.base_token.symbol}`
-                                  )}
-                                </span>
-                              </div>
-                              <p className="text-xs text-slate-500">Current Balance</p>
-                            </div>
-                          </div>
-                          
-                          {/* Token Vesting Information */}
-                          {unlockSchedule.length > 0 && (
-                            <div className="bg-white rounded-lg p-3 border border-slate-200">
-                              <div className="flex items-center justify-between mb-2">
-                                <h5 className="text-sm font-medium text-slate-900 flex items-center">
-                                  <Clock className="w-4 h-4 mr-1 text-blue-600" />
-                                  Token Vesting
-                                </h5>
-                                <span className="text-xs text-slate-500">{unlockSchedule.length} schedules</span>
-                              </div>
-                              
-                              <div className="grid grid-cols-2 gap-2 mb-3">
-                                <div className="text-center p-2 bg-green-50 rounded border border-green-200">
-                                  <p className="text-xs text-green-600 font-medium">Available</p>
-                                  <p className="text-sm font-semibold text-green-800">
-                                    {availableTokens.toLocaleString()}
-                                  </p>
-                                </div>
-                                <div className="text-center p-2 bg-orange-50 rounded border border-orange-200">
-                                  <p className="text-xs text-orange-600 font-medium">Locked</p>
-                                  <p className="text-sm font-semibold text-orange-800">
-                                    {pendingTokens.toLocaleString()}
-                                  </p>
-                                </div>
-                              </div>
-                              
-                              <div className="space-y-1 max-h-24 overflow-y-auto">
-                                {unlockSchedule.slice(0, 3).map((schedule, index) => {
-                                  const isUnlocked = Number(schedule.timestamp) <= Date.now() * 1000000;
-                                  return (
-                                    <div key={index} className="flex items-center justify-between text-xs">
-                                      <div className="flex items-center space-x-1">
-                                        <Calendar className="w-3 h-3 text-slate-400" />
-                                        <span className={isUnlocked ? 'text-green-600' : 'text-slate-600'}>
-                                          {formatUnlockDate(schedule.timestamp)}
-                                        </span>
-                                      </div>
-                                      <span className={`font-medium ${isUnlocked ? 'text-green-700' : 'text-slate-700'}`}>
-                                        {Number(schedule.amount).toLocaleString()} {dao.base_token.symbol}
-                                      </span>
-                                    </div>
-                                  );
-                                })}
-                                {unlockSchedule.length > 3 && (
-                                  <p className="text-xs text-slate-500 text-center pt-1">
-                                    +{unlockSchedule.length - 3} more schedules
-                                  </p>
-                                )}
-                              </div>
-                            </div>
-                          )}
-                          
-                          <div className="flex flex-wrap gap-4 text-xs text-slate-600">
-                            <span>Reputation: <span className="font-semibold text-slate-800">{Number(member.reputation)}</span></span>
-                            {member.icp_principal && member.icp_principal.length > 0 && (
-                              <span>ICP: <span className="font-mono">{typeof member.icp_principal[0] === 'object' && member.icp_principal[0].toText ? member.icp_principal[0].toText() : String(member.icp_principal[0])}</span></span>
-                            )}
-                            {member.eth_address && member.eth_address.length > 0 && (
-                              <span>ETH: <span className="font-mono">{member.eth_address[0]}</span></span>
-                            )}
-                            {member.sol_address && member.sol_address.length > 0 && (
-                              <span>SOL: <span className="font-mono">{member.sol_address[0]}</span></span>
-                            )}
-                            <span>Joined: <span className="font-mono">{formatMemberDate(member.joined_at)}</span></span>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
+              <MembersTab
+                dao={dao}
+                memberBalances={memberBalances}
+                balancesLoading={balancesLoading}
+                scaleByDecimals={scaleByDecimals}
+                getMemberUnlockSchedule={getMemberUnlockSchedule}
+                getTotalLockedTokens={getTotalLockedTokens}
+                getAvailableTokens={getAvailableTokens}
+                formatDate={formatDate}
+              />
             )}
 
             {/* Proposals Tab */}
             {activeTab === 'proposals' && (
-              <div className="flex flex-col min-h-0 flex-1">
-                <div className="flex items-center justify-between mb-6">
-                  <div>
-                    <h3 className="text-lg font-semibold text-slate-900">Proposals</h3>
-                    {proposalsLoading && (
-                      <p className="text-sm text-slate-500 mt-1">Loading proposals...</p>
-                    )}
-                    {proposalsError && (
-                      <p className="text-sm text-red-500 mt-1">Error loading proposals</p>
-                    )}
-                  </div>
-                  <div className="flex items-center space-x-3">
-                    <button
-                      onClick={() => setShowProposalCopilot(true)}
-                      className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium flex items-center space-x-2 shadow-sm"
-                    >
-                      <Brain className="w-4 h-4" />
-                      <span>Proposal Co-pilot</span>
-                    </button>
-                    <button
-                      onClick={() => setShowCreateProposal(true)}
-                      className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-4 py-2 rounded-lg hover:from-blue-700 hover:to-cyan-700 transition-all duration-200 font-medium flex items-center space-x-2"
-                    >
-                      <Plus className="w-4 h-4" />
-                      <span>New Proposal</span>
-                    </button>
-                  </div>
-                </div>
-
-
-
-                {proposalsLoading ? (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center">
-                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-slate-600">Loading proposals...</p>
-                    </div>
-                  </div>
-                ) : proposalsError ? (
-                  <div className="flex-1 flex items-center justify-center">
-                    <div className="text-center">
-                      <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                      <h3 className="text-lg font-medium text-slate-900 mb-2">Error Loading Proposals</h3>
-                      <p className="text-slate-600 mb-4">Failed to load proposals from the DAO canister.</p>
-                      <button
-                        onClick={() => refetchProposals()}
-                        className="bg-blue-600 text-white px-4 py-2 rounded-lg hover:bg-blue-700 transition-colors"
-                      >
-                        Retry
-                      </button>
-                    </div>
-                  </div>
-                ) : (
-                  <ProposalAnalysisPanel
-                    proposals={proposals.map(proposal => {
-                      const voteStats = calculateVoteStats(proposal);
-                      // Handle status - it might be an object or string
-                      const status = typeof proposal.status === 'string' ? proposal.status : Object.keys(proposal.status)[0];
-
-                      return {
-                        id: Number(proposal.id),
-                        title: proposal.title,
-                        summary: proposal.content,
-                        proposer: proposal.proposer,
-                        status: status,
-                        votesFor: voteStats.yesVotes,
-                        votesAgainst: voteStats.noVotes,
-                        compositeId: `${dao.id}-${proposal.id}`, // Format for analyzer
-                        created_at: Number(proposal.created_at),
-                        expires_at: Number(proposal.expires_at)
-                      };
-                    })}
-                    canisterName={dao?.name || 'DAO'}
-                    selectedProposalId={selectedProposalId}
-                    setSelectedProposalId={setSelectedProposalId}
-                  />
-                )}
-              </div>
+              <ProposalsTab
+                dao={dao}
+                proposals={proposals}
+                proposalsLoading={proposalsLoading}
+                proposalsError={proposalsError}
+                refetchProposals={refetchProposals}
+                selectedProposalId={selectedProposalId}
+                setSelectedProposalId={setSelectedProposalId}
+                setShowProposalCopilot={setShowProposalCopilot}
+                setShowCreateProposal={setShowCreateProposal}
+                calculateVoteStats={calculateVoteStats}
+              />
             )}
 
             {/* Distribution Tab */}
             {activeTab === 'distribution' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-slate-900">Token Distribution Records</h3>
-
-                {distributionRecordsLoading ? (
-                  <div className="flex items-center justify-center py-12">
-                    <div className="text-center">
-                      <div className="w-8 h-8 border-4 border-blue-500 border-t-transparent rounded-full animate-spin mx-auto mb-4"></div>
-                      <p className="text-slate-600">Loading distribution records...</p>
-                    </div>
-                  </div>
-                ) : distributionRecordsError ? (
-                  <div className="text-center py-12">
-                    <AlertTriangle className="w-12 h-12 text-red-400 mx-auto mb-4" />
-                    <h3 className="text-lg font-medium text-slate-900 mb-2">Error Loading Distribution Records</h3>
-                    <p className="text-slate-600">Failed to load token distribution history.</p>
-                  </div>
-                ) : (
-                  <div className="space-y-4">
-                    {distributionRecords && distributionRecords.length > 0 ? (
-                      distributionRecords.map((record_with_index) => {
-                        const [index, record] = record_with_index;
-
-                        const distributionType = typeof record.distribution_type === 'string' 
-                          ? record.distribution_type 
-                          : Object.keys(record.distribution_type)[0];
-                        
-                        return (
-                          <div key={index} className="bg-white border border-slate-200 rounded-xl p-6 hover:shadow-md transition-shadow">
-                            <div className="flex items-center justify-between mb-4">
-                              <div className="flex items-center space-x-3">
-                                <div className={`w-10 h-10 rounded-lg flex items-center justify-center ${
-                                  distributionType === 'Initial' ? 'bg-blue-100' :
-                                  distributionType === 'Emission' ? 'bg-green-100' :
-                                  'bg-purple-100'
-                                }`}>
-                                  <Coins className={`w-5 h-5 ${
-                                    distributionType === 'Initial' ? 'text-blue-600' :
-                                    distributionType === 'Emission' ? 'text-green-600' :
-                                    'text-purple-600'
-                                  }`} />
-                                </div>
-                                <div>
-                                  <h4 className="font-semibold text-slate-900">{distributionType} Distribution</h4>
-                                  <p className="text-sm text-slate-500">{formatDate(record.timestamp)}</p>
-                                </div>
-                              </div>
-                              <div className={`px-3 py-1 rounded-full text-xs font-medium ${
-                                distributionType === 'Initial' ? 'bg-blue-100 text-blue-800' :
-                                distributionType === 'Emission' ? 'bg-green-100 text-green-800' :
-                                'bg-purple-100 text-purple-800'
-                              }`}>
-                                {distributionType}
-                              </div>
-                            </div>
-                            
-                            <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-600">Recipient:</span>
-                                  <span className="font-mono text-sm truncate max-w-32">
-                                    {record.recipient.slice(0, 8)}...{record.recipient.slice(-8)}
-                                  </span>
-                                </div>
-                                <div className="flex justify-between">
-                                  <span className="text-slate-600">Amount:</span>
-                                  <span className="font-medium text-green-600">
-                                    {parseInt(record.amount).toLocaleString()} {dao.base_token.symbol}
-                                  </span>
-                                </div>
-                              </div>
-                              <div className="space-y-2">
-                                <div className="flex justify-between">
-                                  <span className="text-slate-600">Status:</span>
-                                  <span className={`font-medium ${
-                                    record.tx_result.startsWith('Success') ? 'text-green-600' : 'text-red-600'
-                                  }`}>
-                                    {record.tx_result.startsWith('Success') ? 'Success' : 'Failed'}
-                                  </span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                        );
-                      })
-                    ) : (
-                      <div className="text-center py-12">
-                        <Coins className="w-12 h-12 text-slate-400 mx-auto mb-4" />
-                        <h3 className="text-lg font-medium text-slate-900 mb-2">No Distribution Records</h3>
-                        <p className="text-slate-600">No token distribution history found for this DAO.</p>
-                      </div>
-                    )}
-                  </div>
-                )}
-              </div>
+              <DistributionTab
+                dao={dao}
+                distributionRecords={distributionRecords}
+                distributionRecordsLoading={distributionRecordsLoading}
+                distributionRecordsError={distributionRecordsError}
+                scaleByDecimals={scaleByDecimals}
+                formatDate={formatDate}
+              />
             )}
 
             {/* Treasury Tab */}
             {activeTab === 'treasury' && (
-              <div className="space-y-6">
-                {/* Treasury Dashboard Header */}
-                <div className="flex items-center justify-between">
-                  <h3 className="text-2xl font-bold text-slate-900">Treasury Dashboard</h3>
-                  <div className="flex items-center space-x-2 text-sm text-slate-500">
-                    <RefreshCw className="w-4 h-4" />
-                    <span>Last updated: {treasuryData.totalBalance.lastUpdated}</span>
-                  </div>
-                </div>
-
-                {/* Optimized Layout */}
-                <div className="space-y-6">
-                  {/* AI Treasury Analysis - Full Width */}
-                  <AITreasuryAnalysis data={treasuryData} />
-                  
-                  {/* Main Dashboard Grid */}
-                  <div className="grid grid-cols-1 lg:grid-cols-4 gap-6">
-                    {/* Left Sidebar - Stats & Navigation */}
-                    <div className="lg:col-span-1 space-y-6">
-                    {/* Total Treasury Value */}
-                    <div className="bg-gradient-to-r from-blue-600 to-purple-600 rounded-xl p-6 text-white">
-                      <div className="flex items-center justify-between mb-2">
-                        <h4 className="text-lg font-semibold">Total Treasury Value</h4>
-                        <Wallet className="w-6 h-6" />
-                      </div>
-                      <div className="text-3xl font-bold mb-1">
-                        ${treasuryData.totalBalance.usd.toLocaleString()}
-                      </div>
-                      <div className="text-blue-100 text-sm">
-                        +{treasuryData.totalBalance.change.percentage}% this {treasuryData.totalBalance.change.period}
-                      </div>
-                    </div>
-
-                    {/* Navigation Links */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-semibold text-slate-900 mb-3">Quick Actions</h5>
-                      <div className="space-y-2">
-                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-                          📊 Portfolio Overview
-                        </button>
-                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-                          💰 Asset Management
-                        </button>
-                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-                          📈 Performance Analytics
-                        </button>
-                        <button className="w-full text-left px-3 py-2 text-sm text-slate-700 hover:bg-slate-50 rounded-lg transition-colors">
-                          🔄 Transaction History
-                        </button>
-                      </div>
-                    </div>
-
-                    {/* Detailed Asset List by Chain */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-semibold text-slate-900 mb-3">Assets by Chain</h5>
-                      <div className="space-y-3">
-                        {/* Loading & Error States */}
-                        {(addressesLoading || daoTreasuryBalancesLoading) && (
-                          <div className="text-sm text-slate-500">Loading balances...</div>
-                        )}
-                        {(addressesError && console.log('addressesError:', addressesError) || balancesError && console.log('balancesError:', balancesError)) && (
-                          <div className="text-sm text-red-600">Failed to load treasury balances</div>
-                        )}
-
-                        {daoWalletAddresses && tokenBalances && (
-                          <>
-                            {/* Internet Computer Chain */}
-                            <div className="border border-slate-100 rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-lg">🌐</span>
-                                  <span className="font-medium text-slate-900">Internet Computer</span>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">ICP</span>
-                                  <span className="font-medium">{scaleByDecimals(tokenBalances.icp, 8).toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">{dao?.base_token?.symbol || 'DAO'}</span>
-                                  <span className="font-medium">{Number(tokenBalances.dao)}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Bitcoin Chain */}
-                            <div className="border border-slate-100 rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-lg">₿</span>
-                                  <span className="font-medium text-slate-900">Bitcoin</span>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">BTC</span>
-                                  <span className="font-medium">{scaleByDecimals(tokenBalances.btc, 8).toLocaleString()}</span>
-                                </div>
-                              </div>
-                            </div>
-
-                            {/* Ethereum Chain */}
-                            <div className="border border-slate-100 rounded-lg p-3">
-                              <div className="flex items-center justify-between mb-2">
-                                <div className="flex items-center space-x-2">
-                                  <span className="text-lg">🔷</span>
-                                  <span className="font-medium text-slate-900">Ethereum</span>
-                                </div>
-                              </div>
-                              <div className="space-y-1">
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">ETH</span>
-                                  <span className="font-medium">{scaleByDecimals(tokenBalances.eth, 18).toLocaleString()}</span>
-                                </div>
-                                <div className="flex justify-between text-sm">
-                                  <span className="text-slate-600">USDT</span>
-                                  <span className="font-medium">{scaleByDecimals(tokenBalances.usdt, 6).toLocaleString()}</span>
-                                </div>
-                              </div>
-                            </div>
-                          </>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-
-                    {/* Center Column - Charts & Analytics */}
-                    <div className="lg:col-span-2 space-y-6">
-                    {/* Treasury Performance Chart */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6">
-                      <div className="flex items-center justify-between mb-4">
-                        <h4 className="text-lg font-semibold text-slate-900">Treasury Performance</h4>
-                        <div className="flex items-center space-x-2 text-sm text-green-600">
-                          <span className="text-green-600">+{treasuryData.totalBalance.change.percentage}% this {treasuryData.totalBalance.change.period}</span>
-                        </div>
-                      </div>
-                      <TreasuryPerformanceChart data={treasuryData} />
-                    </div>
-
-                    {/* Asset Allocation Pie Chart */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6">
-                      <h4 className="text-lg font-semibold text-slate-900 mb-4">Asset Allocation</h4>
-                      <div className="grid grid-cols-2 gap-4">
-                        <div className="h-48">
-                          <TreasuryAllocationChart data={treasuryData} />
-                        </div>
-                        <div className="space-y-3">
-                           {treasuryData.assets.map((asset, index) => {
-                             return (
-                               <div key={index} className="flex items-center space-x-3">
-                                 <div className="w-3 h-3 rounded-full" style={{ backgroundColor: asset.color }}></div>
-                                 <span className="text-sm text-slate-700 flex-1">{asset.chain}</span>
-                                 <span className="text-sm font-medium">{asset.percentage}%</span>
-                               </div>
-                             );
-                           })}
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Recent Transactions Feed */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-6">
-                      <h4 className="text-lg font-semibold text-slate-900 mb-4">Recent Transactions</h4>
-                      <div className="space-y-3">
-                        {[
-                           { type: 'Received', asset: 'ICP', amount: '245.67', usdValue: '1,234.56', time: '12 minutes ago' },
-                           { type: 'Sent', asset: 'ckBTC', amount: '0.15', usdValue: '6,789.12', time: '28 minutes ago' },
-                           { type: 'Swapped', asset: 'ckETH', amount: '3.42', usdValue: '8,456.78', time: '45 minutes ago' },
-                           { type: 'Staked', asset: 'USDC', amount: '1,500.00', usdValue: '1,500.00', time: '1 hour ago' },
-                           { type: 'Received', asset: 'SOL', amount: '89.23', usdValue: '2,345.67', time: '2 hours ago' }
-                         ].map((tx, index) => {
-                           return (
-                             <div key={index} className="flex items-center justify-between p-3 bg-slate-50 rounded-lg">
-                               <div className="flex items-center space-x-3">
-                                 <div className={`w-8 h-8 rounded-full flex items-center justify-center ${
-                                   tx.type === 'Received' ? 'bg-green-100 text-green-600' :
-                                   tx.type === 'Sent' ? 'bg-red-100 text-red-600' :
-                                   tx.type === 'Swapped' ? 'bg-blue-100 text-blue-600' :
-                                   'bg-purple-100 text-purple-600'
-                                 }`}>
-                                   {tx.type === 'Received' ? '↓' : tx.type === 'Sent' ? '↑' : tx.type === 'Swapped' ? '⇄' : '◉'}
-                                 </div>
-                                 <div>
-                                   <p className="font-medium text-slate-900">{tx.type} {tx.asset}</p>
-                                   <p className="text-sm text-slate-500">{tx.time}</p>
-                                 </div>
-                               </div>
-                               <div className="text-right">
-                                 <p className="font-medium">{tx.amount} {tx.asset}</p>
-                                 <p className="text-sm text-slate-500">${tx.usdValue}</p>
-                               </div>
-                             </div>
-                           );
-                         })}
-                      </div>
-                    </div>
-                  </div>
-
-                    {/* Right Column - Actions & Governance */}
-                    <div className="lg:col-span-1 space-y-6">
-                      {/* Create Proposal Button */}
-                    <button 
-                      onClick={() => setShowCreateProposal(true)}
-                      className="w-full bg-gradient-to-r from-blue-600 to-purple-600 text-white px-6 py-4 rounded-xl font-semibold hover:from-blue-700 hover:to-purple-700 transition-all duration-200 flex items-center justify-center space-x-2"
-                    >
-                      <Plus className="w-5 h-5" />
-                      <span>Create Proposal</span>
-                    </button>
-
-                    {/* Active Proposals List */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-semibold text-slate-900 mb-3">Active Proposals</h5>
-                      <div className="space-y-3">
-                        {proposals.slice(0, 3).map((proposal, index) => (
-                          <div key={index} className="border border-slate-100 rounded-lg p-3">
-                            <h6 className="font-medium text-slate-900 text-sm mb-1 truncate">
-                              {proposal.title || `Proposal #${proposal.id}`}
-                            </h6>
-                            <div className="flex items-center justify-between text-xs text-slate-500">
-                              <span>Status: {Object.keys(proposal.status)[0]}</span>
-                              <span>{Math.floor(Math.random() * 7 + 1)}d left</span>
-                            </div>
-                            <div className="mt-2 bg-slate-100 rounded-full h-2">
-                              <div 
-                                className="bg-blue-500 h-2 rounded-full" 
-                                style={{ width: `${Math.floor(Math.random() * 80 + 10)}%` }}
-                              ></div>
-                            </div>
-                          </div>
-                        ))}
-                        {proposals.length === 0 && (
-                          <div className="text-center py-4">
-                            <FileText className="w-8 h-8 text-slate-400 mx-auto mb-2" />
-                            <p className="text-sm text-slate-500">No active proposals</p>
-                          </div>
-                        )}
-                      </div>
-                    </div>
-
-                    {/* NFT Gallery */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-semibold text-slate-900 mb-3">NFT Gallery</h5>
-                      <div className="grid grid-cols-2 gap-2">
-                        {[...Array(4)].map((_, index) => (
-                          <div key={index} className="aspect-square bg-gradient-to-br from-purple-100 to-pink-100 rounded-lg flex items-center justify-center">
-                            <div className="text-center">
-                              <div className="w-8 h-8 bg-gradient-to-r from-purple-400 to-pink-400 rounded-lg mx-auto mb-1"></div>
-                              <p className="text-xs text-slate-600">NFT #{index + 1}</p>
-                            </div>
-                          </div>
-                        ))}
-                      </div>
-                      <button className="w-full mt-3 text-sm text-blue-600 hover:text-blue-700 font-medium">
-                        View All NFTs →
-                      </button>
-                    </div>
-
-                    {/* Treasury Stats */}
-                    <div className="bg-white border border-slate-200 rounded-xl p-4">
-                      <h5 className="font-semibold text-slate-900 mb-3">Treasury Stats</h5>
-                      <div className="space-y-3">
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Total Assets</span>
-                          <span className="text-sm font-medium">{dao.chains.length * 2 + Math.floor(Math.random() * 5)}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Active Chains</span>
-                          <span className="text-sm font-medium">{dao.chains.length}</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Monthly Growth</span>
-                          <span className="text-sm font-medium text-green-600">+{(Math.random() * 20 + 5).toFixed(1)}%</span>
-                        </div>
-                        <div className="flex justify-between">
-                          <span className="text-sm text-slate-600">Risk Score</span>
-                          <span className="text-sm font-medium text-yellow-600">Medium</span>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+              <TreasuryTab
+                dao={dao}
+                treasuryData={treasuryData}
+                transactions={treasuryData?.transactions || []}
+                transactionsLoading={false}
+                transactionsError={null}
+                formatDate={formatDate}
+                scaleByDecimals={scaleByDecimals}
+                daoWalletAddresses={daoWalletAddresses}
+                tokenBalances={tokenBalances}
+                daoTreasuryBalancesLoading={daoTreasuryBalancesLoading}
+                balancesError={balancesError}
+                addressesLoading={addressesLoading}
+                addressesError={addressesError}
+              />
             )}
 
             {/* Governance Tab */}
             {activeTab === 'governance' && (
-              <div className="space-y-6">
-                <h3 className="text-lg font-semibold text-slate-900">Governance Configuration</h3>
-
-                <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-                  <div className="bg-white border border-slate-200 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <Settings className="w-5 h-5 mr-2" />
-                      Voting Rules
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Vote Weight Type</p>
-                          <p className="text-sm text-slate-600">How voting power is calculated</p>
-                        </div>
-                        <span className="font-medium text-blue-600">
-                          {dao.governance.vote_weight_type ? Object.keys(dao.governance.vote_weight_type)[0].replace(/([A-Z])/g, ' $1').trim() : ''}
-                        </span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Approval Threshold</p>
-                          <p className="text-sm text-slate-600">Minimum percentage to pass</p>
-                        </div>
-                        <span className="font-medium text-green-600">{Number(dao.governance.approval_threshold)}%</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Voting Period</p>
-                          <p className="text-sm text-slate-600">Duration of active voting</p>
-                        </div>
-                        <span className="font-medium text-purple-600">{Number(dao.governance.voting_period_secs) / 86400} days</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Quorum</p>
-                          <p className="text-sm text-slate-600">Minimum participation required</p>
-                        </div>
-                        <span className="font-medium text-orange-600">{Number(dao.governance.quorum)}%</span>
-                      </div>
-                    </div>
-                  </div>
-
-                  <div className="bg-white border border-slate-200 rounded-xl p-6">
-                    <h4 className="text-lg font-semibold text-slate-900 mb-4 flex items-center">
-                      <Coins className="w-5 h-5 mr-2" />
-                      Token Information
-                    </h4>
-                    <div className="space-y-4">
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Token Name</p>
-                          <p className="text-sm text-slate-600">Native governance token</p>
-                        </div>
-                        <span className="font-medium text-blue-600">{dao.base_token.name}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Symbol</p>
-                          <p className="text-sm text-slate-600">Token ticker symbol</p>
-                        </div>
-                        <span className="font-medium text-green-600">{dao.base_token.symbol}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Decimals</p>
-                          <p className="text-sm text-slate-600">Token decimal places</p>
-                        </div>
-                        <span className="font-medium text-purple-600">{dao.base_token.decimals}</span>
-                      </div>
-
-                      <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                        <div>
-                          <p className="font-medium text-slate-900">Total Supply</p>
-                          <p className="text-sm text-slate-600">Maximum token supply</p>
-                        </div>
-                        <span className="font-medium text-orange-600">
-                          {parseInt(dao.base_token.total_supply).toLocaleString()}
-                        </span>
-                      </div>
-
-                      {dao.base_token.distribution_model && dao.base_token.distribution_model.emission_rate && (
-                        <div className="flex justify-between items-center p-3 bg-slate-50 rounded-lg">
-                          <div>
-                            <p className="font-medium text-slate-900">Emission Rate</p>
-                            <p className="text-sm text-slate-600">Tokens emitted per period</p>
-                          </div>
-                          <span className="font-medium text-cyan-600">
-                            {parseInt(dao.base_token.distribution_model.emission_rate).toLocaleString()}
-                          </span>
-                        </div>
-                      )}
-                    </div>
-                  </div>
-
-                  {/* Token Creation Retry Section */}
-                  {(() => {
-                    if (!backendDao) return false;
-                    console.log('Backend DAO base_token:', backendDao.base_token);
-                    return (!backendDao.base_token.token_location || !backendDao.base_token.token_location.canister_id || backendDao.base_token.token_location.canister_id.length === 0) && dao.base_token.distribution_model;
-                  })() && (
-                    <div className="mt-6 p-4 bg-amber-50 border border-amber-200 rounded-lg">
-                      <div className="flex items-start space-x-3">
-                        <AlertTriangle className="w-5 h-5 text-amber-600 mt-0.5 flex-shrink-0" />
-                        <div className="flex-1">
-                          <h5 className="font-medium text-amber-900 mb-1">Token Creation Failed</h5>
-                          <p className="text-sm text-amber-700 mb-3">
-                            The DAO token was not created successfully during initial setup. You can retry the token creation process using the stored parameters.
-                          </p>
-                          <button
-                            onClick={handleRetryTokenCreation}
-                            disabled={isRetryingToken}
-                            className="inline-flex items-center px-3 py-2 text-sm font-medium text-white bg-amber-600 hover:bg-amber-700 disabled:bg-amber-400 disabled:cursor-not-allowed rounded-md transition-colors"
-                          >
-                            {isRetryingToken ? (
-                              <>
-                                <RefreshCw className="w-4 h-4 mr-2 animate-spin" />
-                                Retrying...
-                              </>
-                            ) : (
-                              <>
-                                <RefreshCw className="w-4 h-4 mr-2" />
-                                Retry Token Creation
-                              </>
-                            )}
-                          </button>
-                          
-                          {/* Status Messages */}
-                          {tokenRetryStatus === 'success' && (
-                            <div className="mt-2 text-sm text-green-700 flex items-center">
-                              <Check className="w-4 h-4 mr-1" />
-                              Token created successfully! Page will refresh shortly.
-                            </div>
-                          )}
-                          {tokenRetryStatus === 'error' && (
-                            <div className="mt-2 text-sm text-red-700 flex items-center">
-                              <X className="w-4 h-4 mr-1" />
-                              Failed to create token. Please check the console for details.
-                            </div>
-                          )}
-                        </div>
-                      </div>
-                    </div>
-                  )}
-                </div>
-              </div>
+              <GovernanceTab dao={dao} backendDao={backendDao} scaleByDecimals={scaleByDecimals} />
             )}
 
             {/* Canister Tab */}

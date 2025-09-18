@@ -1,5 +1,18 @@
 {
   "canisters": {
+    "ic_govmind_frontend": {
+      "dependencies": [
+        "ic_govmind_proposal_analyzer",
+        "ic_govmind_sns",
+        "ic_govmind_factory",
+        "evm_rpc",
+        "internet_identity",
+        "icp_ledger"
+      ],
+      "source": ["src/ic_govmind_frontend/dist"],
+      "type": "assets",
+      "workspace": "ic_govmind_frontend"
+    },
     "ic_govmind_factory": {
       "candid": "src/ic_govmind_factory/ic_govmind_factory.did",
       "package": "ic_govmind_factory",
@@ -14,16 +27,6 @@
       "candid": "src/ic_govmind_sns/ic_govmind_sns.did",
       "package": "ic_govmind_sns",
       "type": "rust"
-    },
-    "ic_govmind_frontend": {
-      "dependencies": [
-        "ic_govmind_proposal_analyzer",
-        "ic_govmind_sns",
-        "ic_govmind_factory"
-      ],
-      "source": ["src/ic_govmind_frontend/dist"],
-      "type": "assets",
-      "workspace": "ic_govmind_frontend"
     },
     "internet_identity": {
       "type": "custom",
@@ -46,12 +49,19 @@
           "ic": "ryjl3-tyaaa-aaaaa-aaaba-cai"
         }
       },
+      "specified_id": "ryjl3-tyaaa-aaaaa-aaaba-cai",
       "init_arg" : "(variant { Init = record { minting_account = \"7cc2c3d2ffc7ecddafc994ee578443887cc1bdfcf2cd14b38b5f9eb644faa0b0\"; initial_values = vec { record { \"b7eee68cbfc29bb5882336919c7e886356e5e9f05ee9dc55caf2ad810e0ccdb3\"; record { e8s = 10_000_000_000 : nat64; }; }; }; send_whitelist = vec {}; transfer_fee = opt record { e8s = 10_000 : nat64; }; token_symbol = opt \"LICP\"; token_name = opt \"Local ICP\"; } })"
     },
     "evm_rpc": {
       "type": "custom",
       "candid": "wasm/evm_rpc/evm_rpc.did",
-      "wasm": "wasm/evm_rpc/evm_rpc.wasm.gz"
+      "wasm": "wasm/evm_rpc/evm_rpc.wasm.gz",
+      "remote": {
+        "id": {
+          "ic": "myniu-wqaaa-aaaah-advna-cai"
+        }
+      },
+      "specified_id": "myniu-wqaaa-aaaah-advna-cai"
     },
     "ic_govmind_backend": {
       "candid": "src/ic_govmind_backend/ic_govmind_backend.did",

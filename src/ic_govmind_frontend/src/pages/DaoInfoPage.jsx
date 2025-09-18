@@ -191,7 +191,6 @@ const getTreasuryData = () => {
 
 
 function DaoInfoPage() {
-  const { principal, factoryActor, authClient, agent } = useAuthClient();
   const { daoId } = useParams();
   const queryClient = useQueryClient();
   
@@ -204,10 +203,13 @@ function DaoInfoPage() {
   const { data: dao, isLoading, error } = useDaoInfo();
 
   // Fetch complete DAO info from backend canister for accurate distribution model
-  const { data: backendDao, isLoading: backendDaoLoading } = useBackendDaoInfo(dao);
+  const { data: backendInfo, isLoading: backendDaoLoading } = useBackendDaoInfo(dao);
+  const backendDao = backendInfo?.backendDao;
+  const backendActor = backendInfo?.backendActor;
 
   // Fetch DAO wallet addresses from backend canister
   const { data: daoWalletAddresses, isLoading: addressesLoading, error: addressesError } = useDaoWalletAddresses(dao);
+
 
   // Helper to scale nat balances to decimal numbers for display
   const scaleByDecimals = (balanceNat, decimals) => {
@@ -250,8 +252,6 @@ function DaoInfoPage() {
     setTokenRetryStatus(null);
 
     try {
-      
-      
       const tokenArg = {
         name: dao.base_token.name,
         symbol: dao.base_token.symbol,
@@ -262,10 +262,7 @@ function DaoInfoPage() {
 
       console.log('Retrying token creation...');
 
-      // Create backend actor for the DAO canister
-      const daoActor = createBackendActor(dao.id);
-      
-      const tokenResult = await daoActor.create_dao_base_token(tokenArg, {Text: 'Token Logo'});
+      const tokenResult = await backendActor.create_dao_base_token(tokenArg, {Text: 'Token Logo'});
 
       if (tokenResult && tokenResult.Ok) {
         setTokenRetryStatus('success');
@@ -397,6 +394,7 @@ function DaoInfoPage() {
               <ProposalsTab
                 dao={dao}
                 backendDao={backendDao}
+                backendActor={backendActor}
                 proposals={proposals}
                 proposalsLoading={proposalsLoading}
                 proposalsError={proposalsError}
@@ -446,6 +444,7 @@ function DaoInfoPage() {
                 dao={dao}
                 backendDao={backendDao}
                 backendDaoLoading={backendDaoLoading}
+                backendActor={backendActor}
               />
             )}
 

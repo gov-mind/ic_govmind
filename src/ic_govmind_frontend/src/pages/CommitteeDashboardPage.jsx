@@ -8,7 +8,7 @@ export default function CommitteeDashboardPage() {
 
   // Reuse project hooks to fetch DAO and backend data
   const { data: dao, isLoading: daoLoading, error: daoError } = useDaoInfo();
-  const { data: backendDao, isLoading: backendDaoLoading, error: backendDaoError } = useBackendDaoInfo(dao);
+  const { data: { backendDao, backendActor }, isLoading: backendDaoLoading, error: backendDaoError } = useBackendDaoInfo(dao);
 
   const committee = useMemo(() => {
     if (!backendDao || !backendDao.committees) return null;

@@ -5,6 +5,7 @@ import ProposalAnalysisPanel from '../ProposalAnalysisPanel';
 export default function ProposalsTab({
   dao,
   backendDao,
+  backendActor,
   proposals = [],
   proposalsLoading,
   proposalsError,
@@ -34,12 +35,11 @@ export default function ProposalsTab({
     setProposalCreationStatus(null);
 
     try {
-      const daoActor = createBackendActor(dao.id, { agent });
-
       // Call create_proposal on the DAO canister
-      const createProposalResult = await daoActor.create_proposal(
+      const createProposalResult = await backendActor.create_proposal(
         proposalTitle.trim(),
-        proposalContent.trim()
+        proposalContent.trim(),
+        selectedCommitteeId ? [parseInt(selectedCommitteeId)] : [],
       );
 
       if (createProposalResult && createProposalResult.Ok !== undefined) {
@@ -80,7 +80,6 @@ export default function ProposalsTab({
 
         // Refetch proposals data and switch to proposals tab
         await refetchProposals();
-        setActiveTab('proposals');
         setSelectedProposalId(proposalId);
 
         setTimeout(() => setProposalCreationStatus(null), 3000);

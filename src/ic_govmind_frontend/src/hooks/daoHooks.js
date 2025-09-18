@@ -29,7 +29,10 @@ export function useBackendDaoInfo(dao) {
       try {
         const daoActor = createBackendActor(dao.id, { agent });
         const result = await daoActor.dao_info();
-        return result && result.length > 0 ? result[0] : null;
+        return {
+          backendDao: result && result.length > 0 ? result[0] : null,
+          backendActor: daoActor,
+        }
       } catch (err) {
         console.error('Error fetching backend DAO info:', err);
         return null;

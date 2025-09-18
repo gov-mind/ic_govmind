@@ -77,6 +77,7 @@ export default function CommitteesTab({
   dao,
   backendDao,
   backendDaoLoading,
+  backendActor,
 }) {
   const queryClient = useQueryClient();
 
@@ -104,13 +105,6 @@ export default function CommitteesTab({
       .filter(Boolean);
   };
 
-  const parseResponsibilities = (text) => {
-    return (text || '')
-      .split(/\n|\r\n/)
-      .map((s) => s.trim())
-      .filter((s) => s.length > 0);
-  };
-
   const committeeTypeToVariant = (t) => {
     switch (t) {
       case 'Technical': return { Technical: null };
@@ -130,12 +124,11 @@ export default function CommitteesTab({
   };
 
   const handleAddCommittee = async () => {
-    if (!dao?.id || !agent) return;
+    if (!backendActor) return;
 
     setIsSubmittingCommittee(true);
 
     try {
-      const daoActor = createBackendActor(dao.id, { agent });
       const term = BigInt(Math.max(1, parseInt(newCommitteeTermDays || '0', 10)) * 24 * 3600);
       const arg = {
         committee_type: committeeTypeToVariant(newCommitteeType),
@@ -143,10 +136,10 @@ export default function CommitteesTab({
         term_duration_secs: term,
         elected_at: [],
         next_election_at: [],
-        active: newCommitteeActive,
-        responsibilities: parseResponsibilities(newCommitteeResponsibilities),
+        active: [newCommitteeActive],
+        responsibilities: [newCommitteeResponsibilities],
       };
-      const res = await daoActor.add_committee(arg);
+      const res = await backendActor.add_committee(arg);
       if (res && res.Ok !== undefined) {
         await queryClient.invalidateQueries({ queryKey: ['backend-dao-info', dao.id] });
         setNewCommitteeMembers('');
@@ -189,10 +182,9 @@ export default function CommitteesTab({
   };
 
   const handleUpdateCommittee = async () => {
-    if (!dao?.id || !agent || updatingCommitteeId == null) return;
+    if (!backendActor || updatingCommitteeId == null) return;
     setIsSubmittingCommittee(true);
     try {
-      const daoActor = createBackendActor(dao.id, { agent });
       const term = BigInt(Math.max(1, parseInt(updateCommitteeTermDays || '0', 10)) * 24 * 3600);
       const arg = {
         committee_type: { Technical: null },
@@ -200,10 +192,10 @@ export default function CommitteesTab({
         term_duration_secs: term,
         elected_at: [],
         next_election_at: [],
-        active: updateCommitteeActive,
-        responsibilities: parseResponsibilities(updateCommitteeResponsibilities),
+        active: [updateCommitteeActive],
+        responsibilities: [updateCommitteeResponsibilities],
       };
-      const res = await daoActor.update_committee_update(updatingCommitteeId, arg);
+      const res = await backendActor.update_committee_update(updatingCommitteeId, arg);
       if (res && res.Ok !== undefined) {
         await queryClient.invalidateQueries({ queryKey: ['backend-dao-info', dao.id] });
         handleCancelUpdateCommittee();

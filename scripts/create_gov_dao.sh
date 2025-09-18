@@ -1,5 +1,7 @@
 #!/usr/bin/env bash
 
+dfx wallet send uxrrr-q7777-77774-qaaaq-cai 50000000000000
+
 dfx canister call ic_govmind_factory create_gov_dao '(
   record {
     id = "my-dao-id";
@@ -19,13 +21,32 @@ dfx canister call ic_govmind_factory create_gov_dao '(
       };
       distribution_model = opt record {
         initial_distribution = vec {
-          record { "user1"; 1000 : nat };
-          record { "user2"; 500 : nat };
+          record {
+            0 = "p4zdu-eo2az-bkta3-djjqn-hkiuk-qoc7z-v2ery-76kwx-s4gmb-utjfe-xqe";
+            1 = 5000;
+          };
+          record {
+            0 = "kjmyi-ld67r-fhb37-tztjx-huazh-ziaav-3maym-yze5a-rjv5t-3c62i-3ae";
+            1 = 5000;
+          };
         };
         unlock_schedule = opt vec {
-          record { 1721123200 : nat64; 250 : nat };
+          record {
+            addr = "p4zdu-eo2az-bkta3-djjqn-hkiuk-qoc7z-v2ery-76kwx-s4gmb-utjfe-xqe";
+            timestamp = 1723075200;
+            amount = 2500;
+            executed = false;
+          };
+          record {
+            addr = "kjmyi-ld67r-fhb37-tztjx-huazh-ziaav-3maym-yze5a-rjv5t-3c62i-3ae";
+            timestamp = 1725753600;
+            amount = 2600;
+            executed = false;
+          };
         };
-        emission_rate = opt 10;
+        emission_rate = opt 1000000;
+        last_emission_time = null;
+        initial_executed_at = null;
       };
     };
     chains = vec {
@@ -41,5 +62,6 @@ dfx canister call ic_govmind_factory create_gov_dao '(
     };
     proposals = vec {};
     treasury = vec {};
+    committees = vec {};
   }
 )'

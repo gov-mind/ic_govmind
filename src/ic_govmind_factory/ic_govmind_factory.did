@@ -14,12 +14,22 @@ type CanisterArgs = variant {
 type ChainType = variant {
   TON;
   InternetComputer;
+  EthSepolia;
   Ethereum;
   Solana;
   BNBChain;
   Bitcoin;
   Other : text;
 };
+type Committee = record {
+  id : nat16;
+  members : vec principal;
+  elected_at : opt nat64;
+  committee_type : CommitteeType;
+  next_election_at : opt nat64;
+  term_duration_secs : nat64;
+};
+type CommitteeType = variant { Technical; Democracy };
 type Dao = record {
   id : text;
   members : vec DaoMember;
@@ -31,6 +41,7 @@ type Dao = record {
   chains : vec ChainType;
   governance : GovernanceConfig;
   proposals : vec Proposal;
+  committees : vec Committee;
   treasury : vec DaoAsset;
 };
 type DaoAsset = record {

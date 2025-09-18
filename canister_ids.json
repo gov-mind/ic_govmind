@@ -1,6 +1,7 @@
 {
   "ic_govmind_factory": {
-    "ic": "3ja73-kyaaa-aaaaj-qnrta-cai"
+    "ic": "3ja73-kyaaa-aaaaj-qnrta-cai",
+    "local": "uxrrr-q7777-77774-qaaaq-cai"
   },
   "ic_govmind_frontend": {
     "ic": "2dp5b-iiaaa-aaaaj-qnrua-cai"
@@ -12,6 +13,7 @@
     "ic": "7dq5v-uaaaa-aaaaj-qnrjq-cai"
   },
   "ic_govmind_backend": {
-    "ic": "2ykbe-sqaaa-aaaaj-qnrwq-cai"
+    "ic": "2ykbe-sqaaa-aaaaj-qnrwq-cai",
+    "local": "uzt4z-lp777-77774-qaabq-cai"
   }
 }

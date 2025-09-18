@@ -119,6 +119,9 @@ type DistributionRecord = record {
   tx_result : text;
 };
 type DistributionType = variant { Initial; Emission; Scheduled };
+type EcdsaCurve = variant { secp256k1 };
+type EcdsaKeyId = record { name : text; curve : EcdsaCurve };
+type EcdsaPublicKeyResult = record { public_key : blob; chain_code : blob };
 type EthMainnetService = variant {
   Alchemy;
   Llama;
@@ -189,7 +192,24 @@ type RpcServices = variant {
   ArbitrumOne : opt vec L2MainnetService;
   EthMainnet : opt vec EthMainnetService;
 };
+type SchnorrAlgorithm = variant { ed25519; bip340secp256k1 };
+type SchnorrKeyId = record { algorithm : SchnorrAlgorithm; name : text };
 type SignatureType = variant { Ed25519; Secp256k1 };
+type State = record {
+  next_ids : vec record { text; nat64 };
+  schnorr_key : opt SchnorrKeyId;
+  members : vec record { text; DaoMember };
+  root : opt principal;
+  assets : vec record { text; DaoAsset };
+  derivation_path : vec blob;
+  org_info : opt Dao;
+  ecdsa_public_key : opt EcdsaPublicKeyResult;
+  schnorr_public_key : opt EcdsaPublicKeyResult;
+  admins : vec principal;
+  ecdsa_key : opt EcdsaKeyId;
+  key_env : KeyEnvironment;
+  chain_config : vec BlockchainConfig;
+};
 type StateInitArgs = record {
   env : KeyEnvironment;
   root : principal;
@@ -268,6 +288,7 @@ service : (opt CanisterArgs) -> {
   get_chain_configs : () -> (vec BlockchainConfig) query;
   get_dao_wallet_addresses : () -> (Addresses) query;
   get_proposal : (nat64) -> (opt Proposal) query;
+  get_state : () -> (State) query;
   list_distribution_records : (nat64, nat64) -> (
       vec record { nat64; DistributionRecord },
     ) query;

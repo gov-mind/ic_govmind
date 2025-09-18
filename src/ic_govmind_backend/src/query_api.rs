@@ -1,13 +1,18 @@
 use ic_cdk::query;
 
 use crate::{
-    store::{self, proposals, state},
+    store::{self, proposals, state, State},
     types::Addresses,
 };
 use ic_govmind_types::{
     chain::BlockchainConfig,
     dao::{ChainType, Dao, DistributionRecord, Proposal},
 };
+
+#[query]
+pub fn get_state() -> State {
+    state::with(|s| s.clone())
+}
 
 #[query]
 fn dao_info() -> Option<Dao> {

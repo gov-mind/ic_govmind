@@ -24,7 +24,7 @@ use crate::{
     ECDSA_SIGN_CYCLES,
 };
 
-#[derive(Default, Debug, Serialize, Deserialize, Clone)]
+#[derive(CandidType, Default, Debug, Serialize, Deserialize, Clone)]
 pub struct State {
     pub root: Option<Principal>,
     pub admins: Vec<Principal>,

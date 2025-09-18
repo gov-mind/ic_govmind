@@ -1,6 +1,7 @@
 use crate::{
     api_cycles::WalletReceiveResult,
     init::CanisterArgs,
+    store::State,
     types::{
         Addresses, BalanceResult, QueryBalanceArg, StatusRequest, StatusResponse, TokenTransferArg,
     },

@@ -27,11 +27,7 @@ use ic_govmind_types::{
 };
 use ic_ledger_types::{account_balance, AccountBalanceArgs, Memo, Subaccount, Tokens, DEFAULT_FEE};
 use ic_web3_rs::{
-    ethabi::ethereum_types::Address,
-    ic::KeyInfo,
-    transports::ICHttp,
-    types::{TransactionParameters, U256},
-    Web3,
+    ethabi::ethereum_types::Address, futures::io::Chain, ic::KeyInfo, transports::ICHttp, types::{TransactionParameters, U256}, Web3
 };
 use icrc_ledger_types::icrc1::account::Account;
 use libsecp256k1::{PublicKey, PublicKeyFormat};
@@ -188,9 +184,12 @@ impl WalletBlockchainConfig {
                 )
                 .await
             }
-            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal => {
+            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal | ChainType::EthLocal => {
+                let env = state::get_env();
+                let chain_type = env.get_eth_chain_type();
+
                 self.transfer_ethereum(
-                    &self.0.chain_type,
+                    &chain_type,
                     token_config,
                     wallet_address,
                     recipient,

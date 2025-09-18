@@ -62,7 +62,7 @@ async fn upgrade_gov_dao() -> Result<(), String> {
 
     let upgrade_arg = CanisterArgs::Upgrade(StateUpgradeArgs {
         root: Some(caller),
-        env: None,
+        env: Some(store::state::get_default_env()),
     });
 
     upgrade_dao_canister(canister_id, Some(upgrade_arg)).await

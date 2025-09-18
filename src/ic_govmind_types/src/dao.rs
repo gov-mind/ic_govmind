@@ -32,6 +32,7 @@ pub enum ChainType {
     InternetComputer,
     Ethereum,
     EthSepolia,
+    EthLocal,
     Bitcoin,
     Solana,
     BNBChain,

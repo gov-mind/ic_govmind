@@ -65,7 +65,10 @@ impl WalletConfig {
                 // For ICP, use the provided canister_id or return an error if not available
                 Ok(account_id(owner_wallet_pid(), subaccount.clone()).to_hex())
             }
-            ChainType::BNBChain | ChainType::Ethereum | ChainType::EthSepolia => {
+            ChainType::BNBChain
+            | ChainType::Ethereum
+            | ChainType::EthSepolia
+            | ChainType::EthLocal => {
                 // For Ethereum, derive the Ethereum address
                 Self::derive_eth_address(public_key)
             }

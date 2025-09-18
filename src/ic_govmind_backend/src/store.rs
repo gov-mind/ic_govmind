@@ -258,6 +258,20 @@ pub mod state {
         state::with(|r| r.get_chain_config_by_type(chain_type))
     }
 
+    pub fn add_chain_config(new_chain: BlockchainConfig) -> Result<(), String> {
+        state::with_mut(|s| {
+            if s.chain_config
+                .iter()
+                .any(|c| c.chain_type == new_chain.chain_type)
+            {
+                return Err(format!("Chain {:?} already exists", new_chain.chain_type));
+            }
+
+            s.chain_config.push(new_chain);
+            Ok(())
+        })
+    }
+
     pub fn update_chain_config(
         chain_type: ChainType,
         f: impl FnOnce(&mut BlockchainConfig),

@@ -12,6 +12,7 @@ use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 
 use crate::{
     guards::not_anonymous,
+    init::init_eth_local_chain,
     store,
     timer::setup_token_distribution_timer,
     types::{BalanceResult, QueryBalanceArg, TokenTransferArg},
@@ -219,4 +220,11 @@ pub async fn update_committee_update(
     })?;
 
     Ok(format!("Committee {} updated successfully", committee_id))
+}
+
+#[update]
+pub async fn update_eth_local_chain() -> Result<(), String> {
+    let new_chain = init_eth_local_chain();
+    store::state::add_chain_config(new_chain)?;
+    Ok(())
 }

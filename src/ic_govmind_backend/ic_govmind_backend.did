@@ -39,6 +39,7 @@ type ChainType = variant {
   BNBChain;
   Bitcoin;
   Other : text;
+  EthLocal;
 };
 type Committee = record {
   id : nat16;
@@ -272,6 +273,7 @@ service : (opt CanisterArgs) -> {
     ) query;
   remove_admin : (principal) -> (Result);
   update_committee_update : (nat16, CommitteeArg) -> (Result_1);
+  update_eth_local_chain : () -> (Result);
   update_proposal_status : (nat64, ProposalStatus) -> (Result);
   wallet_balance : () -> (nat) query;
   wallet_query_balance : (QueryBalanceArg) -> (Result_4);

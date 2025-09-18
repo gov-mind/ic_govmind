@@ -13,7 +13,7 @@ use crate::{
 };
 use base58::ToBase58;
 use bitcoin_hashes::{ripemd160, sha256, Hash as BitcoinHash};
-use candid::{CandidType, Deserialize, Principal};
+use candid::{CandidType, Deserialize, Nat, Principal};
 use ethers_core::types::H160;
 use evm_rpc_types::{MultiRpcResult, SendRawTransactionStatus};
 use ic_canister_log::log;
@@ -22,7 +22,7 @@ use ic_govmind_types::{
     constants::{EVM_RPC_CANISTER_ID, LEDGER_CANISTER_ID},
     dao::ChainType,
 };
-use ic_ledger_types::{account_balance, AccountBalanceArgs, Subaccount};
+use ic_ledger_types::{account_balance, AccountBalanceArgs, Memo, Subaccount, Tokens, DEFAULT_FEE};
 use ic_web3_rs::{
     ethabi::ethereum_types::Address,
     ic::KeyInfo,
@@ -151,7 +151,7 @@ impl WalletBlockchainConfig {
                 self.query_balance_internet_computer(&token_config, wallet_address, subaccount)
                     .await
             }
-            ChainType::Ethereum | ChainType::EthSepolia => {
+            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal => {
                 self.query_balance_ethereum(&token_config, wallet_address)
                     .await
             }
@@ -175,7 +175,17 @@ impl WalletBlockchainConfig {
 
         // Match the blockchain type
         match self.0.chain_type {
-            ChainType::Ethereum | ChainType::EthSepolia => {
+            ChainType::InternetComputer => {
+                self.transfer_internet_computer(
+                    token_config,
+                    recipient,
+                    recipient_subaccount,
+                    amount,
+                    subaccount,
+                )
+                .await
+            }
+            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal => {
                 self.transfer_ethereum(
                     &self.0.chain_type,
                     token_config,
@@ -342,6 +352,84 @@ impl WalletBlockchainConfig {
                 }
             }
             _ => Err("Token standard not supported on Ethereum".to_string()),
+        }
+    }
+
+    async fn transfer_internet_computer(
+        &self,
+        token: &TokenConfig,
+        recipient: &str,
+        recipient_subaccount: &Option<Subaccount>,
+        amount: u64,
+        subaccount: &Option<Subaccount>,
+    ) -> Result<String, String> {
+        let recipient_pid =
+            Principal::from_text(recipient).map_err(|_| "Invalid recipient address".to_string())?;
+
+        match token.standard {
+            TokenStandard::Native => {
+                let recipient_account_id = account_id(recipient_pid, recipient_subaccount.clone());
+                let transfer_amount = Tokens::from_e8s(amount);
+                let canister_service = TokenICRC1::new(LEDGER_CANISTER_ID)?;
+
+                match canister_service
+                    .transfer(
+                        subaccount.clone(),
+                        recipient_account_id,
+                        transfer_amount,
+                        Memo(0),
+                        DEFAULT_FEE,
+                        None,
+                    )
+                    .await
+                {
+                    Ok((Ok(block_number),)) => Ok(format!(
+                        "Successfully transferred {} ICP to {} (block #{})",
+                        amount, recipient, block_number
+                    )),
+                    Ok((Err(transfer_error),)) => {
+                        Err(format!("Failed to transfer ICP: {:?}", transfer_error))
+                    }
+                    Err(e) => Err(format!("Failed to transfer ICP: {:?}", e)),
+                }
+            }
+
+            TokenStandard::ICRC1 | TokenStandard::ICRC2 => {
+                let token_address = token
+                    .contract_address
+                    .as_deref()
+                    .ok_or_else(|| "Invalid token contract address".to_string())?;
+
+                let icrc1_subaccount = convert_subaccount(subaccount.clone());
+                let recipient_icrc1_subaccount = convert_subaccount(recipient_subaccount.clone());
+
+                let recipient_account = Account {
+                    owner: recipient_pid,
+                    subaccount: recipient_icrc1_subaccount,
+                };
+
+                let canister_service = TokenICRC1::new(token_address)?;
+
+                match canister_service
+                    .icrc1_transfer(
+                        icrc1_subaccount,
+                        recipient_account,
+                        Nat::from(amount),
+                        None,
+                        None,
+                        None,
+                    )
+                    .await
+                {
+                    Ok(transfer_block) => Ok(format!(
+                        "Successfully transferred {} ICRC1 tokens to {} (block #{})",
+                        amount, recipient, transfer_block
+                    )),
+                    Err(e) => Err(format!("Failed to transfer ICRC1 tokens: {:?}", e)),
+                }
+            }
+
+            _ => Err("Token standard not supported on Internet Computer".to_string()),
         }
     }
 

@@ -82,6 +82,8 @@ fn pre_upgrade() {
 
 #[post_upgrade]
 fn post_upgrade(args: Option<CanisterArgs>) {
+    store::state::load();
+    
     let mut should_setup_ecdsa = false;
 
     match args {

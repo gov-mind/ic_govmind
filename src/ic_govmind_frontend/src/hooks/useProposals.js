@@ -232,6 +232,7 @@ export const useGenerateDraft = () => {
       const result = await generateDraft(idea);
       
       if (result.success) {
+        console.log(result);
         return result.data;
       } else {
         throw new Error(result.error);

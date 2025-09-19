@@ -68,6 +68,8 @@ export const generateDraftWithCommittee = async (idea, daoCanisterId) => {
     const result = await ic_govmind_proposal_analyzer.draft_proposal_with_committees(idea, Principal.fromText(daoCanisterId));
     
     if (result && result.Ok) {
+      console.log(result.Ok);
+
       return {
         success: true,
         data: result.Ok

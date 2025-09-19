@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Brain, Plus, AlertTriangle, X, Check, Users, Sparkles } from 'lucide-react';
 import ProposalAnalysisPanel from '../ProposalAnalysisPanel';
-import { useActiveCommittees, useGenerateDraftWithCommittee } from '../../hooks/useProposals';
+import { useActiveCommittees, useGenerateDraftWithCommittee, useGenerateDraft } from '../../hooks/useProposals';
 
 export default function ProposalsTab({
   dao,
@@ -34,6 +34,7 @@ export default function ProposalsTab({
   // React Query hooks
   const { data: committees = [], isLoading: committeesLoading } = useActiveCommittees(backendActor, dao?.id);
   const generateDraftWithCommitteeMutation = useGenerateDraftWithCommittee();
+  const generateDraftMutation = useGenerateDraft();
 
   // Handle proposal creation
   const handleCreateProposal = async () => {
@@ -119,8 +120,6 @@ export default function ProposalsTab({
 
     try {
       if (useCommitteeSuggestion && committees.length > 0) {
-        console.log(backendActor);
-        console.log(dao);
         // Use the enhanced draft generation with committee suggestion
         const result = await generateDraftWithCommitteeMutation.mutateAsync({
           idea: copilotIdea.trim(),
@@ -128,16 +127,12 @@ export default function ProposalsTab({
         });
         
         setGeneratedDraft(result.draft);
-        setGeneratedCommitteeSuggestion(result.committee_suggestion);
+        setGeneratedCommitteeSuggestion(result.committee_suggestion[0]);
       } else {
         // Use the original draft generation without committee suggestion
         const result = await generateDraftMutation.mutateAsync(copilotIdea.trim());
-        
-        if (result && result.Ok) {
-          setGeneratedDraft(result.Ok);
-        } else {
-          setDraftError(result?.Err || 'Failed to generate proposal draft');
-        }
+
+        setGeneratedDraft(result);
       }
     } catch (err) {
       console.error('Error generating AI draft:', err);
@@ -155,9 +150,11 @@ export default function ProposalsTab({
       const description = `${generatedDraft.summary}\n\n**Rationale:**\n${generatedDraft.rationale}\n\n**Specifications:**\n${generatedDraft.specifications}`;
       setProposalContent(description);
       
-      // Set the suggested committee if available
-      if (generatedCommitteeSuggestion?.committee_id) {
-        setSelectedCommitteeId(generatedCommitteeSuggestion.committee_id);
+      // Set the suggested committee if available (unwrap opt and coerce to string)
+      const cidOpt = generatedCommitteeSuggestion?.committee_id;
+      const cidValue = Array.isArray(cidOpt) ? cidOpt[0] : cidOpt;
+      if (cidValue !== undefined && cidValue !== null && cidValue !== '') {
+        setSelectedCommitteeId(String(cidValue));
       }
       
       // Close co-pilot and show proposal form
@@ -559,15 +556,23 @@ export default function ProposalsTab({
                             <div className="mb-2">
                               <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
                                 {(() => {
-                                  const committee = committees.find(c => c.id === generatedCommitteeSuggestion.committee_id);
-                                  if (!committee) return `Committee #${generatedCommitteeSuggestion.committee_id}`;
+                                  const cidOpt = generatedCommitteeSuggestion?.committee_id;
+                                  const cid = Array.isArray(cidOpt) ? cidOpt[0] : cidOpt;
+                                  const committee = committees.find(c => Number(c.id) === Number(cid));
+                                  if (!committee) return cid != null ? `Committee #${cid}` : 'Committee: Unspecified';
                                   const ct = committee.committee_type;
                                   const label = typeof ct === 'string' ? ct : (ct && typeof ct === 'object' ? Object.keys(ct)[0] : 'Unknown');
                                   return `${label} #${Number(committee.id)}`;
                                 })()}
                               </span>
                             </div>
-                            <p className="text-sm text-slate-700 leading-relaxed">{generatedCommitteeSuggestion.reasoning}</p>
+                            {(() => {
+                              const reasoningOpt = generatedCommitteeSuggestion?.reasoning;
+                              const reasoning = Array.isArray(reasoningOpt) ? reasoningOpt[0] : reasoningOpt;
+                              return (
+                                <p className="text-sm text-slate-700 leading-relaxed">{reasoning || 'No reasoning provided.'}</p>
+                              );
+                            })()}
                           </div>
                         </div>
                       </div>

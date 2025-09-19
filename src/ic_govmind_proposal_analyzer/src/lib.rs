@@ -256,7 +256,7 @@ async fn submit_proposal_and_analyze(
         Err(e) => {
             // Even if analysis fails, we still return the proposal_id since the proposal was created
             // The status will be set to Failed by the analyze_proposal function
-            debug_print(e);
+            debug_print(&format!("submit_proposal_and_analyze: Failed to analyze proposal {}: {}", proposal_id, e));
 
             Ok(proposal_id)
         }

@@ -20,6 +20,7 @@ use candid::{CandidType, Deserialize, Nat, Principal};
 use ethers_core::types::H160;
 use evm_rpc_types::{MultiRpcResult, SendRawTransactionStatus};
 use ic_canister_log::log;
+use ic_cdk::api::debug_print;
 use ic_govmind_types::{
     chain::{BlockchainConfig, TokenConfig, TokenStandard},
     constants::{EVM_RPC_CANISTER_ID, LEDGER_CANISTER_ID},
@@ -184,7 +185,7 @@ impl WalletBlockchainConfig {
                 )
                 .await
             }
-            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal | ChainType::EthLocal => {
+            ChainType::Ethereum | ChainType::EthSepolia | ChainType::EthLocal => {
                 let env = state::get_env();
                 let chain_type = env.get_eth_chain_type();
 
@@ -516,6 +517,12 @@ impl WalletBlockchainConfig {
             gas: U256::from(ETH_TRANSFER_GAS),
             ..Default::default()
         };
+
+        debug_print(&format!("handle_eth_native_transfer tx: {:?}", tx));
+        debug_print(&format!("handle_eth_native_transfer wallet_address: {:?}", wallet_address));
+        debug_print(&format!("handle_eth_native_transfer recipient: {:?}", recipient));
+        debug_print(&format!("handle_eth_native_transfer key_info: {:?}", key_info));
+        debug_print(&format!("handle_eth_native_transfer chain_id: {:?}", chain_id));
 
         let signed_tx = w3
             .accounts()

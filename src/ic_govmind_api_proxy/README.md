@@ -15,7 +15,7 @@ Simple deployment guide for IC GovMind API Proxy on your VPS server.
 
 ```bash
 # Option A: Using rsync (recommended - fastest)
-rsync -av --exclude='node_modules' --exclude='.env' src/ic_govmind_api_proxy/ root@YOUR_SERVER_IP:/tmp/ic_govmind_api_proxy/
+rsync -av --exclude='node_modules' --exclude='.env' src/ic_govmind_api_proxy/ root@ai-api.govmind.info:/tmp/ic_govmind_api_proxy/
 
 # Option B: Using tar + scp (if rsync not available)
 tar --exclude='node_modules' --exclude='.env' -czf api_proxy.tar.gz src/ic_govmind_api_proxy/
@@ -77,7 +77,7 @@ CORS_ORIGIN=https://your-frontend-domain.com
 
 **B. Idempotent Proxy Server Configuration:**
 ```bash
-nano /mnt/idempotent-server/.env
+nano /mnt/idempotent-proxy/.env
 ```
 
 Configure proxy server settings as needed.

@@ -6,7 +6,7 @@ use crate::{
 };
 use ic_govmind_types::{
     chain::BlockchainConfig,
-    dao::{ChainType, Dao, DistributionRecord, Proposal},
+    dao::{ChainType, Committee, Dao, DistributionRecord, Proposal},
 };
 
 #[query]
@@ -48,6 +48,21 @@ pub fn get_chain_config_by_type(chain_type: ChainType) -> Option<BlockchainConfi
 #[query]
 pub fn list_distribution_records(start: u64, limit: u64) -> Vec<(u64, DistributionRecord)> {
     store::distribution::list_distribution_records(start, limit as usize)
+}
+
+#[query]
+pub fn get_active_committees() -> Vec<Committee> {
+    state::with(|s| {
+        if let Some(dao) = &s.org_info {
+            dao.committees
+                .iter()
+                .filter(|c| c.active.unwrap_or(true))
+                .cloned()
+                .collect()
+        } else {
+            vec![]
+        }
+    })
 }
 
 #[query(hidden = true)]

@@ -1,6 +1,7 @@
 import { useState } from 'react';
-import { Brain, Plus, AlertTriangle, X, Check } from 'lucide-react';
+import { Brain, Plus, AlertTriangle, X, Check, Users, Sparkles } from 'lucide-react';
 import ProposalAnalysisPanel from '../ProposalAnalysisPanel';
+import { useActiveCommittees, useGenerateDraftWithCommittee } from '../../hooks/useProposals';
 
 export default function ProposalsTab({
   dao,
@@ -24,8 +25,15 @@ export default function ProposalsTab({
   const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
   const [generatedDraft, setGeneratedDraft] = useState(null);
   const [draftError, setDraftError] = useState(null);
+  // Committee suggestion state
+  const [useCommitteeSuggestion, setUseCommitteeSuggestion] = useState(true);
+  const [generatedCommitteeSuggestion, setGeneratedCommitteeSuggestion] = useState(null);
   // Selected committee assignment for proposal metadata (optional)
   const [selectedCommitteeId, setSelectedCommitteeId] = useState('');
+
+  // React Query hooks
+  const { data: committees = [], isLoading: committeesLoading } = useActiveCommittees(backendActor, dao?.id);
+  const generateDraftWithCommitteeMutation = useGenerateDraftWithCommittee();
 
   // Handle proposal creation
   const handleCreateProposal = async () => {
@@ -107,14 +115,29 @@ export default function ProposalsTab({
     setIsGeneratingDraft(true);
     setDraftError(null);
     setGeneratedDraft(null);
+    setGeneratedCommitteeSuggestion(null);
 
     try {
-      const result = await ic_govmind_proposal_analyzer.draft_proposal(copilotIdea.trim());
-      
-      if (result && result.Ok) {
-        setGeneratedDraft(result.Ok);
+      if (useCommitteeSuggestion && committees.length > 0) {
+        console.log(backendActor);
+        console.log(dao);
+        // Use the enhanced draft generation with committee suggestion
+        const result = await generateDraftWithCommitteeMutation.mutateAsync({
+          idea: copilotIdea.trim(),
+          daoCanisterId: backendActor.canisterId || dao?.id
+        });
+        
+        setGeneratedDraft(result.draft);
+        setGeneratedCommitteeSuggestion(result.committee_suggestion);
       } else {
-        setDraftError(result?.Err || 'Failed to generate proposal draft');
+        // Use the original draft generation without committee suggestion
+        const result = await generateDraftMutation.mutateAsync(copilotIdea.trim());
+        
+        if (result && result.Ok) {
+          setGeneratedDraft(result.Ok);
+        } else {
+          setDraftError(result?.Err || 'Failed to generate proposal draft');
+        }
       }
     } catch (err) {
       console.error('Error generating AI draft:', err);
@@ -132,6 +155,11 @@ export default function ProposalsTab({
       const description = `${generatedDraft.summary}\n\n**Rationale:**\n${generatedDraft.rationale}\n\n**Specifications:**\n${generatedDraft.specifications}`;
       setProposalContent(description);
       
+      // Set the suggested committee if available
+      if (generatedCommitteeSuggestion?.committee_id) {
+        setSelectedCommitteeId(generatedCommitteeSuggestion.committee_id);
+      }
+      
       // Close co-pilot and show proposal form
       setShowProposalCopilot(false);
       setShowCreateProposal(true);
@@ -139,6 +167,7 @@ export default function ProposalsTab({
       // Reset co-pilot state
       setCopilotIdea('');
       setGeneratedDraft(null);
+      setGeneratedCommitteeSuggestion(null);
       setDraftError(null);
     }
   };
@@ -439,6 +468,39 @@ export default function ProposalsTab({
                   <p className="text-xs text-slate-500 mt-1">{copilotIdea.length}/500 characters</p>
                 </div>
 
+                {/* Committee Suggestion Toggle */}
+                {committees.length > 0 && (
+                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
+                    <div className="flex items-center justify-between">
+                      <div className="flex items-center space-x-3">
+                        <Users className="w-5 h-5 text-slate-600" />
+                        <div>
+                          <h3 className="text-sm font-medium text-slate-700">Committee Suggestion</h3>
+                          <p className="text-xs text-slate-500">Get AI recommendations for the most suitable committee</p>
+                        </div>
+                      </div>
+                      <label className="relative inline-flex items-center cursor-pointer">
+                        <input
+                          type="checkbox"
+                          checked={useCommitteeSuggestion}
+                          onChange={(e) => setUseCommitteeSuggestion(e.target.checked)}
+                          disabled={isGeneratingDraft}
+                          className="sr-only peer"
+                        />
+                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
+                      </label>
+                    </div>
+                    {useCommitteeSuggestion && (
+                      <div className="mt-3 text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
+                        <div className="flex items-center space-x-2">
+                          <Sparkles className="w-4 h-4 text-purple-500" />
+                          <span>AI will analyze your proposal and suggest the most relevant committee from {committees.length} available committees.</span>
+                        </div>
+                      </div>
+                    )}
+                  </div>
+                )}
+
                 {/* Generate Button */}
                 <div className="flex justify-center">
                   <button
@@ -484,6 +546,32 @@ export default function ProposalsTab({
                         <span>Use This Draft</span>
                       </button>
                     </div>
+
+                    {/* Committee Suggestion Display */}
+                    {generatedCommitteeSuggestion && (
+                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
+                        <div className="flex items-start space-x-3">
+                          <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
+                            <Users className="w-4 h-4 text-white" />
+                          </div>
+                          <div className="flex-1">
+                            <h4 className="text-sm font-semibold text-slate-900 mb-1">Recommended Committee</h4>
+                            <div className="mb-2">
+                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
+                                {(() => {
+                                  const committee = committees.find(c => c.id === generatedCommitteeSuggestion.committee_id);
+                                  if (!committee) return `Committee #${generatedCommitteeSuggestion.committee_id}`;
+                                  const ct = committee.committee_type;
+                                  const label = typeof ct === 'string' ? ct : (ct && typeof ct === 'object' ? Object.keys(ct)[0] : 'Unknown');
+                                  return `${label} #${Number(committee.id)}`;
+                                })()}
+                              </span>
+                            </div>
+                            <p className="text-sm text-slate-700 leading-relaxed">{generatedCommitteeSuggestion.reasoning}</p>
+                          </div>
+                        </div>
+                      </div>
+                    )}
 
                     <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
                       {/* Title */}

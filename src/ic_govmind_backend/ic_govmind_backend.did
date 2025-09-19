@@ -301,6 +301,7 @@ service : (opt CanisterArgs) -> {
   create_dao_token : (CreateCanisterArg) -> (Result_2);
   create_proposal : (text, text, opt nat16) -> (Result_3);
   dao_info : () -> (opt Dao) query;
+  get_active_committees : () -> (vec Committee) query;
   get_all_proposals : () -> (vec Proposal) query;
   get_chain_config_by_type : (ChainType) -> (opt BlockchainConfig) query;
   get_chain_configs : () -> (vec BlockchainConfig) query;

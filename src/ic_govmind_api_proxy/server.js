@@ -173,6 +173,109 @@ app.post('/api/proposals/analyze', async (req, res) => {
   }
 });
 
+// Enhanced proposal draft generation with committee suggestion endpoint
+app.post('/api/proposals/draft-with-committee', async (req, res) => {
+  try {
+    const { idea, committees } = req.body;
+    
+    // Validation
+    if (!idea) {
+      return res.status(400).json({
+        success: false,
+        error: 'Idea parameter is required',
+        code: 'MISSING_PARAMETERS'
+      });
+    }
+    
+    if (!committees || !Array.isArray(committees)) {
+      return res.status(400).json({
+        success: false,
+        error: 'Committees parameter is required and must be an array',
+        code: 'MISSING_PARAMETERS'
+      });
+    }
+    
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(500).json({
+        success: false,
+        error: 'DeepSeek API key not configured',
+        code: 'API_KEY_MISSING'
+      });
+    }
+
+    const prompt = createCommitteeSuggestionPrompt(idea, committees);
+    
+    console.log(`[DeepSeek] Generating proposal draft with committee suggestion for idea: "${idea.substring(0, 50)}..."`);
+    
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'User-Agent': 'IC-GovMind-Proxy/1.0'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are an expert assistant for a Decentralized Autonomous Organization (DAO). You help transform raw ideas into formal, well-structured proposal drafts and suggest the most appropriate committee for review. Always respond with valid JSON format without markdown wrappers.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.3,
+        max_tokens: 2500,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[DeepSeek] API Error: ${response.status} - ${errorText}`);
+      throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    const content = data.choices?.[0]?.message?.content;
+    
+    if (!content) {
+      throw new Error('No content received from DeepSeek API');
+    }
+
+    console.log(`[DeepSeek] Raw response: ${content.substring(0, 200)}...`);
+    
+    // Parse the enhanced response with committee suggestion
+    const result = parseCommitteeSuggestionResponse(content, committees);
+    
+    res.json({
+      success: true,
+      ...result,
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+
+  } catch (error) {
+    console.error('[DeepSeek] Draft with committee generation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Failed to generate proposal draft with committee suggestion',
+      details: error.message,
+      code: 'DRAFT_GENERATION_FAILED',
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 // Proposal draft generation endpoint
 app.post('/api/proposals/draft', async (req, res) => {
   try {
@@ -239,7 +342,8 @@ app.post('/api/proposals/draft', async (req, res) => {
     
     console.log(`[DeepSeek] Proposal draft generated successfully`);
     res.json({
-      ...draft,
+      success: true,
+      draft: draft,
       metadata: {
         provider: 'deepseek',
         model: 'deepseek-chat',
@@ -250,10 +354,15 @@ app.post('/api/proposals/draft', async (req, res) => {
   } catch (error) {
     console.error('[DeepSeek] Draft generation error:', error);
     res.status(500).json({
+      success: false,
       error: 'Draft generation failed',
       details: error.message,
       code: 'DRAFT_GENERATION_FAILED',
-      provider: 'deepseek'
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
     });
   }
 });
@@ -364,6 +473,44 @@ Based on this idea, please generate the proposal. If some details are missing (l
 Your response MUST be a single, valid JSON object and nothing else. Do not include any introductory text, explanations, or markdown formatting. The JSON object must have the following keys: "title", "summary", "rationale", "specifications".`;
 }
 
+function createCommitteeSuggestionPrompt(idea, committees) {
+  const committeeList = committees.map(committee => {
+    const type = committee.committee_type || 'Unknown';
+    const responsibilities = committee.responsibilities || 'No responsibilities defined';
+    return `- ${type} (ID: ${committee.id}): ${responsibilities}`;
+  }).join('\n');
+
+  return `You are an expert assistant for a Decentralized Autonomous Organization (DAO). Your task is to:
+1. Transform a user's raw idea into a formal, well-structured proposal draft
+2. Suggest the most appropriate committee to review this proposal
+
+The DAO uses a standard proposal format with four sections:
+1. **Title:** A concise and clear title.
+2. **Summary:** A one-paragraph executive summary explaining the proposal.
+3. **Rationale:** A detailed explanation of why this proposal is necessary and beneficial for the DAO.
+4. **Specifications:** The concrete actions to be taken if the proposal passes (e.g., specific amounts, wallet addresses, canister calls).
+
+Available committees and their responsibilities:
+${committeeList}
+
+Here is the user's raw idea:
+"${idea}"
+
+Based on this idea, please:
+1. Generate a formal proposal draft following the standard format
+2. Analyze which committee would be most suitable to review this proposal
+3. Provide reasoning for your committee recommendation
+4. If no suitable committee is found, set "suggested_committee_id" to null
+
+Your response MUST be a single, valid JSON object and nothing else. Do not include any introductory text, explanations, or markdown formatting. The JSON object must have the following keys:
+- "title": string
+- "summary": string  
+- "rationale": string
+- "specifications": string
+- "suggested_committee_id": string (the ID of the recommended committee)
+- "committee_reasoning": string (explanation for why this committee is most suitable)`;
+}
+
 function parseDraftResponse(content) {
   // Extract JSON from markdown if wrapped
   let cleanContent = content.trim();
@@ -396,6 +543,51 @@ function parseDraftResponse(content) {
   } catch (error) {
     console.error('Failed to parse draft response:', cleanContent);
     throw new Error(`Failed to parse draft response as JSON: ${error.message}`);
+  }
+}
+
+function parseCommitteeSuggestionResponse(content, committees) {
+  // Extract JSON from markdown if wrapped
+  let cleanContent = content.trim();
+  
+  // Remove markdown code blocks
+  if (cleanContent.startsWith('```json')) {
+    cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleanContent.startsWith('```')) {
+    cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  
+  // Find JSON boundaries
+  const jsonStart = cleanContent.indexOf('{');
+  const jsonEnd = cleanContent.lastIndexOf('}');
+  
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
+  }
+  
+  try {
+    const response = JSON.parse(cleanContent);
+    
+    // Find the suggested committee details
+    const suggestedCommittee = committees.find(c => c.id === response.suggested_committee_id);
+    
+    // Validate and normalize the response
+    return {
+      draft: {
+        title: response.title || 'Untitled Proposal',
+        summary: response.summary || 'No summary provided',
+        rationale: response.rationale || 'No rationale provided',
+        specifications: response.specifications || 'No specifications provided'
+      },
+      committee_suggestion: {
+        committee_id: response.suggested_committee_id || null,
+        committee: suggestedCommittee || null,
+        reasoning: response.committee_reasoning || 'No reasoning provided'
+      }
+    };
+  } catch (error) {
+    console.error('Failed to parse committee suggestion response:', cleanContent);
+    throw new Error(`Failed to parse committee suggestion response as JSON: ${error.message}`);
   }
 }
 

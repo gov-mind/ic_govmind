@@ -56,10 +56,22 @@ type ProposalDraft = record {
     specifications: text;
 };
 
+type CommitteeSuggestion = record {
+    committee_id: opt nat16;
+    committee_type: opt text;
+    reasoning: opt text;
+};
+
+type EnhancedProposalDraft = record {
+    draft: ProposalDraft;
+    committee_suggestion: opt CommitteeSuggestion;
+};
+
 service : {
     "analyze_proposal": (text) -> (variant { Ok: ProposalAnalysis; Err: text });
     "submit_proposal_and_analyze": (opt text, text, text) -> (variant { Ok: text; Err: text });
     "draft_proposal": (text) -> (variant { Ok: ProposalDraft; Err: text });
+    "draft_proposal_with_committees": (text, principal) -> (variant { Ok: EnhancedProposalDraft; Err: text });
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
     "transform_response": (TransformArgs) -> (HttpResponse) query;

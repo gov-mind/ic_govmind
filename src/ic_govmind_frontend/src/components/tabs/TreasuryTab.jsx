@@ -740,8 +740,10 @@ export default function TreasuryTab({
                               {item.symbol}
                             </span>
                           </div>
-                          <div className="text-slate-900 font-semibold">
-                            {item.amount.toLocaleString()}
+                          <div className="flex items-center flex-1">
+                            <span className="text-slate-900 font-semibold text-right w-full pr-2">
+                              {item.amount.toLocaleString()}
+                            </span>
                           </div>
                           <div className="flex items-center justify-end space-x-1.5">
                             <button

@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
-import { getAIAnalysis, submitProposalAndAnalyze } from '../services/aiService';
+import { getAIAnalysis, submitProposalAndAnalyze, generateDraftWithCommittee, generateDraft, getActiveCommittees } from '../services/aiService';
 
 // Query Keys
 export const QUERY_KEYS = {
   proposals: ['proposals'],
   proposal: (id) => ['proposal', id],
+  committees: ['committees'],
 };
 
 // Custom hook for fetching all proposals
@@ -182,6 +183,62 @@ export const useProposalAnalysis = () => {
     },
     onError: (error) => {
       console.error('Error in proposal analysis:', error);
+    },
+  });
+};
+
+// Custom hook for fetching active committees
+export const useActiveCommittees = (backendActor) => {
+  return useQuery({
+    queryKey: QUERY_KEYS.committees,
+    queryFn: async () => {
+      if (!backendActor) return [];
+      
+      const result = await getActiveCommittees(backendActor);
+      if (result.success) {
+        return result.data;
+      } else {
+        console.error('Error fetching committees:', result.error);
+        return [];
+      }
+    },
+    enabled: !!backendActor,
+    staleTime: 30000, // 30 seconds
+    refetchInterval: 60000, // Refetch every minute
+  });
+};
+
+// Custom hook for generating proposal draft with committee suggestion
+export const useGenerateDraftWithCommittee = () => {
+  return useMutation({
+    mutationFn: async ({ idea, daoCanisterId }) => {
+      const result = await generateDraftWithCommittee(idea, daoCanisterId);
+      
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error);
+      }
+    },
+    onError: (error) => {
+      console.error('Error generating draft with committee:', error);
+    },
+  });
+};
+
+export const useGenerateDraft = () => {
+  return useMutation({
+    mutationFn: async (idea) => {
+      const result = await generateDraft(idea);
+      
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error);
+      }
+    },
+    onError: (error) => {
+      console.error('Error generating draft:', error);
     },
   });
 };

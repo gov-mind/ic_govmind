@@ -1,3 +1,5 @@
+pub mod candid_file_generator;
+
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::{query, update};
 use ic_cdk::api::{canister_self, debug_print, msg_caller};
@@ -9,6 +11,9 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+
+// Import Committee type from ic_govmind_types
+use ic_govmind_types::dao::{Committee};
 
 // Types for proposal analysis (Candid types)
 #[derive(CandidType, Deserialize, Clone, Debug)]
@@ -52,6 +57,20 @@ pub struct ProposalDraft {
     pub specifications: String,
 }
 
+// Enhanced proposal draft with committee suggestion
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct EnhancedProposalDraft {
+    pub draft: ProposalDraft,
+    pub committee_suggestion: Option<CommitteeSuggestion>,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct CommitteeSuggestion {
+    pub committee_id: Option<u16>,
+    pub committee_type: Option<String>,
+    pub reasoning: Option<String>,
+}
+
 // Serde types for JSON parsing (from AI API)
 #[derive(SerdeDeserialize, Debug)]
 struct JsonProposalAnalysis {
@@ -69,6 +88,28 @@ struct JsonProposalDraft {
     pub summary: String,
     pub rationale: String,
     pub specifications: String,
+}
+
+// JSON struct matching server.js response format exactly
+#[derive(SerdeDeserialize, Debug)]
+struct JsonProposalDraftResponse {
+    pub success: bool,
+    pub draft: JsonProposalDraft,
+    pub committee_suggestion: Option<JsonServerCommitteeSuggestion>,
+}
+
+// Allow committee_id to be either a string, a number, or null in the inbound JSON
+#[derive(SerdeDeserialize, Debug)]
+#[serde(untagged)]
+enum FlexibleU16 {
+    Str(String),
+    Num(u64),
+}
+
+#[derive(SerdeDeserialize, Debug)]
+struct JsonServerCommitteeSuggestion {
+    pub committee_id: Option<FlexibleU16>,
+    pub reasoning: Option<String>,
 }
 
 #[derive(SerdeDeserialize, Debug)]
@@ -115,6 +156,30 @@ impl From<JsonProposalDraft> for ProposalDraft {
             summary: json.summary,
             rationale: json.rationale,
             specifications: json.specifications,
+        }
+    }
+}
+
+impl From<JsonServerCommitteeSuggestion> for CommitteeSuggestion {
+    fn from(json: JsonServerCommitteeSuggestion) -> Self {
+        let committee_id = match json.committee_id {
+            Some(FlexibleU16::Num(n)) => u16::try_from(n).ok(),
+            Some(FlexibleU16::Str(s)) => s.trim().parse::<u16>().ok(),
+            None => None,
+        };
+        CommitteeSuggestion {
+            committee_id,
+            reasoning: json.reasoning,
+            committee_type: None,
+        }
+    }
+}
+
+impl From<JsonProposalDraftResponse> for EnhancedProposalDraft {
+    fn from(json: JsonProposalDraftResponse) -> Self {
+        EnhancedProposalDraft {
+            draft: json.draft.into(),
+            committee_suggestion: json.committee_suggestion.map(|suggestion| suggestion.into()),
         }
     }
 }
@@ -276,6 +341,121 @@ async fn analyze_proposal(proposal_id: String) -> Result<ProposalAnalysis, Strin
 #[update]
 async fn draft_proposal(idea: String) -> Result<ProposalDraft, String> {
     call_ai_draft_api(&idea).await
+}
+
+#[update]
+async fn draft_proposal_with_committees(idea: String, dao_canister_id: Principal) -> Result<EnhancedProposalDraft, String> {
+    // First, get active committees from the DAO canister
+    let committees_result: Result<(Vec<Committee>,), _> = ic_cdk::call(dao_canister_id, "get_active_committees", ()).await;
+    
+    let committees = match committees_result {
+        Ok((committees,)) => committees,
+        Err(e) => {
+            debug_print(&format!("Failed to get committees: {:?}", e));
+            // Fallback to regular draft if committee fetch fails
+            let draft = call_ai_draft_api(&idea).await?;
+            return Ok(EnhancedProposalDraft {
+                draft,
+                committee_suggestion: None,
+            });
+        }
+    };
+
+    // If no active committees, return regular draft
+    if committees.is_empty() {
+        let draft = call_ai_draft_api(&idea).await?;
+        return Ok(EnhancedProposalDraft {
+            draft,
+            committee_suggestion: None,
+        });
+    }
+
+    // Call enhanced AI API with committee information
+    call_ai_enhanced_draft_api(&idea, &committees).await
+}
+
+// Enhanced AI API call with committee information
+async fn call_ai_enhanced_draft_api(idea: &str, committees: &[Committee]) -> Result<EnhancedProposalDraft, String> {
+    // Try enhanced API call first
+    match call_ai_enhanced_draft_api_single_attempt(idea, committees).await {
+        Ok(enhanced_draft) => Ok(enhanced_draft),
+        Err(_) => {
+            // Fallback to regular draft if enhanced API fails
+            let draft = call_ai_draft_api(idea).await?;
+            Ok(EnhancedProposalDraft {
+                draft,
+                committee_suggestion: None,
+            })
+        }
+    }
+}
+
+// Single attempt for enhanced AI API call
+async fn call_ai_enhanced_draft_api_single_attempt(idea: &str, committees: &[Committee]) -> Result<EnhancedProposalDraft, String> {
+    let idempotency_key = generate_idempotency_key_for_idea(idea);
+    
+    // Serialize committees as JSON array to match server.js expectations
+    let committees_json = serde_json::to_value(committees)
+        .map_err(|e| format!("Failed to serialize committees: {}", e))?;
+    
+    let mut request_body = serde_json::Map::new();
+    request_body.insert("idea".to_string(), serde_json::Value::String(idea.to_string()));
+    request_body.insert("committees".to_string(), committees_json);
+    
+    let request_body_json = serde_json::to_string(&request_body)
+        .map_err(|e| format!("Failed to serialize request: {}", e))?;
+
+    let request = HttpRequestArgs {
+        url: "https://ai-api.govmind.info/URL_AI_PROPOSAL_DRAFT_COMMITTEE".to_string(),
+        method: HttpMethod::POST,
+        body: Some(request_body_json.into_bytes()),
+        max_response_bytes: Some(10_000),
+        headers: vec![
+            HttpHeader {
+                name: "Content-Type".to_string(),
+                value: "application/json".to_string(),
+            },
+            HttpHeader {
+                name: "Accept".to_string(),
+                value: "application/json".to_string(),
+            },
+            HttpHeader {
+                name: "idempotency-key".to_string(),
+                value: idempotency_key,
+            },
+        ],
+        transform: Some(TransformContext {
+            function: TransformFunc(candid::Func {
+                principal: canister_self(),
+                method: "transform_response".to_string(),
+            }),
+            context: vec![],
+        }),
+    };
+
+    match http_request(&request).await {
+        Ok(response) => {
+            let response_body = String::from_utf8(response.body)
+                .map_err(|e| format!("Invalid UTF-8 response: {}", e))?;
+            
+            debug_print(&format!("AI API Response: {}", response_body));
+
+            // Parse the server.js response format directly
+            let server_response: JsonProposalDraftResponse = serde_json::from_str(&response_body)
+                .map_err(|e| format!("Failed to parse server response JSON: {}", e))?;
+
+            // Check if the response indicates success
+            if !server_response.success {
+                return Err("Server returned unsuccessful response".to_string());
+            }
+
+            // Convert to our internal format
+            let enhanced_draft: EnhancedProposalDraft = server_response.into();
+
+            Ok(enhanced_draft)
+        }
+        Err(error) => Err(format!("HTTP request failed: {:?}", error)),
+    }
 }
 
 // HTTP outcall to AI API through idempotent proxy
@@ -441,9 +621,16 @@ async fn call_ai_draft_api_single_attempt(idea: &str) -> Result<ProposalDraft, S
                 .map_err(|e| format!("Invalid UTF-8 response: {}", e))?;
             
             // Parse the direct JSON response from proxy server
-            let json_draft: JsonProposalDraft = serde_json::from_str(&response_body)
+            let server_response: JsonProposalDraftResponse = serde_json::from_str(&response_body)
                 .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
-            
+
+            // Check if the response indicates success
+            if !server_response.success {
+                return Err("Server returned unsuccessful response".to_string());
+            }
+
+            // Convert to our internal format
+            let json_draft: JsonProposalDraft = server_response.draft; 
             Ok(ProposalDraft::from(json_draft))
         }
         Err(error) => {
@@ -486,3 +673,4 @@ fn transform_response(raw: TransformArgs) -> HttpRequestResult {
     }
 }
 
+ic_cdk::export_candid!();

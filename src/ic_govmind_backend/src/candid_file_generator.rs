@@ -11,7 +11,7 @@ use ic_cdk::query;
 use ic_govmind_types::{
     chain::BlockchainConfig,
     dao::{
-        ChainType, CommitteeArg, CreateBaseTokenArg, Dao, DistributionRecord, Proposal,
+        ChainType, CommitteeArg, Committee, CreateBaseTokenArg, Dao, DistributionRecord, Proposal,
         ProposalStatus,
     },
     icrc::CreateCanisterArg,

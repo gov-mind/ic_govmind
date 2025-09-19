@@ -289,4 +289,44 @@ impl EvmService {
         )
         .await
     }
+
+    /// Get the current transaction count (nonce) for an account.
+    pub async fn get_account_nonce(
+        &self,
+        rpc_service: RpcService,
+        address: &str,
+    ) -> CallResult<(Result<String, RpcError>,)> {
+        // Build the JSON-RPC request payload
+        let json_request = Self::build_json_rpc_request(
+            "eth_getTransactionCount",
+            vec![json!(address), json!("latest")],
+        );
+
+        ic_cdk::println!("get_account_nonce request: {}", json_request);
+
+        let params = (rpc_service, json_request, 1000_u64);
+
+        // Call the underlying EVM RPC canister
+        match ic_cdk::api::call::call_with_payment128(
+            self.principal,
+            "request",
+            params,
+            EVM_CALL_DEFAULT_CYCLES,
+        )
+        .await
+        {
+            Ok(result) => {
+                ic_cdk::println!("success calling get_account_nonce: {:?}", result);
+                Ok(result)
+            }
+            Err((rejection_code, msg)) => {
+                ic_cdk::println!(
+                    "Error calling get_account_nonce: {:?}, {:?}",
+                    rejection_code,
+                    msg
+                );
+                Err((rejection_code, msg))
+            }
+        }
+    }
 }

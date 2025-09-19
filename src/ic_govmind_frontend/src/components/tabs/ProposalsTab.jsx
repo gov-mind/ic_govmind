@@ -1,7 +1,8 @@
 import { useState } from 'react';
-import { Brain, Plus, AlertTriangle, X, Check, Users, Sparkles } from 'lucide-react';
+import { Brain, Plus, AlertTriangle, X, Check } from 'lucide-react';
 import ProposalAnalysisPanel from '../ProposalAnalysisPanel';
 import { useActiveCommittees, useGenerateDraftWithCommittee, useGenerateDraft } from '../../hooks/useProposals';
+import { useNavigate } from 'react-router-dom';
 
 export default function ProposalsTab({
   dao,
@@ -12,6 +13,7 @@ export default function ProposalsTab({
   proposalsError,
   refetchProposals,
 }) {
+  const navigate = useNavigate();
   // Proposal creation state
   const [showCreateProposal, setShowCreateProposal] = useState(false);
   const [proposalTitle, setProposalTitle] = useState('');
@@ -19,15 +21,6 @@ export default function ProposalsTab({
   const [isCreatingProposal, setIsCreatingProposal] = useState(false);
   const [proposalCreationStatus, setProposalCreationStatus] = useState(null); // 'success', 'error', or null
   const [selectedProposalId, setSelectedProposalId] = useState(null);
-  // Proposal Co-pilot state
-  const [showProposalCopilot, setShowProposalCopilot] = useState(false);
-  const [copilotIdea, setCopilotIdea] = useState('');
-  const [isGeneratingDraft, setIsGeneratingDraft] = useState(false);
-  const [generatedDraft, setGeneratedDraft] = useState(null);
-  const [draftError, setDraftError] = useState(null);
-  // Committee suggestion state
-  const [useCommitteeSuggestion, setUseCommitteeSuggestion] = useState(true);
-  const [generatedCommitteeSuggestion, setGeneratedCommitteeSuggestion] = useState(null);
   // Selected committee assignment for proposal metadata (optional)
   const [selectedCommitteeId, setSelectedCommitteeId] = useState('');
 
@@ -106,69 +99,6 @@ export default function ProposalsTab({
     }
   };
 
-  // Handle AI draft generation
-  const handleGenerateAIDraft = async () => {
-    if (!copilotIdea.trim()) {
-      setDraftError('Please enter a proposal idea');
-      return;
-    }
-
-    setIsGeneratingDraft(true);
-    setDraftError(null);
-    setGeneratedDraft(null);
-    setGeneratedCommitteeSuggestion(null);
-
-    try {
-      if (useCommitteeSuggestion && committees.length > 0) {
-        // Use the enhanced draft generation with committee suggestion
-        const result = await generateDraftWithCommitteeMutation.mutateAsync({
-          idea: copilotIdea.trim(),
-          daoCanisterId: backendActor.canisterId || dao?.id
-        });
-        
-        setGeneratedDraft(result.draft);
-        setGeneratedCommitteeSuggestion(result.committee_suggestion[0]);
-      } else {
-        // Use the original draft generation without committee suggestion
-        const result = await generateDraftMutation.mutateAsync(copilotIdea.trim());
-
-        setGeneratedDraft(result);
-      }
-    } catch (err) {
-      console.error('Error generating AI draft:', err);
-      setDraftError('Failed to generate proposal draft. Please try again.');
-    } finally {
-      setIsGeneratingDraft(false);
-    }
-  };
-
-  // Handle using the generated draft
-  const handleUseDraft = () => {
-    if (generatedDraft) {
-      setProposalTitle(generatedDraft.title);
-      // Combine summary, rationale, and specifications into description
-      const description = `${generatedDraft.summary}\n\n**Rationale:**\n${generatedDraft.rationale}\n\n**Specifications:**\n${generatedDraft.specifications}`;
-      setProposalContent(description);
-      
-      // Set the suggested committee if available (unwrap opt and coerce to string)
-      const cidOpt = generatedCommitteeSuggestion?.committee_id;
-      const cidValue = Array.isArray(cidOpt) ? cidOpt[0] : cidOpt;
-      if (cidValue !== undefined && cidValue !== null && cidValue !== '') {
-        setSelectedCommitteeId(String(cidValue));
-      }
-      
-      // Close co-pilot and show proposal form
-      setShowProposalCopilot(false);
-      setShowCreateProposal(true);
-      
-      // Reset co-pilot state
-      setCopilotIdea('');
-      setGeneratedDraft(null);
-      setGeneratedCommitteeSuggestion(null);
-      setDraftError(null);
-    }
-  };
-
   const calculateVoteStats = (proposal) => {
     const totalVotes = proposal.votes?.length || 0;
     const yesVotes = proposal.votes?.filter(v => {
@@ -201,7 +131,7 @@ export default function ProposalsTab({
       approvalPercentage: totalWeight > 0 ? Math.round((yesWeight / totalWeight) * 100) : 0
     };
   }; 
-   
+  
   return (
     <div className="flex flex-col min-h-0 flex-1">
       <div className="flex items-center justify-between mb-6">
@@ -216,7 +146,7 @@ export default function ProposalsTab({
         </div>
         <div className="flex items-center space-x-3">
           <button
-            onClick={() => setShowProposalCopilot(true)}
+            onClick={() => navigate(`/dao/${dao?.id}/copilot`)}
             className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-4 py-2 rounded-lg hover:from-purple-700 hover:to-pink-700 transition-all duration-200 font-medium flex items-center space-x-2 shadow-sm"
           >
             <Brain className="w-4 h-4" />
@@ -277,7 +207,7 @@ export default function ProposalsTab({
         />
       )}
 
-      {/* Proposal Creation Modal */}
+      {/* Proposal Creation Modal remains unchanged */}
       {showCreateProposal && (
         <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
           <div className="bg-white rounded-2xl max-w-2xl w-full max-h-[90vh] overflow-hidden">
@@ -413,210 +343,6 @@ export default function ProposalsTab({
           <div className="flex items-center space-x-2">
             <Check className="w-5 h-5" />
             <span className="font-medium">Proposal created successfully!</span>
-          </div>
-        </div>
-      )}
-
-      {/* Proposal Co-pilot Modal */}
-      {showProposalCopilot && (
-        <div className="fixed inset-0 bg-black bg-opacity-50 flex items-center justify-center z-50 p-4">
-          <div className="bg-white rounded-2xl max-w-4xl w-full max-h-[90vh] overflow-hidden">
-            <div className="flex items-center justify-between p-6 border-b border-slate-200">
-              <div className="flex items-center space-x-3">
-                <div className="w-10 h-10 bg-gradient-to-r from-purple-600 to-pink-600 rounded-xl flex items-center justify-center">
-                  <Brain className="w-5 h-5 text-white" />
-                </div>
-                <div>
-                  <h2 className="text-xl font-semibold text-slate-900">Proposal Co-pilot</h2>
-                  <p className="text-sm text-slate-600">AI-powered proposal drafting assistant</p>
-                </div>
-              </div>
-              <button
-                onClick={() => {
-                  setShowProposalCopilot(false);
-                  setCopilotIdea('');
-                  if (setGeneratedDraft) setGeneratedDraft(null);
-                  if (setDraftError) setDraftError(null);
-                }}
-                disabled={isGeneratingDraft}
-                className="text-slate-400 hover:text-slate-600 transition-colors disabled:opacity-50"
-              >
-                <X className="w-6 h-6" />
-              </button>
-            </div>
-
-            <div className="p-6 overflow-y-auto max-h-[calc(90vh-120px)]">
-              <div className="space-y-6">
-                {/* Idea Input */}
-                <div>
-                  <label htmlFor="copilot-idea" className="block text-sm font-medium text-slate-700 mb-2">
-                    Describe your proposal idea
-                  </label>
-                  <textarea
-                    id="copilot-idea"
-                    value={copilotIdea}
-                    onChange={(e) => setCopilotIdea(e.target.value)}
-                    placeholder="Describe your proposal idea in one sentence. For example: 'Implement a bug bounty program to incentivize security researchers' or 'Create a community fund for supporting open source projects'"
-                    disabled={isGeneratingDraft}
-                    maxLength={500}
-                    rows={3}
-                    className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-purple-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed resize-none"
-                  />
-                  <p className="text-xs text-slate-500 mt-1">{copilotIdea.length}/500 characters</p>
-                </div>
-
-                {/* Committee Suggestion Toggle */}
-                {committees.length > 0 && (
-                  <div className="bg-slate-50 p-4 rounded-xl border border-slate-200">
-                    <div className="flex items-center justify-between">
-                      <div className="flex items-center space-x-3">
-                        <Users className="w-5 h-5 text-slate-600" />
-                        <div>
-                          <h3 className="text-sm font-medium text-slate-700">Committee Suggestion</h3>
-                          <p className="text-xs text-slate-500">Get AI recommendations for the most suitable committee</p>
-                        </div>
-                      </div>
-                      <label className="relative inline-flex items-center cursor-pointer">
-                        <input
-                          type="checkbox"
-                          checked={useCommitteeSuggestion}
-                          onChange={(e) => setUseCommitteeSuggestion(e.target.checked)}
-                          disabled={isGeneratingDraft}
-                          className="sr-only peer"
-                        />
-                        <div className="w-11 h-6 bg-slate-200 peer-focus:outline-none peer-focus:ring-4 peer-focus:ring-purple-300 rounded-full peer peer-checked:after:translate-x-full peer-checked:after:border-white after:content-[''] after:absolute after:top-[2px] after:left-[2px] after:bg-white after:border-slate-300 after:border after:rounded-full after:h-5 after:w-5 after:transition-all peer-checked:bg-purple-600"></div>
-                      </label>
-                    </div>
-                    {useCommitteeSuggestion && (
-                      <div className="mt-3 text-xs text-slate-600 bg-white p-3 rounded-lg border border-slate-200">
-                        <div className="flex items-center space-x-2">
-                          <Sparkles className="w-4 h-4 text-purple-500" />
-                          <span>AI will analyze your proposal and suggest the most relevant committee from {committees.length} available committees.</span>
-                        </div>
-                      </div>
-                    )}
-                  </div>
-                )}
-
-                {/* Generate Button */}
-                <div className="flex justify-center">
-                  <button
-                    onClick={handleGenerateAIDraft}
-                    disabled={isGeneratingDraft || !copilotIdea.trim()}
-                    className="bg-gradient-to-r from-purple-600 to-pink-600 text-white px-8 py-3 rounded-xl hover:from-purple-700 hover:to-pink-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-semibold shadow-sm flex items-center space-x-2"
-                  >
-                    {isGeneratingDraft ? (
-                      <>
-                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                        <span>Generating AI Draft...</span>
-                      </>
-                    ) : (
-                      <>
-                        <Brain className="w-4 h-4" />
-                        <span>Generate AI Draft</span>
-                      </>
-                    )}
-                  </button>
-                </div>
-
-                {/* Error Display */}
-                {draftError && (
-                  <div className="p-4 bg-red-50 border border-red-200 rounded-xl">
-                    <div className="flex items-center space-x-2">
-                      <AlertTriangle className="w-4 h-4 text-red-600" />
-                      <span className="text-sm text-red-700 font-medium">Error</span>
-                    </div>
-                    <p className="text-sm text-red-600 mt-1">{draftError}</p>
-                  </div>
-                )}
-
-                {/* Generated Draft Display */}
-                {generatedDraft && (
-                  <div className="space-y-4">
-                    <div className="flex items-center justify-between">
-                      <h3 className="text-lg font-semibold text-slate-900">Generated Proposal Draft</h3>
-                      <button
-                        onClick={handleUseDraft}
-                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-4 py-2 rounded-lg hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-medium flex items-center space-x-2"
-                      >
-                        <Check className="w-4 h-4" />
-                        <span>Use This Draft</span>
-                      </button>
-                    </div>
-
-                    {/* Committee Suggestion Display */}
-                    {generatedCommitteeSuggestion && (
-                      <div className="bg-gradient-to-r from-purple-50 to-pink-50 border border-purple-200 rounded-xl p-4">
-                        <div className="flex items-start space-x-3">
-                          <div className="w-8 h-8 bg-gradient-to-r from-purple-600 to-pink-600 rounded-lg flex items-center justify-center flex-shrink-0">
-                            <Users className="w-4 h-4 text-white" />
-                          </div>
-                          <div className="flex-1">
-                            <h4 className="text-sm font-semibold text-slate-900 mb-1">Recommended Committee</h4>
-                            <div className="mb-2">
-                              <span className="inline-flex items-center px-3 py-1 rounded-full text-sm font-medium bg-purple-100 text-purple-800">
-                                {(() => {
-                                  const cidOpt = generatedCommitteeSuggestion?.committee_id;
-                                  const cid = Array.isArray(cidOpt) ? cidOpt[0] : cidOpt;
-                                  const committee = committees.find(c => Number(c.id) === Number(cid));
-                                  if (!committee) return cid != null ? `Committee #${cid}` : 'Committee: Unspecified';
-                                  const ct = committee.committee_type;
-                                  const label = typeof ct === 'string' ? ct : (ct && typeof ct === 'object' ? Object.keys(ct)[0] : 'Unknown');
-                                  return `${label} #${Number(committee.id)}`;
-                                })()}
-                              </span>
-                            </div>
-                            {(() => {
-                              const reasoningOpt = generatedCommitteeSuggestion?.reasoning;
-                              const reasoning = Array.isArray(reasoningOpt) ? reasoningOpt[0] : reasoningOpt;
-                              return (
-                                <p className="text-sm text-slate-700 leading-relaxed">{reasoning || 'No reasoning provided.'}</p>
-                              );
-                            })()}
-                          </div>
-                        </div>
-                      </div>
-                    )}
-
-                    <div className="bg-slate-50 border border-slate-200 rounded-xl p-6 space-y-4">
-                      {/* Title */}
-                      <div>
-                        <h4 className="text-sm font-medium text-slate-700 mb-2">Title</h4>
-                        <p className="text-slate-900 font-medium">{generatedDraft.title}</p>
-                      </div>
-
-                      {/* Summary */}
-                      <div>
-                        <h4 className="text-sm font-medium text-slate-700 mb-2">Summary</h4>
-                        <p className="text-slate-700 text-sm leading-relaxed">{generatedDraft.summary}</p>
-                      </div>
-
-                      {/* Rationale */}
-                      <div>
-                        <h4 className="text-sm font-medium text-slate-700 mb-2">Rationale</h4>
-                        <p className="text-slate-700 text-sm leading-relaxed">{generatedDraft.rationale}</p>
-                      </div>
-
-                      {/* Specifications */}
-                      <div>
-                        <h4 className="text-sm font-medium text-slate-700 mb-2">Specifications</h4>
-                        <p className="text-slate-700 text-sm leading-relaxed whitespace-pre-line">{generatedDraft.specifications}</p>
-                      </div>
-                    </div>
-
-                    <div className="flex justify-center pt-4">
-                      <button
-                        onClick={handleUseDraft}
-                        className="bg-gradient-to-r from-green-600 to-emerald-600 text-white px-8 py-3 rounded-xl hover:from-green-700 hover:to-emerald-700 transition-all duration-200 font-semibold shadow-sm flex items-center space-x-2"
-                      >
-                        <Check className="w-5 h-5" />
-                        <span>Use This Draft</span>
-                      </button>
-                    </div>
-                  </div>
-                )}
-              </div>
-            </div>
           </div>
         </div>
       )}

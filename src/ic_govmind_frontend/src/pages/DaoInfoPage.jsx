@@ -1,5 +1,5 @@
 import { useState, useEffect, useRef } from 'react';
-import { useParams, Link } from 'react-router-dom';
+import { useParams, Link, useSearchParams } from 'react-router-dom';
 import { useQueryClient } from '@tanstack/react-query';
 import DaoTabs from '../components/DaoTabs';
 import { useDaoInfo, useBackendDaoInfo, useDaoWalletAddresses, useDaoTokenBalances, useDaoProposals, useDistributionRecords, useMemberBalances } from '../hooks/daoHooks';
@@ -193,6 +193,7 @@ const getTreasuryData = () => {
 function DaoInfoPage() {
   const { daoId } = useParams();
   const queryClient = useQueryClient();
+  const [searchParams] = useSearchParams();
   
   // Initialize treasury data
   const treasuryData = getTreasuryData();
@@ -238,7 +239,17 @@ function DaoInfoPage() {
   // Fetch member token balances
   const { data: memberBalances = {}, isLoading: balancesLoading } = useMemberBalances(dao);
 
-  const [activeTab, setActiveTab] = useState('overview');
+  const validTabs = new Set(['overview','members','proposals','distribution','treasury','governance','committees','canister']);
+  const initialTab = searchParams.get('tab');
+  const [activeTab, setActiveTab] = useState(validTabs.has(initialTab) ? initialTab : 'overview');
+
+  // Keep activeTab in sync with URL query param changes
+  useEffect(() => {
+    const t = searchParams.get('tab');
+    if (t && validTabs.has(t) && t !== activeTab) {
+      setActiveTab(t);
+    }
+  }, [searchParams]);
 
   const [isRetryingToken, setIsRetryingToken] = useState(false);
   const [tokenRetryStatus, setTokenRetryStatus] = useState(null); // 'success', 'error', or null

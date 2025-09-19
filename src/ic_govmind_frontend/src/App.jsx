@@ -13,6 +13,7 @@ import { AuthProvider, useAuthClient } from './hooks/useAuthClient';
 import { LogOut } from 'lucide-react';
 import AppHeader from './components/AppHeader';
 import CommitteeDashboardPage from './pages/CommitteeDashboardPage';
+import ProposalCopilotPage from './pages/ProposalCopilotPage';
 
 // Create a client
 const queryClient = new QueryClient({
@@ -58,6 +59,7 @@ function App() {
             <Route path="/proposals" element={<RequireAuth><AppLayout><ProposalsPage /></AppLayout></RequireAuth>} />
             <Route path="/create-dao" element={<RequireAuth><AppLayout><CreateDaoPage /></AppLayout></RequireAuth>} />
             <Route path="/dao/:daoId" element={<RequireAuth><AppLayout><DaoInfoPage /></AppLayout></RequireAuth>} />
+            <Route path="/dao/:daoId/copilot" element={<RequireAuth><AppLayout><ProposalCopilotPage /></AppLayout></RequireAuth>} />
             <Route path="/dao/:daoId/committees/:committeeId" element={<RequireAuth><AppLayout><CommitteeDashboardPage /></AppLayout></RequireAuth>} />
             <Route path="/sns/:canisterId" element={<RequireAuth><AppLayout><ProposalListPage /></AppLayout></RequireAuth>} />
             <Route path="*" element={<Navigate to="/" replace />} />

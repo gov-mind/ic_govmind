@@ -13,7 +13,7 @@ use icrc_ledger_types::icrc::generic_metadata_value::MetadataValue;
 use crate::{
     guards::not_anonymous,
     init::init_eth_local_chain,
-    store,
+    store::{self, state},
     timer::setup_token_distribution_timer,
     types::{BalanceResult, QueryBalanceArg, TokenTransferArg},
     utils::create_icrc1_canister,
@@ -227,4 +227,12 @@ pub async fn update_eth_local_chain() -> Result<(), String> {
     let new_chain = init_eth_local_chain();
     store::state::add_chain_config(new_chain)?;
     Ok(())
+}
+
+#[update]
+async fn set_chain_nonce(chain_type: ChainType, nonce: Option<u64>) -> Result<(), String> {
+    match store::state::set_nonce(chain_type, nonce) {
+        Ok(_) => Ok(()),
+        Err(error) => Err(format!("Failed to update nonce: {}", error)),
+    }
 }

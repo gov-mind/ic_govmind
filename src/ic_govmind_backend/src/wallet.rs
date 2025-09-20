@@ -1,7 +1,10 @@
 use crate::{
     ic_log::INFO,
     services::{
-        evm_abi::{generate_create_token, generate_erc20_transfer_data},
+        evm_abi::{
+            extract_json_result, generate_create_token, generate_erc20_transfer_data,
+            parse_nonce_hex,
+        },
         evm_service::EvmService,
         token_icrc1::TokenICRC1,
     },
@@ -441,11 +444,13 @@ impl WalletBlockchainConfig {
         recipient: &str,
         amount: u64,
     ) -> Result<String, String> {
-        let wallet_nonce = store::state::get_nonce(chain_type).unwrap_or(0) as u128;
         let chain_id = store::state::get_chain_id(chain_type).unwrap_or(1);
-
         let key_info = store::state::get_key_info()?;
         log!(INFO, "key_info: {:?}", &key_info);
+
+        let wallet_nonce = self
+            .resolve_account_nonce(chain_type, wallet_address)
+            .await?;
 
         // Initialize the web3 connection
         let w3: Web3<ICHttp> = match ICHttp::new(WEB3_URL, None) {
@@ -637,6 +642,38 @@ impl WalletBlockchainConfig {
                 ic_cdk::println!("Error sending Ethereum transaction: {:?}", e);
                 Err(format!("Transaction failed: {:?}", e))
             }
+        }
+    }
+
+    pub async fn resolve_account_nonce(
+        &self,
+        chain_type: &ChainType,
+        wallet_address: &str,
+    ) -> Result<u128, String> {
+        let local_nonce = store::state::get_nonce(chain_type).unwrap_or(0) as u128;
+
+        let evm_service = EvmService::new(EVM_RPC_CANISTER_ID)?;
+        let env = state::get_env();
+        let rpc_service = env.get_rpc_service();
+
+        match evm_service
+            .get_account_nonce(rpc_service, wallet_address)
+            .await
+        {
+            Ok((Ok(resp),)) => {
+                let result_hex = extract_json_result(&resp)?;
+                let onchain_nonce = parse_nonce_hex(&result_hex)?;
+
+                if onchain_nonce != local_nonce {
+                    store::state::set_nonce(chain_type.clone(), Some(onchain_nonce as u64))
+                        .map_err(|e| format!("Failed to update nonce: {}", e))?;
+                    Ok(onchain_nonce)
+                } else {
+                    Ok(local_nonce)
+                }
+            }
+            Ok((Err(rpc_err),)) => Err(format!("RPC error fetching nonce: {:?}", rpc_err)),
+            Err((code, msg)) => Err(format!("Nonce fetch rejected: {:?}, {:?}", code, msg)),
         }
     }
 }

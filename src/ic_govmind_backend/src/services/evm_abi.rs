@@ -233,3 +233,33 @@ pub fn generate_create_token(
 
     Ok(data)
 }
+
+pub fn parse_nonce_hex(raw: &str) -> Result<u128, String> {
+    let trimmed = raw.trim();
+
+    if !trimmed.starts_with("0x") {
+        return Err(format!("Invalid nonce format (missing 0x): {}", raw));
+    }
+
+    let hex_part = &trimmed[2..];
+
+    if hex_part.is_empty() {
+        return Ok(0u128);
+    }
+
+    u128::from_str_radix(hex_part, 16)
+        .map_err(|e| format!("Failed to parse on-chain nonce '{}': {}", raw, e))
+}
+
+pub fn extract_json_result(resp: &str) -> Result<String, String> {
+    match serde_json::from_str::<serde_json::Value>(resp) {
+        Ok(val) => {
+            if let Some(result_str) = val.get("result").and_then(|r| r.as_str()) {
+                Ok(result_str.to_string())
+            } else {
+                Err(format!("Missing 'result' field in RPC response: {}", resp))
+            }
+        }
+        Err(e) => Err(format!("Failed to parse JSON: {}", e)),
+    }
+}

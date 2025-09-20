@@ -4,11 +4,15 @@ use evm_rpc_types::{
     CallArgs, MultiRpcResult, RpcApi, RpcConfig, RpcError, RpcService, RpcServices,
     SendRawTransactionStatus,
 };
+use ic_canister_log::log;
 use ic_cdk::api::call::CallResult;
 use ic_govmind_types::constants::EVM_CALL_DEFAULT_CYCLES;
 use serde_json::{json, Value};
 
-use crate::services::evm_abi::{parse_abi, BALANCE_OF_ABI_JSON};
+use crate::{
+    ic_log::INFO,
+    services::evm_abi::{parse_abi, BALANCE_OF_ABI_JSON},
+};
 
 pub struct EvmService {
     pub principal: Principal,
@@ -316,11 +320,12 @@ impl EvmService {
         .await
         {
             Ok(result) => {
-                ic_cdk::println!("success calling get_account_nonce: {:?}", result);
+                log!(INFO, "success calling get_account_nonce: {:?}", result);
                 Ok(result)
             }
             Err((rejection_code, msg)) => {
-                ic_cdk::println!(
+                log!(
+                    INFO,
                     "Error calling get_account_nonce: {:?}, {:?}",
                     rejection_code,
                     msg

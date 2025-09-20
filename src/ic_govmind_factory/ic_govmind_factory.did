@@ -136,10 +136,12 @@ service : () -> {
   create_dao_canister : (opt CanisterArgs) -> (Result);
   create_gov_dao : (Dao) -> (Result);
   get_dao_info : (principal) -> (opt Dao) query;
+  get_default_env : () -> (KeyEnvironment) query;
   get_gov_dao_list : (nat64, nat64) -> (
       vec record { principal; Dao },
       nat64,
     ) query;
+  set_default_env : (KeyEnvironment) -> ();
   upgrade_dao_canister : (principal, opt CanisterArgs) -> (Result_1);
   upgrade_gov_dao : () -> (Result_1);
 }

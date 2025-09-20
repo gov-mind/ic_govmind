@@ -1,7 +1,5 @@
-use crate::types::{CanisterArgs, KeyEnvironment};
-use candid::{export_service, Principal};
+use candid::{export_service};
 use ic_cdk::query;
-use ic_govmind_types::dao::Dao;
 
 #[query(name = "__get_candid_interface_tmp_hack")]
 fn export_candid() -> String {
@@ -20,6 +18,6 @@ mod tests {
         use std::path::PathBuf;
 
         let dir = PathBuf::from(env::current_dir().unwrap());
-        write(dir.join("ic_govmind_factory.did"), export_candid()).expect("Write failed.");
+        write(dir.join("ic_govmind_proposal_analyzer.did"), export_candid()).expect("Write failed.");
     }
 }

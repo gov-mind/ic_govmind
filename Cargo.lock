@@ -1608,6 +1608,7 @@ dependencies = [
  "candid",
  "ic-cdk",
  "ic-cdk-timers",
+ "ic-govmind-types",
  "ic-management-canister-types",
  "ic-stable-structures",
  "serde",

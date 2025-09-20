@@ -101,7 +101,7 @@ pub async fn create_dao_base_token(
 }
 
 #[update]
-pub async fn create_proposal(title: String, content: String) -> Result<u64, String> {
+pub async fn create_proposal(title: String, content: String, committee_id: Option<u16>) -> Result<u64, String> {
     // Ensure caller is not anonymous
     not_anonymous()?;
 
@@ -139,6 +139,7 @@ pub async fn create_proposal(title: String, content: String) -> Result<u64, Stri
         content.trim().to_string(),
         proposer,
         voting_period_secs,
+        committee_id,
     )
 }
 
@@ -213,10 +214,12 @@ pub async fn update_committee_update(
     arg: CommitteeArg,
 ) -> Result<String, String> {
     store::state::update_committee(committee_id, |committee| {
-        committee.members = arg.members;
+        committee.members = arg.members.clone();
         committee.term_duration_secs = arg.term_duration_secs;
         committee.elected_at = arg.elected_at;
         committee.next_election_at = arg.next_election_at;
+        if let Some(active) = arg.active { committee.active = Some(active); }
+        if let Some(resp) = arg.responsibilities { committee.responsibilities = Some(resp); }
     })?;
 
     Ok(format!("Committee {} updated successfully", committee_id))

@@ -318,6 +318,7 @@ function CreateDaoPage() {
                 },
                 proposals: [],
                 treasury: [],
+                committees: [],
                 created_at: BigInt(Date.now()),
             };
 

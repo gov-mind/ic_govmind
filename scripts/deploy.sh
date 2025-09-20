@@ -102,6 +102,28 @@ deploy_canister() {
     echo -e "${GREEN}✅ ${canister_name} deployed successfully!${NC}"
 }
 
+# Function to deploy the factory with reinstall on local (so owner is the current identity)
+deploy_factory() {
+    local network_flag=$(get_network_flag)
+    echo -e "${YELLOW}📦 Deploying ic_govmind_factory...${NC}"
+    dfx deploy ic_govmind_factory $network_flag
+    echo -e "${GREEN}✅ ic_govmind_factory deployed successfully!${NC}"
+}
+
+# Set factory default env when local
+enforce_local_env() {
+    local network_flag=$(get_network_flag)
+    if [[ "$NETWORK" == "local" ]]; then
+        echo -e "${YELLOW}🛠  Setting ic_govmind_factory default env to Local (local network)...${NC}"
+        if dfx canister call ic_govmind_factory set_default_env '(variant { Local })' $network_flag; then
+            echo -e "${GREEN}✅ Default env set to Local for local.${NC}"
+        else
+            echo -e "${YELLOW}⚠️  Could not set default env automatically. This likely means your current dfx identity is not the canister owner.${NC}"
+            echo -e "${YELLOW}   Try: 'dfx identity whoami' and ensure it matches the identity that deployed the factory, or reinstall the factory.${NC}"
+        fi
+    fi
+}
+
 # Main deployment logic
 case $CANISTER in
     "all")
@@ -113,7 +135,9 @@ case $CANISTER in
         # Deploy other canisters
         echo -e "${YELLOW}📦 Deploying remaining canisters...${NC}"
         dfx deploy ic_govmind_frontend $network_flag
-        dfx deploy ic_govmind_factory $network_flag
+        deploy_factory
+
+        enforce_local_env
         
         # Deposit cycles to ic_govmind_factory
         echo -e "${YELLOW}💰 Depositing 5T cycles to ic_govmind_factory...${NC}"
@@ -128,8 +152,14 @@ case $CANISTER in
         ;;
         
     *)
-        deploy_canister "$CANISTER"
+        if [[ "$CANISTER" == "ic_govmind_factory" ]]; then
+            deploy_factory
+            enforce_local_env
+        else
+            deploy_canister "$CANISTER"
+        fi
         ;;
+
 esac
 
 echo -e "${GREEN}🚀 Deployment completed on ${NETWORK}!${NC}"

@@ -3,7 +3,7 @@ use ic_cdk::{init, post_upgrade, pre_upgrade};
 
 #[init]
 fn init() {
-    store::state::save();
+    store::state::set_owner(ic_cdk::api::msg_caller());
 }
 
 #[pre_upgrade]

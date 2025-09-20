@@ -51,6 +51,15 @@ impl KeyEnvironment {
             KeyEnvironment::Production => RpcService::EthSepolia(EthSepoliaService::PublicNode),
         }
     }
+
+    pub fn get_eth_chain_type(&self) -> ChainType {
+        match self {
+            // KeyEnvironment::Production => ChainType::Ethereum,
+            KeyEnvironment::Production => ChainType::EthSepolia,
+            KeyEnvironment::Staging => ChainType::EthSepolia,
+            KeyEnvironment::Local => ChainType::EthLocal,
+        }
+    }
 }
 
 #[derive(CandidType, Serialize, Deserialize, Debug, Clone)]

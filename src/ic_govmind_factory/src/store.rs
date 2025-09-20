@@ -9,7 +9,7 @@ use ic_stable_structures::{
 use serde::{Deserialize, Serialize};
 use std::{borrow::Cow, cell::RefCell};
 
-use crate::types::CanisterDeploy;
+use crate::types::{CanisterDeploy, KeyEnvironment};
 
 type Memory = VirtualMemory<DefaultMemoryImpl>;
 
@@ -22,6 +22,8 @@ pub struct State {
     pub total_orders: u64,
     pub invite_codes: Vec<String>,
     pub canister_list: Vec<CanisterDeploy>,
+    #[serde(default)]
+    pub default_env: KeyEnvironment,
 }
 
 impl Default for State {
@@ -34,6 +36,7 @@ impl Default for State {
             total_orders: 0,
             invite_codes: vec![],
             canister_list: vec![],
+            default_env: KeyEnvironment::default(),
         }
     }
 }
@@ -126,19 +129,18 @@ pub mod state {
         });
     }
 
-    pub fn add_invite_code(invite_code: String) -> Result<String, String> {
-        state::with_mut(|r| {
-            if r.invite_codes.contains(&invite_code) {
-                return Ok(invite_code.clone());
-            }
+    pub fn get_default_env() -> KeyEnvironment {
+        with(|s| s.default_env.clone())
+    }
 
-            if r.invite_codes.len() >= 20 {
-                return Err(String::from("invite codes MaximumRecords"));
-            }
+    pub fn set_default_env(env: KeyEnvironment) {
+        with_mut(|s| s.default_env = env);
+        save();
+    }
 
-            r.invite_codes.push(invite_code.clone());
-            Ok(invite_code.clone())
-        })
+    pub fn set_owner(owner: Principal) {
+        with_mut(|s| s.owner = owner);
+        save();
     }
 }
 

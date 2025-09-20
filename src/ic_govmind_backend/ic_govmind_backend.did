@@ -43,20 +43,37 @@ type ChainType = variant {
 };
 type Committee = record {
   id : nat16;
+  active : opt bool;
   members : vec principal;
+  responsibilities : opt text;
   elected_at : opt nat64;
   committee_type : CommitteeType;
   next_election_at : opt nat64;
   term_duration_secs : nat64;
 };
 type CommitteeArg = record {
+  active : opt bool;
   members : vec principal;
+  responsibilities : opt text;
   elected_at : opt nat64;
   committee_type : CommitteeType;
   next_election_at : opt nat64;
   term_duration_secs : nat64;
 };
-type CommitteeType = variant { Technical; Democracy };
+type CommitteeType = variant {
+  Legal;
+  Technical;
+  Research;
+  Strategy;
+  Security;
+  Grants;
+  Dispute;
+  Operations;
+  Treasury;
+  Marketing;
+  Community;
+  Democracy;
+};
 type CreateBaseTokenArg = record {
   decimals : nat8;
   name : text;
@@ -152,6 +169,7 @@ type Proposal = record {
   id : nat64;
   status : ProposalStatus;
   title : text;
+  committee_id : opt nat16;
   content : text;
   votes : vec Vote;
   metadata : opt vec record { text; text };
@@ -281,8 +299,9 @@ service : (opt CanisterArgs) -> {
   canister_get_status : (StatusRequest) -> (StatusResponse) query;
   create_dao_base_token : (CreateBaseTokenArg, MetadataValue) -> (Result_2);
   create_dao_token : (CreateCanisterArg) -> (Result_2);
-  create_proposal : (text, text) -> (Result_3);
+  create_proposal : (text, text, opt nat16) -> (Result_3);
   dao_info : () -> (opt Dao) query;
+  get_active_committees : () -> (vec Committee) query;
   get_all_proposals : () -> (vec Proposal) query;
   get_chain_config_by_type : (ChainType) -> (opt BlockchainConfig) query;
   get_chain_configs : () -> (vec BlockchainConfig) query;

@@ -1,11 +1,12 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query';
 import { ic_govmind_proposal_analyzer } from 'declarations/ic_govmind_proposal_analyzer';
-import { getAIAnalysis, submitProposalAndAnalyze } from '../services/aiService';
+import { getAIAnalysis, submitProposalAndAnalyze, generateDraftWithCommittee, generateDraft, runDebateSimulation } from '../services/aiService';
 
 // Query Keys
 export const QUERY_KEYS = {
   proposals: ['proposals'],
   proposal: (id) => ['proposal', id],
+  committees: ['committees'],
 };
 
 // Custom hook for fetching all proposals
@@ -182,6 +183,59 @@ export const useProposalAnalysis = () => {
     },
     onError: (error) => {
       console.error('Error in proposal analysis:', error);
+    },
+  });
+};
+
+// Custom hook for generating proposal draft with committee suggestion
+export const useGenerateDraftWithCommittee = () => {
+  return useMutation({
+    mutationFn: async ({ idea, daoCanisterId }) => {
+      const result = await generateDraftWithCommittee(idea, daoCanisterId);
+      
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error);
+      }
+    },
+    onError: (error) => {
+      console.error('Error generating draft with committee:', error);
+    },
+  });
+};
+
+export const useGenerateDraft = () => {
+  return useMutation({
+    mutationFn: async (idea) => {
+      const result = await generateDraft(idea);
+      
+      if (result.success) {
+        console.log(result);
+        return result.data;
+      } else {
+        throw new Error(result.error);
+      }
+    },
+    onError: (error) => {
+      console.error('Error generating draft:', error);
+    },
+  });
+};
+
+// New: Debate simulation hook
+export const useDebateSimulation = () => {
+  return useMutation({
+    mutationFn: async ({ title, content }) => {
+      const result = await runDebateSimulation(title, content);
+      if (result.success) {
+        return result.data;
+      } else {
+        throw new Error(result.error);
+      }
+    },
+    onError: (error) => {
+      console.error('Error running debate simulation:', error);
     },
   });
 };

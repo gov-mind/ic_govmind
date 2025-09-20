@@ -572,7 +572,7 @@ async fn fetch_sns_proposals(canister_id: String) -> Result<Vec<SnsProposal>, Sn
     ).await {
         Ok(response) => response.proposals,
         Err(e) => {
-            debug_print(format!("Failed to fetch proposals from {}: {}", canister_id, e));
+            debug_print(&format!("Failed to fetch proposals from {}: {}", canister_id, e));
             return Err(SnsGovernanceError::CrossCanisterCallFailed(e));
         }
     };
@@ -632,7 +632,7 @@ async fn refresh_sns_canisters(full_refresh: bool) -> Result<String, SnsGovernan
     ).await {
         Ok(response) => response,
         Err(e) => {
-            debug_print(format!("Failed to fetch from SNS root canister: {}", e));
+            debug_print(&format!("Failed to fetch from SNS root canister: {}", e));
             return Err(SnsGovernanceError::CrossCanisterCallFailed(e));
         }
     };
@@ -641,14 +641,14 @@ async fn refresh_sns_canisters(full_refresh: bool) -> Result<String, SnsGovernan
     if full_refresh {
         SNS_CANISTERS.with(|canisters| canisters.borrow_mut().clear_new());
         SNS_PROPOSALS.with(|proposals| proposals.borrow_mut().clear_new());
-        debug_print("Full refresh: cleared all existing data".to_string());
+        debug_print(&format!("Full refresh: cleared all existing data"));
     } else {
-        debug_print("Incremental refresh: keeping existing data".to_string());
+        debug_print(&format!("Incremental refresh: keeping existing data"));
     }
 
     let deployed_snses = deployed_snses_result.instances;
     
-    debug_print(format!("Processing {} SNS canisters", deployed_snses.len()));
+    debug_print(&format!("Processing {} SNS canisters", deployed_snses.len()));
     
     let mut updated_canisters = Vec::new();
     let mut canister_futures = Vec::new();
@@ -665,7 +665,7 @@ async fn refresh_sns_canisters(full_refresh: bool) -> Result<String, SnsGovernan
             let args = match candid::encode_args((EmptyRecord {},)) {
                 Ok(args) => args,
                 Err(e) => {
-                    debug_print(format!("Failed to encode args for {}: {}", governance_id, e));
+                    debug_print(&format!("Failed to encode args for {}: {}", governance_id, e));
                     return (governance_id.clone(), None);
                 }
             };
@@ -677,7 +677,7 @@ async fn refresh_sns_canisters(full_refresh: bool) -> Result<String, SnsGovernan
             ).await {
                 Ok(metadata) => metadata,
                 Err(e) => {
-                    debug_print(format!("Failed to fetch metadata from {}: {}", governance_id, e));
+                    debug_print(&format!("Failed to fetch metadata from {}: {}", governance_id, e));
                     return (governance_id.clone(), None); // Don't add failed canisters
                 }
             };
@@ -734,17 +734,17 @@ async fn refresh_sns_canisters(full_refresh: bool) -> Result<String, SnsGovernan
             }
             None => {
                 error_count += 1;
-                debug_print(format!("Failed to process canister: {}", governance_id));
+                debug_print(&format!("Failed to process canister: {}", governance_id));
             }
         }
     }
     
     // Log results for monitoring
     if full_refresh {
-        debug_print(format!("Full refresh completed: {} successful, {} errors, {} total SNSes", 
+        debug_print(&format!("Full refresh completed: {} successful, {} errors, {} total SNSes", 
             success_count, error_count, deployed_snses.len()));
     } else {
-        debug_print(format!("Incremental refresh completed: {} new, {} updated, {} errors, {} total SNSes", 
+        debug_print(&format!("Incremental refresh completed: {} new, {} updated, {} errors, {} total SNSes", 
             new_count, updated_count, error_count, deployed_snses.len()));
     }
     // ic_cdk::println!("SNS refresh completed: {} successful, {} errors, {} total SNSes", 

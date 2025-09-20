@@ -31,9 +31,10 @@ pub struct StateUpgradeArgs {
     pub env: Option<KeyEnvironment>,
 }
 
-#[derive(CandidType, Serialize, Deserialize, Debug, Clone)]
+#[derive(CandidType, Serialize, Deserialize, Debug, Clone, Default)]
 pub enum KeyEnvironment {
     Local,
     Staging,
+    #[default]
     Production,
 }

@@ -1,7 +1,7 @@
 import { useState } from 'react';
 import { Brain, Plus, AlertTriangle, X, Check } from 'lucide-react';
 import ProposalAnalysisPanel from '../ProposalAnalysisPanel';
-import { useActiveCommittees, useGenerateDraftWithCommittee, useGenerateDraft } from '../../hooks/useProposals';
+import { useActiveCommittees, useCreateProposal } from '../../hooks/backendHooks';
 import { useNavigate } from 'react-router-dom';
 
 export default function ProposalsTab({
@@ -25,9 +25,8 @@ export default function ProposalsTab({
   const [selectedCommitteeId, setSelectedCommitteeId] = useState('');
 
   // React Query hooks
-  const { data: committees = [], isLoading: committeesLoading } = useActiveCommittees(backendActor, dao?.id);
-  const generateDraftWithCommitteeMutation = useGenerateDraftWithCommittee();
-  const generateDraftMutation = useGenerateDraft();
+  const { data: committees = [], isLoading: committeesLoading } = useActiveCommittees(backendActor);
+  const createProposalMutation = useCreateProposal(backendActor);
 
   // Handle proposal creation
   const handleCreateProposal = async () => {
@@ -37,59 +36,51 @@ export default function ProposalsTab({
     setProposalCreationStatus(null);
 
     try {
-      // Call create_proposal on the DAO canister
-      const createProposalResult = await backendActor.create_proposal(
-        proposalTitle.trim(),
-        proposalContent.trim(),
-        selectedCommitteeId ? [parseInt(selectedCommitteeId)] : [],
-      );
+      const proposalId = await createProposalMutation.mutateAsync({
+        title: proposalTitle.trim(),
+        description: proposalContent.trim(),
+        committeeId: selectedCommitteeId,
+      });
+      
+      console.log('Proposal created with ID:', proposalId);
 
-      if (createProposalResult && createProposalResult.Ok !== undefined) {
-        const proposalId = createProposalResult.Ok;
-        console.log('Proposal created with ID:', proposalId);
-
-        // Call submit_proposal_and_analyze in the proposal analyzer with automatic AI analysis
-        const analyzerProposalId = `${dao.id}-${proposalId}`;
+      // Call submit_proposal_and_analyze in the proposal analyzer with automatic AI analysis
+      const analyzerProposalId = `${dao.id}-${proposalId}`;
+      
+      let analyzerResult;
+      try {
+        // Use the new combined submit and analyze function
+        const { submitProposalAndAnalyze } = await import('../../services/aiService');
         
-        let analyzerResult;
-        try {
-          // Use the new combined submit and analyze function
-          const { submitProposalAndAnalyze } = await import('../../services/aiService');
-          
-          const result = await submitProposalAndAnalyze(
-            proposalTitle.trim(),
-            proposalContent.trim(),
-            analyzerProposalId
-          );
-          
-          if (result.success) {
-            analyzerResult = result.proposalId;
-          } else {
-            throw new Error(result.error);
-          }
-        } catch (analyzerError) {
-          console.error('Analysis submission failed:', analyzerError.message);
-          throw analyzerError; // Re-throw the error since we no longer have a fallback
+        const result = await submitProposalAndAnalyze(
+          proposalTitle.trim(),
+          proposalContent.trim(),
+          analyzerProposalId
+        );
+        
+        if (result.success) {
+          analyzerResult = result.proposalId;
+        } else {
+          throw new Error(result.error);
         }
-
-        console.log('Proposal submitted to analyzer:', analyzerResult);
-
-        // Clear form and close modal
-        setProposalTitle('');
-        setProposalContent('');
-        setShowCreateProposal(false);
-        setProposalCreationStatus('success');
-
-        // Refetch proposals data and switch to proposals tab
-        await refetchProposals();
-        setSelectedProposalId(proposalId);
-
-        setTimeout(() => setProposalCreationStatus(null), 3000);
-      } else {
-        setProposalCreationStatus('error');
-        console.error('Failed to create proposal:', createProposalResult?.Err || 'Unknown error');
-        setTimeout(() => setProposalCreationStatus(null), 5000);
+      } catch (analyzerError) {
+        console.error('Analysis submission failed:', analyzerError.message);
+        throw analyzerError; // Re-throw the error since we no longer have a fallback
       }
+
+      console.log('Proposal submitted to analyzer:', analyzerResult);
+
+      // Clear form and close modal
+      setProposalTitle('');
+      setProposalContent('');
+      setShowCreateProposal(false);
+      setProposalCreationStatus('success');
+
+      // Refetch proposals data and switch to proposals tab
+      await refetchProposals();
+      setSelectedProposalId(proposalId);
+
+      setTimeout(() => setProposalCreationStatus(null), 3000);
     } catch (err) {
       setProposalCreationStatus('error');
       console.error('Error creating proposal:', err);
@@ -272,7 +263,7 @@ export default function ProposalsTab({
                     className="w-full px-4 py-3 border border-slate-200 rounded-xl focus:ring-2 focus:ring-blue-500 focus:border-transparent transition-all duration-200 disabled:bg-slate-50 disabled:cursor-not-allowed"
                   >
                     <option value="">No committee</option>
-                    {(backendDao?.committees || []).filter((c) => (c.active === undefined ? true : !!c.active)).map((c) => (
+                    {committees.map((c) => (
                       <option key={Number(c.id)} value={String(Number(c.id))}>
                         {(() => {
                           const ct = c.committee_type;

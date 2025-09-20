@@ -173,6 +173,99 @@ app.post('/api/proposals/analyze', async (req, res) => {
   }
 });
 
+// Debate simulation endpoint
+app.post('/api/proposals/debate-simulation', async (req, res) => {
+  try {
+    const { title, content } = req.body;
+    
+    // Validation
+    if (!title || !content) {
+      return res.status(400).json({
+        error: 'Title and content are required',
+        code: 'MISSING_PARAMETERS'
+      });
+    }
+    
+    if (!DEEPSEEK_API_KEY) {
+      return res.status(500).json({
+        error: 'DeepSeek API key not configured',
+        code: 'API_KEY_MISSING'
+      });
+    }
+
+    const prompt = createDebateSimulationPrompt(title, content);
+    
+    console.log(`[DeepSeek] Running debate simulation for proposal: "${title.substring(0, 50)}..."`); 
+    
+    const response = await fetch('https://api.deepseek.com/chat/completions', {
+      method: 'POST',
+      headers: {
+        'Content-Type': 'application/json',
+        'Authorization': `Bearer ${DEEPSEEK_API_KEY}`,
+        'User-Agent': 'IC-GovMind-Proxy/1.0'
+      },
+      body: JSON.stringify({
+        model: 'deepseek-chat',
+        messages: [
+          {
+            role: 'system',
+            content: 'You are a professional DAO governance expert who facilitates constructive debate by representing multiple stakeholder perspectives. Always provide consistent, structured responses in valid JSON format without markdown wrappers.'
+          },
+          {
+            role: 'user',
+            content: prompt
+          }
+        ],
+        temperature: 0.4,
+        max_tokens: 3000,
+        stream: false
+      })
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(`[DeepSeek] API error ${response.status}:`, errorText);
+      throw new Error(`DeepSeek API error: ${response.status}`);
+    }
+
+    const data = await response.json();
+    
+    if (!data.choices || data.choices.length === 0) {
+      throw new Error('No response from DeepSeek API');
+    }
+
+    const aiResponse = data.choices[0].message.content;
+
+    console.log(`[DeepSeek] Raw response: ${aiResponse.substring(0, 200)}...`);
+    const debateResult = parseDebateSimulationResponse(aiResponse);
+    
+    console.log(`[DeepSeek] Debate simulation completed successfully`);
+    res.json({
+      success: true,
+      personas: debateResult.personas,
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+    
+  } catch (error) {
+    console.error('[DeepSeek] Debate simulation error:', error);
+    res.status(500).json({
+      success: false,
+      error: 'Debate simulation failed',
+      details: error.message,
+      code: 'DEBATE_SIMULATION_FAILED',
+      metadata: {
+        provider: 'deepseek',
+        model: 'deepseek-chat',
+        timestamp: new Date().toISOString()
+      }
+    });
+  }
+});
+
 // Enhanced proposal draft generation with committee suggestion endpoint
 app.post('/api/proposals/draft-with-committee', async (req, res) => {
   try {
@@ -471,6 +564,88 @@ Here is the user's raw idea:
 Based on this idea, please generate the proposal. If some details are missing (like a specific wallet address), use a clear placeholder like "[INSERT WALLET ADDRESS HERE]" and mention in the rationale that this needs to be provided.
 
 Your response MUST be a single, valid JSON object and nothing else. Do not include any introductory text, explanations, or markdown formatting. The JSON object must have the following keys: "title", "summary", "rationale", "specifications".`;
+}
+
+function createDebateSimulationPrompt(title, content) {
+  return `You are facilitating a DAO governance debate simulation. Generate 4 distinct AI personas who will critically evaluate this proposal from different perspectives.
+
+Proposal Title: ${title}
+Proposal Content: ${content}
+
+Generate exactly 4 personas with these specific roles:
+1. **Financial Steward** - Focus on budget, ROI, financial sustainability
+2. **Mission Guardian** - Focus on strategic alignment with DAO mission and values
+3. **Technical Realist** - Focus on implementation feasibility and technical challenges
+4. **Community Advocate** - Focus on transparency, community impact, and member interests
+
+For each persona, provide:
+- name: A professional name for the persona
+- icon: One of these exact values: "DollarSign", "Target", "Code", "Users"
+- coreArgument: Their main perspective on the proposal (2-3 sentences)
+- objections: Array of 2-3 specific concerns or risks they identify
+- actionableSuggestion: One concrete, specific improvement they recommend
+
+Return the result in JSON format without any markdown wrappers:
+{
+  "personas": [
+    {
+      "name": "Persona Name",
+      "icon": "IconName",
+      "coreArgument": "Main argument text",
+      "objections": ["First objection", "Second objection"],
+      "actionableSuggestion": "Specific suggestion text"
+    }
+  ]
+}`;
+}
+
+function parseDebateSimulationResponse(content) {
+  // Extract JSON from markdown if wrapped
+  let cleanContent = content.trim();
+  
+  // Remove markdown code blocks
+  if (cleanContent.startsWith('```json')) {
+    cleanContent = cleanContent.replace(/^```json\s*/, '').replace(/\s*```$/, '');
+  } else if (cleanContent.startsWith('```')) {
+    cleanContent = cleanContent.replace(/^```\s*/, '').replace(/\s*```$/, '');
+  }
+  
+  // Find JSON boundaries
+  const jsonStart = cleanContent.indexOf('{');
+  const jsonEnd = cleanContent.lastIndexOf('}');
+  
+  if (jsonStart !== -1 && jsonEnd !== -1 && jsonEnd > jsonStart) {
+    cleanContent = cleanContent.substring(jsonStart, jsonEnd + 1);
+  }
+  
+  try {
+    const result = JSON.parse(cleanContent);
+    
+    // Validate and normalize the response
+    const personas = (result.personas || []).map(persona => ({
+      name: persona.name || 'Anonymous Reviewer',
+      icon: persona.icon || 'Users',
+      core_argument: persona.coreArgument || 'No argument provided',
+      objections: Array.isArray(persona.objections) ? persona.objections : ['No objections provided'],
+      actionable_suggestion: persona.actionableSuggestion || 'No suggestion provided'
+    }));
+    
+    // Ensure we have exactly 4 personas
+    while (personas.length < 4) {
+      personas.push({
+        name: `Reviewer ${personas.length + 1}`,
+        icon: 'Users',
+        core_argument: 'Additional review needed',
+        objections: ['Insufficient analysis'],
+        actionable_suggestion: 'Provide more detailed proposal information'
+      });
+    }
+    
+    return { personas: personas.slice(0, 4) };
+  } catch (error) {
+    console.error('Failed to parse debate simulation response:', cleanContent);
+    throw new Error(`Failed to parse debate simulation response as JSON: ${error.message}`);
+  }
 }
 
 function createCommitteeSuggestionPrompt(idea, committees) {

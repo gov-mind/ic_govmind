@@ -67,11 +67,25 @@ type EnhancedProposalDraft = record {
     committee_suggestion: opt CommitteeSuggestion;
 };
 
+type DebatePersona = record {
+    name: text;
+    icon: text;
+    core_argument: text;
+    objections: vec text;
+    actionable_suggestion: text;
+};
+
+type DebateSimulationResult = record {
+    success: bool;
+    personas: vec DebatePersona;
+};
+
 service : {
     "analyze_proposal": (text) -> (variant { Ok: ProposalAnalysis; Err: text });
     "submit_proposal_and_analyze": (opt text, text, text) -> (variant { Ok: text; Err: text });
     "draft_proposal": (text) -> (variant { Ok: ProposalDraft; Err: text });
     "draft_proposal_with_committees": (text, principal) -> (variant { Ok: EnhancedProposalDraft; Err: text });
+    "run_debate_simulation": (text, text) -> (variant { Ok: DebateSimulationResult; Err: text });
     "get_proposal": (text) -> (opt Proposal) query;
     "get_all_proposals": () -> (vec Proposal) query;
     "transform_response": (TransformArgs) -> (HttpResponse) query;

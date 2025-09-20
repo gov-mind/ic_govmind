@@ -2,8 +2,9 @@ pub mod candid_file_generator;
 
 use candid::{CandidType, Deserialize, Principal};
 use ic_cdk::{query, update};
-use ic_cdk::api::{canister_self, debug_print, msg_caller};
+use ic_cdk::api::{canister_self, debug_print, msg_caller, time};
 use ic_cdk::management_canister::{HttpRequestResult, TransformArgs, http_request, HttpRequestArgs, HttpMethod, HttpHeader, TransformContext, TransformFunc};
+use ic_cdk_timers::set_timer;
 use serde::{Deserialize as SerdeDeserialize};
 use ic_stable_structures::{StableBTreeMap, StableCell, memory_manager::{MemoryManager, VirtualMemory, MemoryId}, DefaultMemoryImpl, storable::Storable};
 use std::cell::RefCell;
@@ -11,6 +12,7 @@ use std::borrow::Cow;
 use std::collections::HashMap;
 use std::collections::hash_map::DefaultHasher;
 use std::hash::{Hash, Hasher};
+use std::time::Duration;
 
 // Import Committee type from ic_govmind_types
 use ic_govmind_types::dao::{Committee};
@@ -190,6 +192,21 @@ pub enum ProposalStatus {
     Analyzing,
     Analyzed,
     Failed,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct DebatePersona {
+    pub name: String,
+    pub icon: String,
+    pub core_argument: String,
+    pub objections: Vec<String>,
+    pub actionable_suggestion: String,
+}
+
+#[derive(CandidType, Deserialize, Clone, Debug)]
+pub struct DebateSimulationResult {
+    pub success: bool,
+    pub personas: Vec<DebatePersona>,
 }
 
 // Stable memory management
@@ -374,13 +391,104 @@ async fn draft_proposal_with_committees(idea: String, dao_canister_id: Principal
     call_ai_enhanced_draft_api(&idea, &committees).await
 }
 
+#[update]
+async fn run_debate_simulation(title: String, content: String) -> Result<DebateSimulationResult, String> {
+    let result = call_debate_simulation_api(title, content).await;
+    match result {
+        Ok(response) => Ok(response),
+        Err(e) => Err(e),
+    }
+}
+
+// Call debate simulation API with retry logic
+async fn call_debate_simulation_api(title: String, content: String) -> Result<DebateSimulationResult, String> {
+    const MAX_RETRIES: u32 = 3;
+    
+    retry_with_backoff(
+        || call_debate_simulation_api_single_attempt(&title, &content),
+        MAX_RETRIES,
+    ).await
+}
+
+// Single attempt to call debate simulation API
+async fn call_debate_simulation_api_single_attempt(title: &str, content: &str) -> Result<DebateSimulationResult, String> {
+    let mut request_body = HashMap::new();
+    request_body.insert("title".to_string(), title.to_string());
+    request_body.insert("content".to_string(), content.to_string());
+    
+    let request_body_json = serde_json::to_string(&request_body)
+        .map_err(|e| format!("Failed to serialize request: {}", e))?;
+    
+    // Generate idempotent key from title and content hash
+    let idempotency_key = {
+        let mut hasher = DefaultHasher::new();
+        title.hash(&mut hasher);
+        content.hash(&mut hasher);
+        let hash = hasher.finish();
+        format!("govmind-debate-{:x}", hash)
+    };
+    
+    let request_headers = vec![
+        HttpHeader {
+            name: "Content-Type".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "Accept".to_string(),
+            value: "application/json".to_string(),
+        },
+        HttpHeader {
+            name: "idempotency-key".to_string(),
+            value: idempotency_key,
+        },
+    ];
+    
+    let request = HttpRequestArgs {
+        url: "https://ai-api.govmind.info/URL_AI_PROPOSAL_DEBATE_SIMULATION".to_string(),
+        method: HttpMethod::POST,
+        body: Some(request_body_json.into_bytes()),
+        max_response_bytes: Some(10_000),
+        transform: Some(TransformContext {
+            function: TransformFunc(candid::Func {
+                principal: canister_self(),
+                method: "transform_response".to_string(),
+            }),
+            context: vec![],
+        }),
+        headers: request_headers,
+    };
+    
+    match http_request(&request).await {
+        Ok(response) => {
+            let response_body = String::from_utf8(response.body)
+                .map_err(|e| format!("Invalid UTF-8 response: {}", e))?;
+
+            debug_print(&format!("AI API Response: {}", response_body));
+            
+            // Parse the direct JSON response from proxy server
+            let json_result: DebateSimulationResult = serde_json::from_str(&response_body)
+                .map_err(|e| format!("Failed to parse JSON response: {}", e))?;
+            
+            Ok(json_result)
+        }
+        Err(error) => {
+            Err(format!("HTTP request failed: {:?}", error))
+        }
+    }
+}
+
 // Enhanced AI API call with committee information
 async fn call_ai_enhanced_draft_api(idea: &str, committees: &[Committee]) -> Result<EnhancedProposalDraft, String> {
-    // Try enhanced API call first
-    match call_ai_enhanced_draft_api_single_attempt(idea, committees).await {
+    const MAX_RETRIES: u32 = 3;
+    
+    // Try enhanced API call with retry
+    match retry_with_backoff(
+        || call_ai_enhanced_draft_api_single_attempt(idea, committees),
+        MAX_RETRIES
+    ).await {
         Ok(enhanced_draft) => Ok(enhanced_draft),
         Err(_) => {
-            // Fallback to regular draft if enhanced API fails
+            // Fallback to regular draft if enhanced API fails after all retries
             let draft = call_ai_draft_api(idea).await?;
             Ok(EnhancedProposalDraft {
                 draft,
@@ -461,32 +569,11 @@ async fn call_ai_enhanced_draft_api_single_attempt(idea: &str, committees: &[Com
 // HTTP outcall to AI API through idempotent proxy
 async fn call_ai_api(title: &str, description: &str) -> Result<ProposalAnalysis, String> {
     const MAX_RETRIES: u32 = 3;
-    let mut last_error = String::new();
     
-    for attempt in 0..MAX_RETRIES {
-        match call_ai_api_single_attempt(title, description).await {
-            Ok(analysis) => return Ok(analysis),
-            Err(error) => {
-                last_error = error.clone();
-                
-                // Check if error is retryable (connection timeout or DNS failure)
-                let is_retryable = error.contains("TimedOut") || 
-                                 error.contains("dns error") || 
-                                 error.contains("failed to lookup address information") ||
-                                 error.contains("Connecting to") ||
-                                 error.contains("tcp connect error");
-                
-                if !is_retryable || attempt == MAX_RETRIES - 1 {
-                    break;
-                }
-                
-                // Log retry attempt (in a real implementation, you might want proper logging)
-                // For now, we'll just continue to the next attempt
-            }
-        }
-    }
-    
-    Err(format!("Failed after {} attempts: {}", MAX_RETRIES, last_error))
+    retry_with_backoff(
+        || call_ai_api_single_attempt(title, description),
+        MAX_RETRIES,
+    ).await
 }
 
 async fn call_ai_api_single_attempt(title: &str, description: &str) -> Result<ProposalAnalysis, String> {
@@ -550,29 +637,11 @@ async fn call_ai_api_single_attempt(title: &str, description: &str) -> Result<Pr
 // HTTP outcall to AI API for proposal drafting
 async fn call_ai_draft_api(idea: &str) -> Result<ProposalDraft, String> {
     const MAX_RETRIES: u32 = 3;
-    let mut last_error = String::new();
     
-    for attempt in 0..MAX_RETRIES {
-        match call_ai_draft_api_single_attempt(idea).await {
-            Ok(draft) => return Ok(draft),
-            Err(error) => {
-                last_error = error.clone();
-                
-                // Check if error is retryable (connection timeout or DNS failure)
-                let is_retryable = error.contains("TimedOut") || 
-                                 error.contains("dns error") || 
-                                 error.contains("failed to lookup address information") ||
-                                 error.contains("Connecting to") ||
-                                 error.contains("tcp connect error");
-                
-                if !is_retryable || attempt == MAX_RETRIES - 1 {
-                    break;
-                }
-            }
-        }
-    }
-    
-    Err(format!("Failed after {} attempts: {}", MAX_RETRIES, last_error))
+    retry_with_backoff(
+        || call_ai_draft_api_single_attempt(idea),
+        MAX_RETRIES,
+    ).await
 }
 
 async fn call_ai_draft_api_single_attempt(idea: &str) -> Result<ProposalDraft, String> {
@@ -655,6 +724,62 @@ fn generate_idempotency_key_for_idea(idea: &str) -> String {
     let hash = hasher.finish();
     format!("govmind-draft-{:x}", hash)
 }
+
+// Generic retry function with exponential backoff
+async fn retry_with_backoff<T, F, Fut>(
+    operation: F,
+    max_retries: u32,
+) -> Result<T, String>
+where
+    F: Fn() -> Fut,
+    Fut: std::future::Future<Output = Result<T, String>>,
+{
+    let mut last_error = String::new();
+    
+    for attempt in 0..max_retries {
+        match operation().await {
+            Ok(result) => return Ok(result),
+            Err(error) => {
+                last_error = error.clone();
+                
+                // Check if error is retryable (connection timeout or DNS failure)
+                let is_retryable = last_error.to_lowercase().contains("timedout") || 
+                                 last_error.to_lowercase().contains("dns error") || 
+                                 last_error.to_lowercase().contains("expired") || 
+                                 last_error.to_lowercase().contains("failed to lookup address information") ||
+                                 last_error.to_lowercase().contains("connecting to") ||
+                                 last_error.to_lowercase().contains("tcp connect error");
+                
+                if !is_retryable || attempt == max_retries - 1 {
+                    break;
+                }
+
+                // Calculate exponential backoff with jitter
+                let base_delay = 500; // Base delay in milliseconds
+                let max_delay = 5000; // Maximum delay cap in milliseconds
+                let exponential_delay = base_delay * (2_u64.pow(attempt));
+                let capped_delay = exponential_delay.min(max_delay);
+                
+                // Add random jitter (±25% of delay)
+                let jitter = (capped_delay as f64 * 0.5 * (time() as f64 % 1.0)) as u64;
+                let final_delay = capped_delay + jitter;
+
+                debug_print(&format!(
+                    "Retrying after error (attempt {}) with {}ms delay: {}", 
+                    attempt + 1, 
+                    final_delay,
+                    last_error
+                ));
+
+                // Convert delay to nanoseconds for timer
+                set_timer(Duration::from_millis(final_delay), || {});
+            }
+        }
+    }
+    
+    Err(format!("Failed after {} attempts: {}", max_retries, last_error))
+}
+
 
 // Transform function for HTTP outcalls
 #[query]

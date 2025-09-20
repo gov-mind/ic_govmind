@@ -113,27 +113,35 @@ export const generateDraft = async (idea) => {
   }
 }
 
-// Fetch active committees from backend
-export const getActiveCommittees = async (backendActor) => {
+// Run AI-powered debate simulation with multiple personas
+export const runDebateSimulation = async (title, content) => {
   try {
-    const result = await backendActor.get_active_committees();
-    
-    if (Array.isArray(result)) {
+    const result = await ic_govmind_proposal_analyzer.run_debate_simulation(title, content);
+  
+    if ('Ok' in result) {
       return {
         success: true,
-        data: result
+        data: {
+          personas: result.Ok.personas.map(persona => ({
+            name: persona.name,
+            icon: persona.icon,
+            coreArgument: persona.core_argument,
+            objections: persona.objections,
+            actionableSuggestion: persona.actionable_suggestion
+          }))
+        }
       };
     } else {
       return {
         success: false,
-        error: 'Invalid response format'
+        error: result.Err || 'Failed to run debate simulation'
       };
     }
   } catch (error) {
-    console.error('Error fetching active committees:', error);
+    console.error('Error running debate simulation:', error);
     return {
       success: false,
-      error: error.message || 'Failed to fetch active committees'
+      error: error.message || 'Failed to run debate simulation'
     };
   }
 };

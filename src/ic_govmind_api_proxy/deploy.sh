@@ -329,7 +329,7 @@ main() {
     echo ""
     echo "🔐 Don't forget to:"
     echo "   1. Edit /opt/ic_govmind_api_proxy/.env with your API keys (PM2 service)"
-    echo "   2. Edit /mnt/idempotent-server/.env for proxy server configuration"
+    echo "   2. Edit /mnt/idempotent-proxy/.env for proxy server configuration"
     echo "   3. Restart proxy server after env changes: systemctl restart idempotent-proxy-server"
     if [ ! -z "$DOMAIN_NAME" ]; then
         echo "   4. Update your frontend VITE_BACKEND_PROXY_URL=https://$DOMAIN_NAME"

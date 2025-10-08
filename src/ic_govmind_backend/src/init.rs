@@ -5,6 +5,7 @@ use std::{collections::HashMap, time::Duration};
 use crate::{
     signer::ecdsa::get_ecdsa_public_key_result,
     store::{self},
+    timer::restore_token_distribution_timer,
     types::{EcdsaKeyIds, KeyEnvironment, SchnorrKeyIds},
 };
 use ic_cdk::{init, post_upgrade, pre_upgrade};
@@ -83,7 +84,7 @@ fn pre_upgrade() {
 #[post_upgrade]
 fn post_upgrade(args: Option<CanisterArgs>) {
     store::state::load();
-    
+
     let mut should_setup_ecdsa = false;
 
     match args {
@@ -109,6 +110,9 @@ fn post_upgrade(args: Option<CanisterArgs>) {
                     ic_cdk::futures::spawn(job_ecdsa_setup())
                 });
             }
+
+            // restore token job
+            restore_token_distribution_timer();
         }
         Some(CanisterArgs::Init(_)) => {
             ic_cdk::trap(

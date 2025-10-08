@@ -1,6 +1,8 @@
+use crate::ic_log::INFO;
 use crate::store;
 use crate::{services::token_icrc1::TokenICRC1, store::TIMER_IDS, utils::icrc1_account_from_str};
 use candid::{Nat, Principal};
+use ic_canister_log::log;
 use ic_cdk::futures::spawn;
 use ic_cdk_timers::set_timer_interval;
 use ic_govmind_types::dao::{
@@ -26,6 +28,40 @@ pub fn setup_token_distribution_timer(model: DistributionModel, token_canister_i
     });
 
     TIMER_IDS.with(|timer_ids| timer_ids.borrow_mut().push(timer_id));
+}
+
+pub fn restore_token_distribution_timer() {
+    if let Some(dao) = store::state::get_dao_info() {
+        if let Some(model) = dao.base_token.distribution_model.clone() {
+            if let Some(token_canister_id) = dao.base_token.token_location.canister_id {
+                log!(
+                    INFO,
+                    "success calling store: restoring token distribution timer for base token [{}], canister_id = {:?}",
+                    dao.base_token.symbol,
+                    token_canister_id
+                );
+
+                ic_cdk_timers::set_timer(Duration::from_secs(2), move || {
+                    setup_token_distribution_timer(model, token_canister_id);
+                });
+            } else {
+                log!(
+                    INFO,
+                    "success calling store: base token has no canister_id, skipping distribution timer setup."
+                );
+            }
+        } else {
+            log!(
+                INFO,
+                "success calling store: base token has no distribution_model, skipping timer restoration."
+            );
+        }
+    } else {
+        log!(
+            INFO,
+            "success calling store: DAO not found, cannot restore distribution timer."
+        );
+    }
 }
 
 async fn distribute_tokens_shared(

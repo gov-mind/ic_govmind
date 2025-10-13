@@ -69,6 +69,20 @@
       "package": "ic_govmind_backend",
       "type": "custom",
       "wasm": "wasm/ic_govmind_backend.wasm.gz"
+    },
+    "ic_siwb_provider": {
+      "candid": "wasm/ic_siwb_provider/ic_siwb_provider.did",
+      "init_arg": "record { domain = \"app.govmind.info\"; uri = \"https://app.govmind.info\"; salt = \"govmind\"; network = opt \"testnet\"; scheme = opt \"https\"; statement = opt \"Login to the GovMind\"; sign_in_expires_in = opt 1500000000000; session_expires_in = opt 604800000000000; targets = null; }",
+      "package": "ic_siwb_provider",
+      "type": "custom",
+      "wasm": "wasm/ic_siwb_provider/ic_siwb_provider.wasm"
+    },
+    "ic_siwe_provider": {
+      "candid": "wasm/ic_siwe_provider/ic_siwe_provider.did",
+      "init_arg": "record { domain = \"app.govmind.info\"; uri = \"https://app.govmind.info\"; salt = \"mysecretsalt123\"; chain_id = opt 1; scheme = opt \"https\"; statement = opt \"Login to the GovMind\"; sign_in_expires_in = opt 1500000000000; session_expires_in = opt 604800000000000; targets = null; }",
+      "package": "ic_siwe_provider",
+      "type": "custom",
+      "wasm": "wasm/ic_siwe_provider/ic_siwe_provider.wasm.gz"
     }
   },
   "defaults": {

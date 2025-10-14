@@ -1,4 +1,6 @@
+use bitcoin::Network as BtcNetwork;
 use candid::{Encode, Nat, Principal};
+use ic_cdk::bitcoin_canister::Network as IcBitcoinNetwork;
 use ic_cdk::management_canister::{
     create_canister_with_extra_cycles, install_code, CanisterInstallMode, CanisterSettings,
     CreateCanisterArgs, EcdsaPublicKeyResult, InstallCodeArgs,
@@ -221,4 +223,12 @@ pub fn convert_subaccount(subaccount: Option<Subaccount>) -> Option<[u8; 32]> {
 
 pub fn nat_to_u128(nat: &Nat) -> Option<u128> {
     nat.0.clone().try_into().ok()
+}
+
+pub fn convert_network(net: IcBitcoinNetwork) -> BtcNetwork {
+    match net {
+        IcBitcoinNetwork::Mainnet => BtcNetwork::Bitcoin,
+        IcBitcoinNetwork::Testnet => BtcNetwork::Testnet,
+        IcBitcoinNetwork::Regtest => BtcNetwork::Regtest,
+    }
 }

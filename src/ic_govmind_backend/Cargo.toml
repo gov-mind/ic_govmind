@@ -33,6 +33,7 @@ hex = { workspace = true }
 derive_more = { workspace = true }
 tiny-keccak = { workspace = true }
 bitcoin_hashes = { workspace = true }
+bitcoin = { workspace = true }
 base58 = { workspace = true }
 bs58 = { workspace = true }
 ripemd = { workspace = true }

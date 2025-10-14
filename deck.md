@@ -218,8 +218,8 @@ Monetization extends beyond subscriptions into **AI governance automation, treas
   - Avatar: https://avatars.githubusercontent.com/u/289683
   - LinkedIn: https://www.linkedin.com/in/xiang-li-17017422/
 * **Terry Tu**: Over 10 years of backend development experience and 5 years in **Web3**, with a background in **Ethereum and Polkadot ecosystems**. Currently focused on **Internet Computer**, **Artificial Intelligence**, and **Bitcoin**, exploring innovative applications that merge intelligence with decentralization.
-  - Avatar: https://avatars.githubusercontent.com/u/00000001?size=80
-  - LinkedIn: https://www.linkedin.com/in/terry-tu/
+  - Avatar: https://lh3.googleusercontent.com/a/ACg8ocI2oHyBK0Tip23LmatyP8TpHcEMrOuSYA81Db87JzezYnayzUe0=s576-c-no
+  - LinkedIn: https://www.linkedin.com/in/terry-tu-12614914/
 * **Reed**: With a background in **banking and internet-based trading management**, Reed has over 3 years of experience building **Web3 art trading platforms**. Currently focused on **Internet Computer**, **Artificial Intelligence**, **Real World Assets (RWA)**, and **multi-chain integration**, exploring cutting-edge solutions at the intersection of decentralized technologies and real-world value.
   - Avatar: https://avatars.githubusercontent.com/u/00000002?size=80
   - LinkedIn: https://www.linkedin.com/in/reed/

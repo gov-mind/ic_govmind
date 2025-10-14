@@ -148,11 +148,23 @@ Enabling Intelligent, Scalable & Multi-Chain DAOs
 | Pricing Model | $50K – $200K annual license + 0.3% – 0.8% managed treasury fee |
 | --- | --- |
 | Target Clients | Top capital-intensive DAOs (> $10M treasury), DAO foundations, ecosystem councils |
-| Enterprise Features | - Private DAO deployment with audit-grade compliance<br> - Custom AI Agents for treasury, policy enforcement, and execution security<br> - Scheduled treasury allocation & automated execution workflows<br> - Governance risk simulation and impact forecasting<br> - Dedicated governance strategy support with SLA and advisory desk |
+| Enterprise Features | - Private DAO deployment with audit-grade compliance<br> - Custom AI Agents for treasury, policy enforcement, and execution security<br> - Scheduled treasury allocation & automated execution workflows<br> - Governance risk simulation and impact forecasting<br> - Dedicated governance strategy support with SLA and advisory desk<br> - Custom Development Services (Dev Shop Mode) |
 
-> **Example: 50 DAOs at $100K/year → $5M ARR + $5–8M/year in treasury management fees**
+> **Example: 50 DAOs at $100K/year → $5M ARR + $5–8M/year in treasury management fees + Custom Dev fees**
 
 ---
+
+### **API & Ecosystem**
+| Pricing | $99/month/DAO (early phase) → $299/month/DAO (standard rate) |
+| --- | --- |
+| Includes | - OpenGovMind API for custom DAO integrations<br> - GovMind Ecosystem Fund for DAO development & community growth<br> - DAO-as-a-Service (DAOaaS) model for enterprise DAO deployments |
+
+> **Target: 100+ DAOs → ~$1.2M ARR by Year 3**
+
+---
+
+Our Flywheel for Success:
+Scalable SaaS drives broad adoption and recurring revenue, while high-margin Enterprise services for top-tier DAOs fund deep innovation and solidify our market leadership.
 
 ## 10. Profit Model & Monetization Strategy
 
@@ -202,9 +214,15 @@ Monetization extends beyond subscriptions into **AI governance automation, treas
 
 ## 12. Team
 
-* **Xiang Li**: With over 15 years in full-stack development, specialize in building AI-powered applications. Skilled in RAG, reinforcement learning, fine-tuning, and agent design, merge deep technical expertise with practical innovation. Harness AI and the Internet Computer to shape the intelligent, decentralized Web3 of tomorrow.
-* **Terry Tu**: Over 10 years of backend development experience and 5 years in Web3, with a background in Ethereum and Polkadot ecosystems. Currently focused on Internet Computer, Artificial Intelligence, and Bitcoin, exploring innovative applications that merge intelligence with decentralization.
-* **Reed**: With a background in banking and internet-based trading management, Reed has over 3 years of experience building Web3 art trading platforms. Currently focused on Internet Computer, Artificial Intelligence, Real World Assets (RWA), and multi-chain integration, exploring cutting-edge solutions at the intersection of decentralized technologies and real-world value.
+* **Xiang Li**: With over **15 years** in **full-stack development**, specialize in building **AI-powered** applications. Skilled in **RAG**, **reinforcement learning**, **fine-tuning**, and **agent design**, merge deep technical expertise with practical innovation. Harness AI and the Internet Computer to shape the intelligent, decentralized Web3 of tomorrow.
+  - Avatar: https://avatars.githubusercontent.com/u/289683
+  - LinkedIn: https://www.linkedin.com/in/xiang-li-17017422/
+* **Terry Tu**: Over 10 years of backend development experience and 5 years in **Web3**, with a background in **Ethereum and Polkadot ecosystems**. Currently focused on **Internet Computer**, **Artificial Intelligence**, and **Bitcoin**, exploring innovative applications that merge intelligence with decentralization.
+  - Avatar: https://avatars.githubusercontent.com/u/00000001?size=80
+  - LinkedIn: https://www.linkedin.com/in/terry-tu/
+* **Reed**: With a background in **banking and internet-based trading management**, Reed has over 3 years of experience building **Web3 art trading platforms**. Currently focused on **Internet Computer**, **Artificial Intelligence**, **Real World Assets (RWA)**, and **multi-chain integration**, exploring cutting-edge solutions at the intersection of decentralized technologies and real-world value.
+  - Avatar: https://avatars.githubusercontent.com/u/00000002?size=80
+  - LinkedIn: https://www.linkedin.com/in/reed/
 ---
 
 ## 13. Financial Ask — Fueling AI Governance Infrastructure

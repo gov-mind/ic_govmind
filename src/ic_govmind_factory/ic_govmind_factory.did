@@ -20,16 +20,32 @@ type ChainType = variant {
   BNBChain;
   Bitcoin;
   Other : text;
+  EthLocal;
 };
 type Committee = record {
   id : nat16;
+  active : opt bool;
   members : vec principal;
+  responsibilities : opt text;
   elected_at : opt nat64;
   committee_type : CommitteeType;
   next_election_at : opt nat64;
   term_duration_secs : nat64;
 };
-type CommitteeType = variant { Technical; Democracy };
+type CommitteeType = variant {
+  Legal;
+  Technical;
+  Research;
+  Strategy;
+  Security;
+  Grants;
+  Dispute;
+  Operations;
+  Treasury;
+  Marketing;
+  Community;
+  Democracy;
+};
 type Dao = record {
   id : text;
   members : vec DaoMember;
@@ -64,6 +80,7 @@ type DaoMember = record {
 };
 type DistributionModel = record {
   initial_distribution : vec record { text; nat };
+  emission_period : opt nat64;
   last_emission_time : opt nat64;
   initial_executed_at : opt nat64;
   unlock_schedule : opt vec UnlockScheduleItem;
@@ -81,6 +98,7 @@ type Proposal = record {
   id : nat64;
   status : ProposalStatus;
   title : text;
+  committee_id : opt nat16;
   content : text;
   votes : vec Vote;
   metadata : opt vec record { text; text };

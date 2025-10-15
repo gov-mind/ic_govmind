@@ -1,5 +1,6 @@
 import React from 'react';
 import { Wallet, Clock, Calendar, Copy, Check } from 'lucide-react';
+import { formatPrincipalShort, formatMemberDisplayId } from '../../utils/formatters';
 
 const MembersTab = ({
   dao,
@@ -92,11 +93,6 @@ const MembersTab = ({
 
   // Copy principal helpers
   const [copiedId, setCopiedId] = React.useState(null);
-  const shortenPrincipal = (s, head = 6, tail = 6) => {
-    if (!s) return '';
-    const str = String(s);
-    return str.length > head + tail ? `${str.slice(0, head)}...${str.slice(-tail)}` : str;
-  };
   const handleCopy = async (text, id) => {
     try {
       await navigator.clipboard.writeText(String(text ?? ''));
@@ -117,23 +113,24 @@ const MembersTab = ({
       </div>
 
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
-        {daoMembers.map((member) => {
+        {daoMembers.map((member, idx) => {
           const unlockSchedule = getMemberUnlockSchedule(dao, member) || [];
           const totalLocked = getTotalLockedTokens(unlockSchedule);
           const availableTokens = getAvailableTokens(unlockSchedule);
           const pendingTokens = totalLocked - availableTokens;
           const roleLabel = getRoleLabel(member?.role);
           const principal = String(member?.icp_principal ?? '');
+          const cardKey = member?.user_id ?? idx;
           
           return (
-            <div key={member?.user_id ?? Math.random()} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
+            <div key={cardKey} className="bg-slate-50 rounded-xl p-4 mb-4 border border-slate-200">
               <div className="flex flex-col gap-3">
                 <div className="flex items-center justify-between">
                   <div>
-                    <h4 className="font-semibold text-slate-900 mb-1">{member?.user_id ?? 'Unknown Member'}</h4>
+                    <h4 className="font-semibold text-slate-900 mb-1">{formatMemberDisplayId(member, idx)}</h4>
                     <span className={`inline-block px-2 py-1 text-xs font-medium rounded-full border ${getRoleBadgeClass(roleLabel)}`}>{roleLabel}</span>
                     <div className="mt-1 flex items-center text-xs text-slate-500">
-                      <span className="font-mono">{shortenPrincipal(principal)}</span>
+                      <span className="font-mono">{formatPrincipalShort(principal)}</span>
                       <button
                         type="button"
                         onClick={() => handleCopy(principal, member?.user_id)}

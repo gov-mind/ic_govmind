@@ -16,6 +16,8 @@ import {
 import { Principal } from '@dfinity/principal';
 import { useAuthClient } from '../hooks/useAuthClient';
 import { createActor as createBackendActor } from 'declarations/ic_govmind_backend';
+import { toUnits } from '../utils/units';
+import { formatMemberDisplayId, formatPrincipalShort } from '../utils/formatters';
 
 function CreateDaoPage() {
     const navigate = useNavigate();
@@ -97,11 +99,8 @@ function CreateDaoPage() {
         }
     }
 
-    function randomPrincipal() {
-        const bytes = new Uint8Array(29);
-        window.crypto.getRandomValues(bytes);
-        return Principal.fromUint8Array(bytes).toText();
-    }
+    // Using shared formatter for member display ID and principal
+    
 
     const validateStep = (step) => {
         const newErrors = {};
@@ -116,7 +115,6 @@ function CreateDaoPage() {
                 break;
             case 2:
                 if (formData.members.length === 0) newErrors.members = 'At least one member is required';
-                if (!formData.members[0].userId.trim()) newErrors.founderId = 'Founder ID is required';
                 break;
             case 3:
                 if (formData.chains.length === 0) newErrors.chains = 'At least one chain is required';
@@ -260,6 +258,7 @@ function CreateDaoPage() {
             console.log('Starting DAO creation with factoryActor:', factoryActor);
             console.log('Form data:', formData);
 
+            const decimals = Number(formData?.baseToken?.decimals ?? 0);
             const unlockItems = 
               formData
                 .members
@@ -268,7 +267,7 @@ function CreateDaoPage() {
                     .map(s => ({
                         addr: m.icpPrincipal,
                         timestamp: BigInt(new Date(s.timestamp).getTime() * 1000000),
-                        amount: BigInt(s.amount),
+                        amount: toUnits(s.amount, decimals),
                         executed: false
                     }))
                 );
@@ -284,13 +283,13 @@ function CreateDaoPage() {
                     name: formData.baseToken.name,
                     symbol: formData.baseToken.symbol,
                     decimals: Number(formData.baseToken.decimals),
-                    total_supply: BigInt(formData.baseToken.totalSupply),
+                    total_supply: toUnits(formData.baseToken.totalSupply, decimals),
                     distribution_model: formData.members.some(m => m.distributionAmount || m.unlockSchedule.length > 0) ? [{
                         initial_distribution: formData.members
                             .filter(m => m.distributionAmount && m.icpPrincipal)
-                            .map(m => [m.icpPrincipal, BigInt(m.distributionAmount)]),
+                            .map(m => [m.icpPrincipal, toUnits(m.distributionAmount, decimals)]),
                         unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
-                        emission_rate: formData.baseToken.emissionRate ? [parseFloat(formData.baseToken.emissionRate)] : [],
+                        emission_rate: formData.baseToken.emissionRate ? [toUnits(formData.baseToken.emissionRate, decimals)] : [],
                         last_emission_time: [],
                         initial_executed_at: []
                     }] : [],
@@ -338,13 +337,13 @@ function CreateDaoPage() {
                         name: formData.baseToken.name,
                         symbol: formData.baseToken.symbol,
                         decimals: Number(formData.baseToken.decimals),
-                        total_supply: BigInt(formData.baseToken.totalSupply),
+                        total_supply: toUnits(formData.baseToken.totalSupply, decimals),
                         distribution_model: formData.members.some(m => m.distributionAmount || m.unlockSchedule.length > 0) ? [{
                             initial_distribution: formData.members
                                 .filter(m => m.distributionAmount && m.icpPrincipal)
-                                .map(m => [m.icpPrincipal, BigInt(m.distributionAmount)]),
+                                .map(m => [m.icpPrincipal, toUnits(m.distributionAmount, decimals)]),
                             unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
-                            emission_rate: formData.baseToken.emissionRate ? [parseFloat(formData.baseToken.emissionRate)] : [],
+                            emission_rate: formData.baseToken.emissionRate ? [toUnits(formData.baseToken.emissionRate, decimals)] : [],
                             last_emission_time: [], // Use null
                             initial_executed_at: [] // Use null
                         }] : []
@@ -434,7 +433,7 @@ function CreateDaoPage() {
             {/* Main Content */}
             <main className="max-w-4xl mx-auto px-4 sm:px-6 lg:px-8 py-8">
                 <div className="bg-white rounded-2xl shadow-sm border border-slate-200 p-8">
-                    <div className="mb-4 text-right text-xs text-slate-500">Your Principal: {principal}</div>
+                    <div className="mb-4 text-right text-xs text-slate-500">Your Principal: {formatPrincipalShort(principal, 6, 4)}</div>
                     {/* Step 1: Basic Information */}
                     {currentStep === 1 && (
                         <div className="space-y-6">
@@ -585,6 +584,9 @@ function CreateDaoPage() {
                                     <div className="flex items-center justify-between mb-4">
                                         <h3 className="text-lg font-semibold text-slate-900">
                                             {index === 0 ? 'Founder' : `Member ${index + 1}`}
+                                            <span className="ml-2 text-xs text-slate-600 bg-slate-100 px-2 py-0.5 rounded">
+                                                ID: {formatMemberDisplayId(member, index)}
+                                            </span>
                                         </h3>
                                         {index > 0 && (
                                             <button
@@ -599,22 +601,6 @@ function CreateDaoPage() {
                                     <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                User ID *
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={member.userId}
-                                                onChange={(e) => updateMember(index, 'userId', e.target.value)}
-                                                className={`w-full px-4 py-2.5 h-12 border rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500 ${index === 0 && errors.founderId ? 'border-red-300' : 'border-slate-300'
-                                                    }`}
-                                                placeholder="Enter user ID"
-                                            />
-                                            {index === 0 && errors.founderId && (
-                                                <p className="mt-1 text-sm text-red-600">{errors.founderId}</p>
-                                            )}
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">
                                                 ICP Principal
                                             </label>
                                             <div className="grid grid-cols-[1fr_auto]">
@@ -625,46 +611,13 @@ function CreateDaoPage() {
                                                     className="w-full px-4 py-2.5 h-12 border border-slate-300 rounded-l-lg rounded-r-none focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                                     placeholder="Principal..."
                                                 />
-                                                <button
-                                                    type="button"
-                                                    className="h-12 w-12 border border-slate-300 border-l-0 rounded-r-lg rounded-l-none bg-white hover:bg-slate-100 flex items-center justify-center"
-                                                    onClick={() => updateMember(index, 'icpPrincipal', randomPrincipal())}
-                                                    title="Generate random principal"
-                                                    tabIndex={-1}
-                                                    style={{ fontSize: '1rem' }}
-                                                >
-                                                    <Shuffle className="w-5 h-5 text-slate-500" />
-                                                </button>
+                                                
                                             </div>
 
                                         </div>
                                         {member.icpPrincipal && member.icpPrincipal.length > 0 && !isValidPrincipal(member.icpPrincipal) && (
                                             <p className="mt-1 text-sm text-red-600">Invalid ICP Principal</p>
                                         )}
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Ethereum Address
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={member.ethAddress}
-                                                onChange={(e) => updateMember(index, 'ethAddress', e.target.value)}
-                                                className="w-full px-4 py-2.5 h-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                placeholder="0x..."
-                                            />
-                                        </div>
-                                        <div>
-                                            <label className="block text-sm font-medium text-slate-700 mb-2">
-                                                Solana Address
-                                            </label>
-                                            <input
-                                                type="text"
-                                                value={member.solAddress}
-                                                onChange={(e) => updateMember(index, 'solAddress', e.target.value)}
-                                                className="w-full px-4 py-2.5 h-12 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
-                                                placeholder="Solana..."
-                                            />
-                                        </div>
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                                 Role

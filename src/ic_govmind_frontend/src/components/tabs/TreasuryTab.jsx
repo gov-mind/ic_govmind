@@ -22,6 +22,8 @@ import {
   ArcElement,
 } from "chart.js";
 import { Line, Pie } from "react-chartjs-2";
+import { shortenId } from "../../utils/formatters";
+import { toUnits } from "../../utils/units";
 import { useAuthClient } from "../../hooks/useAuthClient";
 import { createActor as createBackendActor } from "declarations/ic_govmind_backend";
 import { useTokenPrices } from "../../hooks/useTokenPrices";
@@ -551,24 +553,6 @@ export default function TreasuryTab({
     }
   };
 
-  // Convert a decimal string to base units (BigInt) with the given decimals
-  const toUnits = (value, decimals) => {
-    const s = String(value).trim();
-    if (!s) throw new Error("Amount is required");
-    const parts = s.split(".");
-    if (parts.length > 2) throw new Error("Invalid amount");
-    const whole = parts[0] === "" ? "0" : parts[0];
-    const frac = (parts[1] || "").replace(/[^0-9]/g, "");
-    if (!/^\d+$/.test(whole) || !/^\d*$/.test(frac))
-      throw new Error("Invalid amount");
-    if (frac.length > decimals)
-      throw new Error(`Too many decimal places (max ${decimals})`);
-    const base = BigInt(10) ** BigInt(decimals);
-    const wholeBI = BigInt(whole || "0");
-    const fracBI = BigInt((frac || "").padEnd(decimals, "0") || "0");
-    return wholeBI * base + fracBI;
-  };
-
   const submitTransfer = async () => {
     if (!selectedAsset) return;
     try {
@@ -954,12 +938,9 @@ export default function TreasuryTab({
                       </td>
                       <td className="py-2 font-mono">
                         {tx.hash
-                          ? `${tx.hash.slice(0, 8)}...${tx.hash.slice(-8)}`
+                          ? shortenId(tx.hash, 8, 8)
                           : tx.other_party
-                          ? `${tx.other_party.slice(
-                              0,
-                              8
-                            )}...${tx.other_party.slice(-8)}`
+                          ? shortenId(tx.other_party, 8, 8)
                           : "-"}
                       </td>
                     </tr>

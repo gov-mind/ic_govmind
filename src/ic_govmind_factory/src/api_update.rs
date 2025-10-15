@@ -17,6 +17,18 @@ async fn create_gov_dao_core(mut dao: Dao) -> Result<Principal, String> {
 
     let env = store::state::get_default_env();
 
+    // Ensure member IDs are present; auto-generate from principal or index
+    for (i, m) in dao.members.iter_mut().enumerate() {
+        let needs_id = m.user_id.trim().is_empty();
+        if needs_id {
+            if let Some(p) = m.icp_principal {
+                m.user_id = p.to_text();
+            } else {
+                m.user_id = format!("member-{}", i + 1);
+            }
+        }
+    }
+
     let init_args = CanisterArgs::Init(StateInitArgs {
         env,
         root: caller,

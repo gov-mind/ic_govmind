@@ -60,6 +60,7 @@ pub struct TokenLocation {
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct DistributionModel {
     pub initial_distribution: HashMap<String, u128>, // Initial allocation: address → token amount
+    pub emission_period: Option<u64>,                // emission period in SECONDS
     pub emission_rate: Option<u128>, // Optional: number of tokens emitted per period (e.g., per day/week)
     pub unlock_schedule: Option<Vec<UnlockScheduleItem>>, // Optional: unlock schedule as a list of (timestamp, amount) pairs
     pub initial_executed_at: Option<u64>,
@@ -283,7 +284,7 @@ pub struct Committee {
     pub elected_at: Option<u64>,       // Timestamp of last election
     pub next_election_at: Option<u64>, // Timestamp of next scheduled election
     // New fields
-    pub active: Option<bool>,                  // enable/disable committee
+    pub active: Option<bool>, // enable/disable committee
     pub responsibilities: Option<String>,
 }
 

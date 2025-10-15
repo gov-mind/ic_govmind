@@ -123,6 +123,7 @@ type DaoMember = record {
 };
 type DistributionModel = record {
   initial_distribution : vec record { text; nat };
+  emission_period : opt nat64;
   last_emission_time : opt nat64;
   initial_executed_at : opt nat64;
   unlock_schedule : opt vec UnlockScheduleItem;

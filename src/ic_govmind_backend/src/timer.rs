@@ -90,8 +90,11 @@ async fn distribute_tokens_shared(
 
     // ---- Emission ----
     if let Some(rate) = m.emission_rate {
+        let period_sec = m.emission_period.unwrap_or(60); // default 60s
+        let period_ns = period_sec * 1_000_000_000;
+
         let should_emit = match m.last_emission_time {
-            Some(last) => now.saturating_sub(last) >= 60,
+            Some(last) => now.saturating_sub(last) >= period_ns,
             None => true,
         };
         if should_emit {

@@ -45,6 +45,7 @@ dfx canister call ic_govmind_factory create_gov_dao '(
           };
         };
         emission_rate = opt 1000000;
+        emission_period = opt 600;
         last_emission_time = null;
         initial_executed_at = null;
       };

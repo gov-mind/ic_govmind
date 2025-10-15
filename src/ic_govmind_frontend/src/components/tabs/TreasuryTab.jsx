@@ -24,6 +24,7 @@ import {
 import { Line, Pie } from "react-chartjs-2";
 import { useAuthClient } from "../../hooks/useAuthClient";
 import { createActor as createBackendActor } from "declarations/ic_govmind_backend";
+import { useTokenPrices } from "../../hooks/useTokenPrices";
 
 ChartJS.register(
   CategoryScale,
@@ -37,7 +38,18 @@ ChartJS.register(
   ArcElement
 );
 
-function TreasuryPerformanceChart({ data }) {
+// Small reusable badge to indicate mock data
+function MockBadge({ className = "", label = "Mock Data" }) {
+  return (
+    <span
+      className={`inline-flex items-center px-2 py-1 rounded-md text-xs font-medium bg-amber-100 text-amber-700 border border-amber-200 shadow-sm ${className}`}
+    >
+      {label}
+    </span>
+  );
+}
+
+function TreasuryPerformanceChart({ data, showMock = false }) {
   const chartData = {
     labels: (data?.performanceHistory || []).map((item) => {
       const date = new Date(item.date);
@@ -102,13 +114,14 @@ function TreasuryPerformanceChart({ data }) {
   };
 
   return (
-    <div style={{ width: "100%", height: "250px" }}>
+    <div className="relative" style={{ width: "100%", height: "250px" }}>
+      {showMock && <MockBadge className="absolute top-2 right-2" />}
       <Line data={chartData} options={options} />
     </div>
   );
 }
 
-function TreasuryAllocationChart({ data }) {
+function TreasuryAllocationChart({ data, showMock = false }) {
   const assets = data?.assets || [];
   const chartData = {
     labels: assets.map((asset) => asset.chain),
@@ -147,7 +160,8 @@ function TreasuryAllocationChart({ data }) {
   };
 
   return (
-    <div style={{ width: "100%", height: "200px" }}>
+    <div className="relative" style={{ width: "100%", height: "200px" }}>
+      {showMock && <MockBadge className="absolute top-2 right-2" />}
       <Pie data={chartData} options={options} />
     </div>
   );
@@ -207,8 +221,9 @@ function AITreasuryAnalysis({ data }) {
 
   return (
     <div
-      className={`${healthColors.bg} ${healthColors.border} border rounded-xl overflow-hidden`}
+      className={`${healthColors.bg} ${healthColors.border} border rounded-xl overflow-hidden relative`}
     >
+      <MockBadge className="absolute top-2 right-2" />
       <div className="bg-white/60 backdrop-blur-sm px-6 py-4 border-b border-slate-200/50">
         <div className="flex items-center justify-between">
           <div className="flex items-center space-x-3">
@@ -352,6 +367,7 @@ export default function TreasuryTab({
     transactions && transactions.length
       ? transactions
       : data.transactions || [];
+  const showMockTag = true;
 
   // Previous-layout metrics (if provided)
   const tvl = data?.tvl;
@@ -433,6 +449,36 @@ export default function TreasuryTab({
 
   const isBalancesLoading = !!(daoTreasuryBalancesLoading || addressesLoading);
   const hasBalancesError = !!(balancesError || addressesError);
+
+  // Frontend USD prices for common tokens and DAO base token
+  const { data: prices = {} } = useTokenPrices(["ICP", "BTC", "ETH", "USDT"]);
+  const daoSymbol = dao?.base_token?.symbol || "DAO";
+
+  // Build assets table items from live balances and prices
+  const itemsForTable = liveBalanceItems.map((item) => {
+    const symbolPrice =
+      item.symbol === daoSymbol
+        ? typeof tokenPrice === "number" ? tokenPrice : null
+        : prices[item.symbol];
+    const usdValue =
+      typeof symbolPrice === "number"
+        ? Number(item.amount) * symbolPrice
+        : null;
+    return { ...item, usdValue };
+  });
+
+  const totalUsd = itemsForTable.reduce(
+    (acc, it) => acc + (typeof it.usdValue === "number" ? it.usdValue : 0),
+    0
+  );
+
+  const itemsWithAllocation = itemsForTable.map((it) => ({
+    ...it,
+    percentage:
+      typeof it.usdValue === "number" && totalUsd > 0
+        ? (it.usdValue / totalUsd) * 100
+        : 0,
+  }));
 
   // Address display fallbacks
   const icpOwnerText = (() => {
@@ -605,7 +651,8 @@ export default function TreasuryTab({
     <div className="space-y-6">
       {/* Summary Cards */}
       <div className="grid grid-cols-1 md:grid-cols-4 gap-4">
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 relative">
+          <MockBadge className="absolute top-2 right-2" />
           {tvl !== undefined ? (
             <>
               <div className="text-slate-500 text-sm">TVL</div>
@@ -635,7 +682,8 @@ export default function TreasuryTab({
             </>
           )}
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 relative">
+          <MockBadge className="absolute top-2 right-2" />
           {inflow24h !== undefined ? (
             <>
               <div className="text-slate-500 text-sm">24h Inflow</div>
@@ -655,7 +703,8 @@ export default function TreasuryTab({
             </>
           )}
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 relative">
+          <MockBadge className="absolute top-2 right-2" />
           {outflow24h !== undefined ? (
             <>
               <div className="text-slate-500 text-sm">24h Outflow</div>
@@ -675,7 +724,8 @@ export default function TreasuryTab({
             </>
           )}
         </div>
-        <div className="bg-white border border-slate-200 rounded-xl p-6">
+        <div className="bg-white border border-slate-200 rounded-xl p-6 relative">
+          <MockBadge className="absolute top-2 right-2" />
           {tokenPrice !== undefined ? (
             <>
               <div className="text-slate-500 text-sm">Token Price</div>
@@ -781,7 +831,7 @@ export default function TreasuryTab({
               <span>Treasury Balance Over Time</span>
             </h3>
           </div>
-          <TreasuryPerformanceChart data={data} />
+          <TreasuryPerformanceChart data={data} showMock={showMockTag} />
         </div>
 
         {/* Column 3: Allocation */}
@@ -789,7 +839,7 @@ export default function TreasuryTab({
           <h3 className="text-lg font-semibold text-slate-900 mb-4">
             Asset Allocation
           </h3>
-          <TreasuryAllocationChart data={data} />
+          <TreasuryAllocationChart data={data} showMock={showMockTag} />
           <div className="mt-4 space-y-2">
             {assets.map((asset, idx) => (
               <div
@@ -814,7 +864,7 @@ export default function TreasuryTab({
 
       {/* Assets Table */}
       <div className="bg-white border border-slate-200 rounded-xl">
-        <div className="p-6 border-b border-slate-200">
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
           <h3 className="text-lg font-semibold text-slate-900">Assets</h3>
         </div>
         <div className="p-6 overflow-x-auto">
@@ -829,19 +879,19 @@ export default function TreasuryTab({
               </tr>
             </thead>
             <tbody className="divide-y divide-slate-200">
-              {assets.map((a, idx) => (
-                <tr key={idx} className="text-sm text-slate-700">
+              {itemsWithAllocation.map((a) => (
+                <tr key={`${a.chain}-${a.symbol}`} className="text-sm text-slate-700">
                   <td className="py-2">{a.chain}</td>
                   <td className="py-2">{a.symbol}</td>
-                  <td className="py-2">{(a.amount ?? 0).toLocaleString()}</td>
+                  <td className="py-2">{Number(a.amount || 0).toLocaleString()}</td>
                   <td className="py-2">
-                    ${(a.usdValue ?? 0).toLocaleString()}
+                    {typeof a.usdValue === "number" ? `$${a.usdValue.toLocaleString()}` : "—"}
                   </td>
                   <td className="py-2">
                     <div className="w-32 bg-slate-100 h-2 rounded-full overflow-hidden">
                       <div
                         className="h-full bg-blue-500"
-                        style={{ width: `${a.percentage || 0}%` }}
+                        style={{ width: `${Math.min(100, Math.max(0, a.percentage || 0))}%` }}
                       />
                     </div>
                   </td>
@@ -854,10 +904,9 @@ export default function TreasuryTab({
 
       {/* Recent Transactions */}
       <div className="bg-white border border-slate-200 rounded-xl">
-        <div className="p-6 border-b border-slate-200">
-          <h3 className="text-lg font-semibold text-slate-900">
-            Recent Activity
-          </h3>
+        <div className="p-6 border-b border-slate-200 flex items-center justify-between">
+          <h3 className="text-lg font-semibold text-slate-900">Recent Activity</h3>
+          <MockBadge />
         </div>
         <div className="p-6">
           {transactionsLoading ? (

@@ -161,14 +161,14 @@ export default function ProposalCopilotPage() {
         committeeId: selectedCommitteeId,
       });
 
-      const analyzerProposalId = `${dao.id}-${proposalId}`; // composite id used by analyzer
+      // const analyzerProposalId = `${dao.id}-${proposalId}`; // composite id used by analyzer
 
-      // 2) Submit to analyzer (combined submit + analyze) using hook
-      await submitProposalMutation.mutateAsync({
-        proposalId: analyzerProposalId,
-        title: proposalTitle.trim(),
-        description: proposalContent.trim()
-      });
+      // // 2) Submit to analyzer (combined submit + analyze) using hook
+      // await submitProposalMutation.mutateAsync({
+      //   proposalId: analyzerProposalId,
+      //   title: proposalTitle.trim(),
+      //   description: proposalContent.trim()
+      // });
 
       // 3) Redirect to DAO page with proposals tab active
       navigate(`/dao/${daoId}?tab=proposals`);
@@ -586,10 +586,10 @@ export default function ProposalCopilotPage() {
                         {isSubmitting ? (
                           <div className="flex items-center justify-center space-x-2">
                             <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                            <span>Creating & Analyzing...</span>
+                            <span>Creating ...</span>
                           </div>
                         ) : (
-                          'Create & Analyze Proposal'
+                          'Create Proposal'
                         )}
                       </button>
                     </div>

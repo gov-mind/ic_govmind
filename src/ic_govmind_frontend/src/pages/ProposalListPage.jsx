@@ -63,9 +63,11 @@ function ProposalListPage() {
   const proposalAnalysisMutation = useProposalAnalysis();
 
   // Determine if we should show loading state
+  // Use mutation pending states and do not gate on analyzedProposalLoading
+  // so that the full-page spinner appears immediately after clicking.
   const isAnalyzing = submitProposalMutation.isPending || submitProposalMutation.isLoading || 
                      proposalAnalysisMutation.isPending || proposalAnalysisMutation.isLoading ||
-                     (analyzedProposalId && !analyzedProposal && !analyzedProposalLoading) ||
+                     (analyzedProposalId !== null && !analyzedProposal) ||
                      (existingProposalLoading && !existingProposal);
 
   // Utility function to format numbered text into bullet points

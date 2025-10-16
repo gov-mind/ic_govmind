@@ -1,6 +1,7 @@
 import { Link, useNavigate } from 'react-router-dom';
 import { useAuthClient } from '../hooks/useAuthClient';
 import { LogOut } from 'lucide-react';
+import { formatPrincipalShort } from '../utils/formatters';
 
 export default function AppHeader() {
   const { isAuthenticated, principal, logout } = useAuthClient();
@@ -13,7 +14,7 @@ export default function AppHeader() {
 
   // Simple blockie: colored circle with principal short
   const color = `hsl(${parseInt(principal?.slice(2, 6) || '0', 36) % 360},70%,60%)`;
-  const short = principal ? principal.slice(0, 4) + '...' + principal.slice(-4) : '';
+  const short = formatPrincipalShort(principal, 4, 4);
 
   return (
     <header className="bg-white border-b border-slate-200 shadow-sm sticky top-0 z-50">
@@ -57,4 +58,4 @@ export default function AppHeader() {
       </div>
     </header>
   );
-} 
+}

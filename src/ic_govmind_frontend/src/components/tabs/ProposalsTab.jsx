@@ -44,32 +44,6 @@ export default function ProposalsTab({
       
       console.log('Proposal created with ID:', proposalId);
 
-      // Call submit_proposal_and_analyze in the proposal analyzer with automatic AI analysis
-      const analyzerProposalId = `${dao.id}-${proposalId}`;
-      
-      let analyzerResult;
-      try {
-        // Use the new combined submit and analyze function
-        const { submitProposalAndAnalyze } = await import('../../services/aiService');
-        
-        const result = await submitProposalAndAnalyze(
-          proposalTitle.trim(),
-          proposalContent.trim(),
-          analyzerProposalId
-        );
-        
-        if (result.success) {
-          analyzerResult = result.proposalId;
-        } else {
-          throw new Error(result.error);
-        }
-      } catch (analyzerError) {
-        console.error('Analysis submission failed:', analyzerError.message);
-        throw analyzerError; // Re-throw the error since we no longer have a fallback
-      }
-
-      console.log('Proposal submitted to analyzer:', analyzerResult);
-
       // Clear form and close modal
       setProposalTitle('');
       setProposalContent('');

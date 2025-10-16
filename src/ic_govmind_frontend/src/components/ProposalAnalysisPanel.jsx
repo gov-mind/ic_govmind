@@ -45,9 +45,10 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
   const proposalAnalysisMutation = useProposalAnalysis();
 
   // Determine if we should show loading state
-  const isAnalyzing = submitProposalMutation.isLoading || 
-                     proposalAnalysisMutation.isLoading ||
-                     (analyzedProposalId && !analyzedProposal && !analyzedProposalLoading) ||
+  // Use mutation pending states to ensure spinner appears immediately after clicking
+  const isAnalyzing = submitProposalMutation.isPending || submitProposalMutation.isLoading ||
+                     proposalAnalysisMutation.isPending || proposalAnalysisMutation.isLoading ||
+                     (analyzedProposalId !== null && !analyzedProposal) ||
                      (existingProposalLoading && !existingProposal);
 
   // Utility function to format numbered text into bullet points
@@ -360,18 +361,18 @@ function ProposalAnalysisPanel({ proposals = [], canisterName = 'DAO', selectedP
                           disabled={submitProposalMutation.isLoading}
                           className="bg-gradient-to-r from-blue-600 to-cyan-600 text-white px-6 py-3 rounded-xl hover:from-blue-700 hover:to-cyan-700 disabled:from-gray-400 disabled:to-gray-500 disabled:cursor-not-allowed transition-all duration-200 font-medium shadow-sm flex items-center space-x-2 mx-auto cursor-pointer"
                         >
-                          {submitProposalMutation.isLoading ? (
-                            <>
-                              <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
-                              <span>Analyzing...</span>
-                            </>
-                          ) : (
-                            <>
-                              <Play className="w-4 h-4" />
-                              <span>Analyze Proposal</span>
-                            </>
-                          )}
-                        </button>
+                        {(submitProposalMutation.isPending || submitProposalMutation.isLoading) ? (
+                          <>
+                            <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin"></div>
+                            <span>Analyzing...</span>
+                          </>
+                        ) : (
+                          <>
+                            <Play className="w-4 h-4" />
+                            <span>Analyze Proposal</span>
+                          </>
+                        )}
+                      </button>
                       </div>
                     </div>
                   </div>

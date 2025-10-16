@@ -34,7 +34,9 @@ import DistributionTab from '../components/tabs/DistributionTab';
 import TreasuryTab from '../components/tabs/TreasuryTab';
 import GovernanceTab from '../components/tabs/GovernanceTab';
 import CommitteesTab from '../components/tabs/CommitteesTab';
+import { formatPrincipalShort } from '../utils/formatters';
 import CanisterTab from '../components/tabs/CanisterTab';
+import { fromUnits } from '../utils/units';
 
 function formatDate(bigintOrNumber) {
   let ms;
@@ -212,16 +214,11 @@ function DaoInfoPage() {
   const { data: daoWalletAddresses, isLoading: addressesLoading, error: addressesError } = useDaoWalletAddresses(dao);
 
 
-  // Helper to scale nat balances to decimal numbers for display
+  // Use shared fromUnits to scale base units to decimal numbers for display
   const scaleByDecimals = (balanceNat, decimals) => {
     try {
-      if (balanceNat === null || balanceNat === undefined) return 0;
-      const bn = typeof balanceNat === 'bigint' ? balanceNat : BigInt(balanceNat);
-      const denom = 10n ** BigInt(decimals);
-      const integer = bn / denom;
-      const fraction = bn % denom;
-      const fracStr = fraction.toString().padStart(Number(decimals), '0').slice(0, 6);
-      return Number(`${integer}.${fracStr}`);
+      const str = fromUnits(balanceNat, decimals, 6);
+      return Number(str);
     } catch (e) {
       return 0;
     }

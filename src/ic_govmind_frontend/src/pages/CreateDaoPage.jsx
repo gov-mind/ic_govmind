@@ -35,7 +35,8 @@ function CreateDaoPage() {
                 totalSupply: '',
                 canisterId: '',
                 contractAddress: '',
-                emissionRate: ''
+                emissionRate: '',
+                emissionPeriodSecs: ''
             },
         chains: ['InternetComputer'],
         governance: {
@@ -290,6 +291,7 @@ function CreateDaoPage() {
                             .map(m => [m.icpPrincipal, toUnits(m.distributionAmount, decimals)]),
                         unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
                         emission_rate: formData.baseToken.emissionRate ? [toUnits(formData.baseToken.emissionRate, decimals)] : [],
+                        emission_period: formData.baseToken.emissionPeriodSecs ? [BigInt(formData.baseToken.emissionPeriodSecs)] : [],
                         last_emission_time: [],
                         initial_executed_at: []
                     }] : [],
@@ -344,6 +346,7 @@ function CreateDaoPage() {
                                 .map(m => [m.icpPrincipal, toUnits(m.distributionAmount, decimals)]),
                             unlock_schedule: unlockItems.length > 0 ? [unlockItems] : [],
                             emission_rate: formData.baseToken.emissionRate ? [toUnits(formData.baseToken.emissionRate, decimals)] : [],
+                            emission_period: formData.baseToken.emissionPeriodSecs ? [BigInt(formData.baseToken.emissionPeriodSecs)] : [],
                             last_emission_time: [], // Use null
                             initial_executed_at: [] // Use null
                         }] : []
@@ -491,7 +494,7 @@ function CreateDaoPage() {
                                     Native Token Configuration
                                 </h3>
 
-                                <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
+                                <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Token Name *
@@ -537,7 +540,7 @@ function CreateDaoPage() {
                                     </div>
                                 </div>
 
-                                <div className="mt-4 grid grid-cols-1 md:grid-cols-2 gap-4">
+                                <div className="mt-4 grid grid-cols-1 md:grid-cols-3 gap-6">
                                     <div>
                                         <label className="block text-sm font-medium text-slate-700 mb-2">
                                             Total Supply *
@@ -564,6 +567,20 @@ function CreateDaoPage() {
                                             step="1"
                                             className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
                                             placeholder="e.g., 10000"
+                                        />
+                                    </div>
+                                    <div>
+                                        <label className="block text-sm font-medium text-slate-700 mb-2">
+                                            Emission Period (seconds)
+                                        </label>
+                                        <input
+                                            type="number"
+                                            value={formData.baseToken.emissionPeriodSecs || ''}
+                                            onChange={(e) => handleBaseTokenChange('emissionPeriodSecs', e.target.value)}
+                                            min="60"
+                                            step="60"
+                                            className="w-full px-4 py-3 border border-slate-300 rounded-lg focus:ring-2 focus:ring-blue-500 focus:border-blue-500"
+                                            placeholder="e.g., 60"
                                         />
                                     </div>
                                 </div>
@@ -598,8 +615,8 @@ function CreateDaoPage() {
                                         )}
                                     </div>
 
-                                    <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
-                                        <div>
+                                    <div className="grid grid-cols-1 md:grid-cols-3 gap-6">
+                                        <div className="md:col-span-3">
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
                                                 ICP Principal
                                             </label>
@@ -616,7 +633,7 @@ function CreateDaoPage() {
 
                                         </div>
                                         {member.icpPrincipal && member.icpPrincipal.length > 0 && !isValidPrincipal(member.icpPrincipal) && (
-                                            <p className="mt-1 text-sm text-red-600">Invalid ICP Principal</p>
+                                            <p className="mt-1 text-sm text-red-600 md:col-span-3">Invalid ICP Principal</p>
                                         )}
                                         <div>
                                             <label className="block text-sm font-medium text-slate-700 mb-2">
@@ -888,6 +905,10 @@ function CreateDaoPage() {
                                             <p className="font-medium">{formData.baseToken.emissionRate || '-'}</p>
                                         </div>
                                         <div>
+                                            <p className="text-sm text-slate-600">Emission Period (seconds)</p>
+                                            <p className="font-medium">{formData.baseToken.emissionPeriodSecs || '-'}</p>
+                                        </div>
+                                        <div>
                                             <p className="text-sm text-slate-600">Decimals</p>
                                             <p className="font-medium">{formData.baseToken.decimals}</p>
                                         </div>
@@ -909,8 +930,6 @@ function CreateDaoPage() {
                                                         <p className="text-sm text-slate-600">Role: {member.role}</p>
                                                         <p className="text-sm text-slate-600">Reputation: {member.reputation}</p>
                                                         <p className="text-sm text-slate-600">ICP Principal: {member.icpPrincipal || '-'}</p>
-                                                        <p className="text-sm text-slate-600">Ethereum Address: {member.ethAddress || '-'}</p>
-                                                        <p className="text-sm text-slate-600">Solana Address: {member.solAddress || '-'}</p>
                                                     </div>
                                                     <div>
                                                         <p className="text-sm font-medium text-slate-700 mb-2">Token Distribution</p>

@@ -8,6 +8,7 @@ pub mod constants;
 pub mod dao;
 pub mod icrc;
 pub mod payment;
+pub mod status;
 pub mod user;
 
 mod bytes;

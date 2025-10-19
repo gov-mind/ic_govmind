@@ -1471,12 +1471,17 @@ dependencies = [
 name = "ic-govmind-types"
 version = "0.1.0"
 dependencies = [
+ "base64 0.22.1",
  "candid",
+ "ciborium",
+ "crc32fast",
  "evm_rpc_types",
+ "hex",
  "ic-cdk",
  "ic-cdk-timers",
  "ic-ledger-types",
  "icrc-ledger-types",
+ "num-traits",
  "serde",
  "serde_bytes",
  "serde_cbor",

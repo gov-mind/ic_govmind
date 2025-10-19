@@ -24,6 +24,7 @@ ic-error-types = "0.2"
 ciborium = "0.2.2"
 ciborium-io = "0.2.2"
 canlog = { version = "0.2.0", features = ["derive"] }
+crc32fast = "1.4"
 derive_more = "0.99.1"
 ethers-core = "2.0"
 bitcoin_hashes = "0.14.0"

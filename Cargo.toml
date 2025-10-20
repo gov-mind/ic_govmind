@@ -5,6 +5,7 @@ members = [
     "src/ic_govmind_factory",
     "src/ic_govmind_proposal_analyzer",
     "src/ic_govmind_sns",
+    "src/ic_govmind_hub",
     "src/evm_rpc_types",
 ]
 resolver = "2"

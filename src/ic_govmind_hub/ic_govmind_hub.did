@@ -1,0 +1,167 @@
+type Attribute = record { key : text; value : text };
+type AwardPrice = record { aid : text };
+type CanisterArgs = variant {
+  Upgrade : StateUpgradeArgs;
+  Init : StateInitArgs;
+};
+type DaoRole = variant {
+  Delegate;
+  Member;
+  Custom : text;
+  TreasurySigner;
+  Owner;
+  Voter;
+};
+type DaoRoleRecord = record {
+  role : DaoRole;
+  joined_at : nat64;
+  dao_canister : principal;
+};
+type Environment = variant { Production; Test };
+type NFT = record {
+  token_index : text;
+  canister_id : principal;
+  standard : text;
+};
+type PaymentInfo = record {
+  id : nat64;
+  token : text;
+  payment_type : PaymentType;
+  recipient : blob;
+  amount : nat64;
+  created_time : nat64;
+};
+type PaymentStatus = variant {
+  Refunded;
+  Paid;
+  Unpaid;
+  Cancelled;
+  TimedOut;
+  Verifying;
+};
+type PaymentType = variant {
+  Price : SubscriptionPrice;
+  CreationPrice : TokenPrice;
+  Verification : bool;
+  Award : AwardPrice;
+};
+type QueryCommonReq = record { page : nat64; size : nat64; sort : QuerySort };
+type QueryOrder = record {
+  id : nat64;
+  status : PaymentStatus;
+  token : text;
+  payment_type : PaymentType;
+  source : text;
+  verified_time : opt nat64;
+  recipient : blob;
+  amount_paid : nat64;
+  payer : principal;
+  shared_time : opt nat64;
+  amount : nat64;
+  created_time : nat64;
+};
+type QueryOrderResp = record {
+  total : nat64;
+  data : vec QueryOrder;
+  page : nat64;
+  has_more : bool;
+};
+type QuerySort = variant { TimeAsc; TimeDesc };
+type Result = variant { Ok : text; Err : text };
+type Result_1 = variant { Ok : nat8; Err : text };
+type Result_2 = variant { Ok : bool; Err : text };
+type Result_3 = variant { Ok : UserInfo; Err : text };
+type Result_4 = variant { Ok : opt PaymentInfo; Err : text };
+type StateInitArgs = record {
+  env : Environment;
+  owner : principal;
+  name : text;
+  factory_canister_id : principal;
+};
+type StateUpgradeArgs = record {
+  env : opt Environment;
+  owner : opt principal;
+  name : opt text;
+  factory_canister_id : opt principal;
+};
+type StatusRequest = record {
+  memory_size : bool;
+  cycles : bool;
+  heap_memory_size : bool;
+};
+type StatusResponse = record {
+  memory_size : opt nat64;
+  cycles : opt nat64;
+  heap_memory_size : opt nat64;
+};
+type SubscriptionPrice = record { price : nat64; sub_type : SubscriptionType };
+type SubscriptionType = variant {
+  Free;
+  Day180;
+  Day360;
+  Day30;
+  Day90;
+  Day1000;
+  Permanent;
+};
+type TokenPrice = record { price : nat64; token_name : text };
+type UpdateUserInfo = record {
+  bio : opt text;
+  born : opt nat64;
+  handler : opt text;
+  website : opt text;
+  genre : opt text;
+  location : opt text;
+  avatar : opt text;
+  confirm_agreement : opt bool;
+};
+type UserInfo = record {
+  bio : text;
+  nft : opt NFT;
+  pid : principal;
+  dao_roles : vec DaoRoleRecord;
+  updated_at : nat64;
+  created : nat64;
+  born : opt nat64;
+  handler : text;
+  email : text;
+  website : text;
+  trusted_ecdsa_pub_key : opt blob;
+  genre : text;
+  trusted_eddsa_pub_key : opt blob;
+  location : text;
+  avatar : text;
+  confirm_agreement : bool;
+};
+type WalletReceiveResult = record { accepted : nat64 };
+service : (opt CanisterArgs) -> {
+  __get_candid_interface_tmp_hack : () -> (text) query;
+  add_invite_code : (text) -> (Result);
+  add_invite_codes : (vec text) -> (Result_1);
+  add_user_attribute : (Attribute) -> (Result_2);
+  admin_login : (principal) -> (Result_3);
+  canister_account : () -> (text, blob) query;
+  canister_balance : () -> (nat64);
+  canister_get_status : (StatusRequest) -> (StatusResponse) query;
+  canister_transfer : (principal, nat64) -> (Result_2);
+  confirm_payment_order : (nat64) -> (Result_2);
+  create_payment_order : (text) -> (Result_4);
+  get_avatar : (opt principal) -> (text) query;
+  get_email : (opt principal) -> (text) query;
+  get_invite_codes : () -> (vec text) query;
+  get_user_count : () -> (nat64) query;
+  get_user_info : (principal) -> (opt UserInfo) query;
+  get_user_infos : (vec principal) -> (vec UserInfo) query;
+  get_user_pids : () -> (vec principal) query;
+  link_user_to_dao : (principal, DaoRole) -> (bool);
+  profile : () -> (opt UserInfo) query;
+  query_orders : (QueryCommonReq) -> (QueryOrderResp) query;
+  refund_payment_order : (nat64, blob) -> (Result_2);
+  set_avatar : (text) -> (Result_2);
+  set_email : (text) -> (Result_2);
+  set_public_key : (opt blob, opt blob) -> (Result_2);
+  set_user_info : (UpdateUserInfo) -> (Result_2);
+  user_login : () -> (Result_3);
+  wallet_balance : () -> (nat) query;
+  wallet_receive : () -> (WalletReceiveResult);
+}

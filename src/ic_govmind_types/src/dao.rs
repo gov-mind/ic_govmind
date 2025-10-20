@@ -9,6 +9,7 @@ use std::collections::HashMap;
 
 pub const MINTING_SUBACCOUNT: Subaccount = [1u8; 32];
 pub const HOLDER_SUBACCOUNT: Subaccount = [2u8; 32];
+pub const DAO_BASE_FEE: u64 = 100_000;
 
 #[derive(CandidType, Debug, Clone, Serialize, Deserialize)]
 pub struct Dao {

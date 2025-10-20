@@ -32,9 +32,19 @@ pub enum UserType {
 }
 
 #[derive(CandidType, Deserialize, Serialize, Clone, Debug)]
+pub enum DaoRole {
+    Owner,
+    Member,
+    Voter,
+    Delegate,
+    TreasurySigner,
+    Custom(String),
+}
+
+#[derive(CandidType, Deserialize, Serialize, Clone, Debug)]
 pub struct DaoRoleRecord {
     pub dao_canister: Principal,
-    pub role: String, // Owner / Member / Voter / Delegate / TreasurySigner ...
+    pub role: DaoRole,
     pub joined_at: u64,
 }
 
@@ -82,6 +92,7 @@ impl User {
             confirm_agreement: self.confirm_agreement,
             trusted_ecdsa_pub_key: self.trusted_ecdsa_pub_key.clone(),
             trusted_eddsa_pub_key: self.trusted_eddsa_pub_key.clone(),
+            dao_roles: self.dao_roles.clone(),
             created: self.created,
             updated_at: self.updated_at,
         }
@@ -148,7 +159,7 @@ impl User {
         self.last_login_at = ic_cdk::api::time();
     }
 
-    pub fn add_dao_role(&mut self, dao: Principal, role: String) {
+    pub fn add_dao_role(&mut self, dao: Principal, role: DaoRole) {
         self.dao_roles.push(DaoRoleRecord {
             dao_canister: dao,
             role,
@@ -160,6 +171,23 @@ impl User {
         if !self.system_tags.contains(&tag.to_string()) {
             self.system_tags.push(tag.to_string());
         }
+    }
+
+    pub fn link_user_to_dao(&mut self, dao: Principal, role: DaoRole) {
+        if let Some(existing) = self.dao_roles.iter_mut().find(|r| r.dao_canister == dao) {
+            existing.role = role;
+        } else {
+            self.dao_roles.push(DaoRoleRecord {
+                dao_canister: dao,
+                role,
+                joined_at: ic_cdk::api::time(),
+            });
+        }
+        self.updated_at = ic_cdk::api::time();
+    }
+
+    pub fn get_dao_roles(&self) -> Vec<DaoRoleRecord> {
+        self.dao_roles.clone()
     }
 }
 
@@ -178,6 +206,7 @@ pub struct UserInfo {
     pub confirm_agreement: bool,
     pub trusted_ecdsa_pub_key: Option<ByteBuf>,
     pub trusted_eddsa_pub_key: Option<ByteN<32>>,
+    pub dao_roles: Vec<DaoRoleRecord>,
     pub created: u64,
     pub updated_at: u64,
 }

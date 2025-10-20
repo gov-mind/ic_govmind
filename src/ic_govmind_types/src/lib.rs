@@ -6,6 +6,7 @@ use serde::Serialize;
 pub mod chain;
 pub mod constants;
 pub mod dao;
+pub mod error;
 pub mod icrc;
 pub mod payment;
 pub mod status;
